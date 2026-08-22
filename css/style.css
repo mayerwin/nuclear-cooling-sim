@@ -216,15 +216,21 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--
 }
 @media (max-width:860px){
   .only-mobile{display:inline-flex}
-  .brand h1{font-size:13px}.brand p{max-width:38vw}
-  #topbar{height:54px;gap:8px;padding:0 8px}
-  .clk{font-size:15px}.clklbl{display:none}
-  .speeds{padding:3px}.speeds button{padding:6px 6px;min-width:28px;font-size:10px}
-  .panel{position:fixed;left:0;right:0;width:auto!important;top:auto;bottom:0;max-height:64vh;
+  .brand h1,.brand p{display:none}
+  .brand{flex:none}
+  #topbar{height:50px;gap:6px;padding:0 7px}
+  .clock{margin-left:6px}
+  .clk{font-size:14px}.clklbl{display:none}
+  .speeds{padding:2px;margin-left:auto}
+  .speeds button{padding:6px 4px;min-width:24px;font-size:9px}
+  .btn.ghost{padding:7px 9px;font-size:13px}
+  #btnPanels{display:none}
+  .panel{position:fixed;left:0;right:0;width:auto!important;top:auto;bottom:0;max-height:70vh;
     border-radius:16px 16px 0 0;transform:translateY(102%);transition:transform .28s cubic-bezier(.3,1,.4,1);
     z-index:40;padding-bottom:env(safe-area-inset-bottom)}
   .panel.show{transform:translateY(0)}
-  #feed{left:8px;right:8px;bottom:58px;height:46px}
+  #feed{left:8px;right:8px;bottom:58px;height:52px}
+  #feedInner{font-size:10.5px;padding:6px 9px}
   #feed.show{bottom:58px}
   #mobileTabs{display:flex;position:fixed;left:0;right:0;bottom:0;height:52px;z-index:45;
     background:rgba(7,12,19,.96);border-top:1px solid var(--line);
@@ -235,4 +241,18 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--
   .cols{grid-template-columns:1fr}
   .modal{padding:18px;border-radius:14px}
   .modal h2{font-size:17px}
+}
+
+.grace{margin-top:6px;font-size:10px;font-weight:700;letter-spacing:.3px;color:#ffd9a0;
+  background:rgba(255,196,77,.1);border:1px solid rgba(255,196,77,.25);border-radius:6px;
+  padding:4px 7px;display:inline-block}
+.card.pas .grace{color:#a8ecff;background:rgba(87,217,255,.1);border-color:rgba(87,217,255,.25)}
+
+@media (max-width:520px){
+  .speeds button:nth-child(2),.speeds button:nth-child(5){display:none}
+  .clk{font-size:13px}
+  #topbar{gap:5px}
+}
+@media (max-width:400px){
+  .speeds button:nth-child(3){display:none}
 }

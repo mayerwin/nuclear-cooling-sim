@@ -54,11 +54,9 @@ export function drawProp(ctx, p, world, time) {
   const R = mulberry32(p.seed | 0);
   const contam = world.contam[world.idx(clamp(p.x | 0, 0, 47), clamp(p.y | 0, 0, 47))] || 0;
   const dead = clamp(contam * 0.9 + (1 - p.hp), 0, 1);
-  const PF = window.__prof; const q0 = PF ? performance.now() : 0;
-  const done = () => { if (PF) PF['t_' + p.type] = (PF['t_' + p.type] || 0) + (performance.now() - q0); };
   switch (p.type) {
-    case 'tree': { const r = tree(ctx, p, R, dead, time); done(); return r; }
-    case 'house': { const r = house(ctx, p, R, dead, contam); done(); return r; }
+    case 'tree': return tree(ctx, p, R, dead, time);
+    case 'house': return house(ctx, p, R, dead, contam);
     case 'boat': return boat(ctx, p, R, time);
     case 'lamp': return lamp(ctx, p, world);
   }

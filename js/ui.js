@@ -85,7 +85,7 @@ export class UI {
         const m = b.dataset.cam;
         if (m === 'active') this.sim.cam.focus(s.active.x + 7, s.active.y + 7, 1.05);
         else if (m === 'passive') this.sim.cam.focus(s.passive.x + 7, s.passive.y + 7, 1.05);
-        else this.sim.cam.focus(24, 24, 0.66);
+        else this.sim.overview();
         this.sim.cine = null;
       };
     });
@@ -187,12 +187,21 @@ export class UI {
         this.gauge('Hydrogen generated', p.h2.toFixed(0), ' kg', clamp((p.h2 + p.h2Building) / 900, 0, 1), [0.05, 0.25]) +
         this.gauge('Core damage', (p.coreDamage * 100).toFixed(1), ' %', p.coreDamage, [0.01, 0.2]) +
         this.gauge('Cs-137 released', cons.pbq < 0.01 ? cons.pbq.toExponential(1) : cons.pbq.toFixed(2),
-          ' PBq', clamp(Math.log10(1 + cons.pbq) / 2, 0, 1), [0.01, 0.2]);
+          ' PBq', clamp(Math.log10(1 + cons.pbq) / 2, 0, 1), [0.01, 0.2]) +
+        (i === 0
+          ? this.gauge('DC battery charge (8 h)', (p.battery * 100).toFixed(0), '%',
+            p.battery, [0.5, 0.15], true)
+          : this.gauge('Gravity tank PCCWST (72 h)', (p.pccwst / 3e4).toFixed(0), '%',
+            p.pccwst / 3e6, [0.5, 0.15], true));
 
       const paths = p.paths && p.paths.length
         ? p.paths.map(x => `<div class="p">${x}</div>`).join('')
         : '<div class="none">⛔ NO HEAT REMOVAL PATH AVAILABLE</div>';
-      c.paths.innerHTML = paths;
+      const grace = i === 0
+        ? (p.acPower ? null : `${(p.battery * p.batteryHours).toFixed(1)} h of battery left`)
+        : `${(72 * (p.pccwst / 3e6)).toFixed(0)} h before anyone has to do anything`;
+      c.paths.innerHTML = paths + (grace
+        ? `<div class="grace">\u23f1 ${grace}</div>` : '');
       c.alarms.innerHTML = p.alarms.map(a => `<span class="alarm">${a}</span>`).join('');
     });
 

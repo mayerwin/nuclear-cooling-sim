@@ -79,8 +79,7 @@ export class Renderer {
     const key = `${CW}x${CH}x${Math.round(gloom * 24)}`;
     if (this.bgKey !== key) this.makeBackdrop(CW, CH, gloom, key);
     ctx.drawImage(this.bgCanvas, 0, 0);
-    const PF = window.__prof; const mk = PF ? (k, t0) => { PF[k] = (PF[k] || 0) + (performance.now() - t0); } : () => { };
-    let _t = performance.now();
+
 
     cam.applyTransform(ctx);
 
@@ -93,14 +92,11 @@ export class Renderer {
     // ---- ocean ----
     this.drawOcean(ctx, sim, view);
 
-    mk('sky+ocean', _t); _t = performance.now();
     // ---- terrain + baked layers (visible sub-rectangle only) ----
     const bb = w.bakeBox;
     this.blit(ctx, w.terrainCanvas, bb, view);
-    mk('terrain', _t); _t = performance.now();
     if (w.overlayCanvas && w.hasOverlay) this.blit(ctx, w.overlayCanvas, bb, view);
     if (w.propsCanvas) this.blit(ctx, w.propsCanvas, bb, view);
-    mk('overlay', _t); _t = performance.now();
 
     // ---- flood water on land ----
     if (sim.tsunami && sim.tsunami.active) this.drawFlood(ctx, sim, view);
@@ -120,15 +116,10 @@ export class Renderer {
     if (live !== w.liveCount) { w.liveCount = live; w.dirtyProps = true; }
     for (const v of sim.views) v.collect(list, w, 'live');
     list.sort((a, b) => a.d - b.d);
-    mk('collect', _t); _t = performance.now();
-    let tp = 0, ts2 = 0;
     for (const it of list) {
-      const q0 = PF ? performance.now() : 0;
-      if (it.p) { drawProp(ctx, it.p, w, sim.visTime); if (PF) tp += performance.now() - q0; }
-      else { it.fn(ctx); if (PF) ts2 += performance.now() - q0; }
+      if (it.p) drawProp(ctx, it.p, w, sim.visTime);
+      else it.fn(ctx);
     }
-    if (PF) { PF.props = (PF.props || 0) + tp; PF.struct = (PF.struct || 0) + ts2; }
-    mk('solids', _t); _t = performance.now();
 
     // second water pass so the flood visibly washes over what it swallowed
     if (sim.tsunami && sim.tsunami.active) this.drawFlood(ctx, sim, view, 1);

@@ -343,7 +343,7 @@ export class Plant {
       if (this.pccwst > 0) this.pccwst = Math.max(0, this.pccwst - dt * (ctmtRemoval / 2.3e6) * 0.6);
       this.paths.push(this.pccwst > 0
         ? 'PCCS - air draught + gravity water film' : 'PCCS - air-cooled only');
-    } else if (acPower && this.pumpsOk && this.uhs) {
+    } else if (acPower && this.uhs) {
       ctmtRemoval = 34e6 * clamp((this.Tctmt - 315) / 40, 0, 1.4);
       this.paths.push('Containment sprays / fan coolers');
     } else {
@@ -381,14 +381,21 @@ export class Plant {
 
     // ---- hydrogen migration and deflagration ------------------------------
     if (this.h2 > 0) {
-      const leak = this.h2 * (this.ctmtIntact ? 2.2e-5 * (this.pCtmt / 0.4) : 4e-3) * dt;
+      // An intact, sub-design-pressure containment holds its hydrogen. The
+      // leak path opens when it is over-pressurised, vented (this is how
+      // Fukushima filled its reactor buildings) or already broken.
+      let leakK;
+      if (!this.ctmtIntact) leakK = 4e-3;
+      else if (this.vented) leakK = 2.6e-4;
+      else leakK = 1e-7 + 5e-5 * clamp((this.pCtmt - 0.45) / 0.3, 0, 1);
+      const leak = this.h2 * leakK * dt;
       this.h2 -= leak;
       this.h2Building += leak * (P ? 0.15 : 1.0);
       // AP1000-class designs carry passive autocatalytic recombiners and an
       // enormous free volume. A Mark-I reactor building had neither.
       if (P) this.h2Building = Math.max(0, this.h2Building - dt * 0.02);
     }
-    const h2Limit = P ? 420 : 55;
+    const h2Limit = P ? 420 : 110;
     if (this.h2Building > h2Limit && this.explosions < 3) {
       this.explosions++;
       this.h2Building = 0;
@@ -443,7 +450,8 @@ export class Plant {
     else if (!acPower) {
       st = (P && this.coolingMargin >= 0.99 && !this.sabotaged)
         ? 'SAFE - PASSIVE COOLING' : 'STATION BLACKOUT';
-    } else if (this.coolingMargin < 0.98) st = 'DEGRADED COOLING';
+    } else if (!this.uhs && !P) st = 'ULTIMATE HEAT SINK LOST';
+    else if (this.coolingMargin < 0.98) st = 'DEGRADED COOLING';
     else if (this.scrammed) {
       st = (P && (this.adsFired || this.gravityInj || this.prhrRunning))
         ? 'SAFE - PASSIVE COOLING' : 'SHUT DOWN - STABLE';
@@ -475,6 +483,7 @@ export class Plant {
     if (pbq > 40) return 7;
     if (pbq > 4) return 6;
     if (pbq > 0.4) return 5;
+    if (this.vesselBreach || this.coreDamage > 0.5) return 5;
     if (pbq > 0.005 || this.coreDamage > 0.05) return 4;
     if (this.coreDamage > 0.001 || this.explosions) return 3;
     if (!/NORMAL|SAFE|STABLE/.test(this.state)) return 2;

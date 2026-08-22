@@ -30,10 +30,21 @@ export class Sim {
     this.cine = null;
     this.tsunami = null;
     this.makePlants();
-    this.cam.x = 24; this.cam.y = 24;
-    this.cam.tx = 24; this.cam.ty = 24;
-    this.cam.targetZoom = 0.66; this.cam.zoom = 0.66;
+    this.cam.x = 26; this.cam.y = 26;
+    this.cam.tx = 26; this.cam.ty = 26;
+    this.cam.targetZoom = this.fitZoom(); this.cam.zoom = this.cam.targetZoom;
   }
+
+  // Frame both stations regardless of screen shape: on a phone the side
+  // panels are gone, so more of the canvas is actually usable.
+  fitZoom() {
+    const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+    const wide = this.cam.w / dpr > 860;
+    const usable = this.cam.w - (wide ? 680 * dpr : 20 * dpr);
+    return clamp(usable / (wide ? 1360 : 1150), 0.34, 0.95);
+  }
+
+  overview() { this.cam.focus(26, 26, this.fitZoom()); }
 
   makePlants() {
     const s = this.world.sites;
@@ -130,7 +141,7 @@ export class Sim {
     if (sc.tsunami) this.tsunamiCfg = sc.tsunami; else this.tsunamiCfg = null;
     this.announce(`SCENARIO: ${sc.name} — ${sc.ref}`, 'crit');
     this.speedIdx = 5;
-    this.cam.focus(24, 24, 0.66);
+    this.overview();
   }
 
   // A cinematic drops the clock to near-real-time so a violent event is
@@ -180,7 +191,7 @@ export class Sim {
       this.cine.t += rdt;
       if (this.cine.t > this.cine.dur) {
         this.cine = null;
-        this.cam.focus(24, 24, 0.66);
+        this.overview();
       }
     }
 
