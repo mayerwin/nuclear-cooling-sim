@@ -440,10 +440,17 @@ export class World {
         g.fillStyle = `rgba(${30 + 20 * (1 - sc) | 0},${24 + 16 * (1 - sc) | 0},${20 + 12 * (1 - sc) | 0},${Math.min(0.92, sc)})`;
         g.fill();
       }
+      const fl = this.flood[i];
+      if (fl > 0.02) {
+        g.fillStyle = `rgba(52,84,96,${Math.min(0.62, 0.24 + fl * 0.32)})`;
+        g.fill();
+        g.strokeStyle = 'rgba(150,196,214,0.35)'; g.lineWidth = 1;
+        g.stroke();
+      }
       if (cm > 0.01) {
         // yellowed, dying vegetation, then a dusty caesium sheen on top
-        const t = Math.min(1, cm / 1.4);
-        g.fillStyle = `rgba(${140 + 62 * t | 0},${152 + 58 * t | 0},${58 * (1 - t) + 26 | 0},${0.22 + 0.5 * t})`;
+        const t = Math.min(1, cm / 1.2);
+        g.fillStyle = `rgba(${152 + 60 * t | 0},${164 + 54 * t | 0},${54 * (1 - t) + 22 | 0},${0.34 + 0.5 * t})`;
         g.fill();
         if (t > 0.55) {
           g.save(); g.clip();

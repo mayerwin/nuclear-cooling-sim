@@ -46,7 +46,10 @@ export class Sim {
     const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
     const wide = this.cam.w / dpr > 860;
     const usable = this.cam.w - (wide ? 680 * dpr : 20 * dpr);
-    return clamp(usable / (wide ? 1360 : 1150), 0.34, 0.95);
+    // fit the island in BOTH axes rather than cropping the tips off a phone
+    const usableH = this.cam.h - (wide ? 150 : 230) * dpr;
+    return clamp(Math.min(usable / (wide ? 1360 : 1120), usableH / (wide ? 900 : 1150)),
+      0.30, 0.95);
   }
 
   overview() { this.cam.focus(26, 26, this.fitZoom()); }
@@ -61,13 +64,16 @@ export class Sim {
     let cx, cy, contentW;
     const focus = wide ? this.cutFocus : (this.cutFocus === 'both' ? 'active' : this.cutFocus);
     // section centre u = 6.5 maps to grid (ox + 3.25, oy - 3.25)
-    if (focus === 'active') { cx = 4.0; cy = -4.0; contentW = 520; }
-    else if (focus === 'passive') { cx = 4.0 + 8.75; cy = -4.0 - 8.75; contentW = 520; }
-    else { cx = 3.25 + 4.375; cy = -3.25 - 4.375; contentW = 1010; }
+    // content spans section u = -0.6 .. 16.1, and the two sections are 17.5
+    // grid units apart in (x - y)
+    if (focus === 'active') { cx = 3.9; cy = -3.9; contentW = 570; }
+    else if (focus === 'passive') { cx = 3.9 + 8.75; cy = -3.9 - 8.75; contentW = 570; }
+    else { cx = 3.9 + 4.375; cy = -3.9 - 4.375; contentW = 1110; }
     const zoom = clamp(Math.min(usable / contentW, usableH / 660), 0.34, 2.2);
     // The section is all above z = 0, so centre it by hand: the camera looks at
     // the ground plane and would otherwise put the whole building off the top.
-    this.cutCam.ox = 0;
+    // centre in the band between the panels, not in the canvas
+    this.cutCam.ox = wide ? -20 * dpr : 0;
     this.cutCam.oy = 225 * zoom + (wide ? 22 : -16) * dpr;
     if (snap) this.cutCam.snap(cx, cy, zoom); else this.cutCam.focus(cx, cy, zoom);
   }
@@ -131,6 +137,8 @@ export class Sim {
   }
 
   announce(msg, kind = 'info') {
+    const last = this.feed[this.feed.length - 1];
+    if (last && last.msg === msg) { last.n = (last.n || 1) + 1; last.t = this.t; this.onFeed && this.onFeed(); return; }
     this.feed.push({ t: this.t, msg, kind });
     if (this.feed.length > 120) this.feed.shift();
     this.onFeed && this.onFeed();
@@ -318,7 +326,29 @@ export class Sim {
       ts.retreat += rdt;
       ts.level = Math.max(0, ts.height * (1 - smoothstep(3, 16, ts.retreat)));
       ts.front = Math.max(this.world.shore - 2, ts.front - rdt * 4);
-      if (ts.level <= 0.001) { this.tsunami.active = false; }
+      if (ts.level <= 0.001) {
+        // the water goes, the damage does not: leave standing pools on the
+        // low ground and debris across everything the wave reached
+        if (!ts.settled) {
+          ts.settled = true;
+          const w = this.world;
+          for (let y = 0; y < 48; y++) {
+            for (let x = 0; x < 48; x++) {
+              const i = w.idx(x, y);
+              if (x + y > ts.cfg.height * 7 + w.shore + 14) continue;
+              if (w.type[i] === 0) continue;
+              if (w.z[i] < ts.height * 0.55) {
+                w.flood[i] = ts.height * 0.55 - w.z[i];
+                w.scorch[i] = Math.min(0.55, w.scorch[i] + 0.28);
+                w.hasOverlay = true;
+              }
+            }
+          }
+          w.dirtyOverlay = true;
+          this.announce('The water has gone. The site is wrecked, wet and inaccessible.', 'crit');
+        }
+        this.tsunami.active = false;
+      }
     }
   }
 

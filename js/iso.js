@@ -369,7 +369,7 @@ export function cone(ctx, o) {
   ctx.beginPath();
   ctx.moveTo(t.x, t.y);
   ctx.lineTo(b.x - rx, b.y);
-  ctx.ellipse(b.x, b.y, rx, ry, 0, Math.PI, 0, false);
+  ctx.ellipse(b.x, b.y, rx, ry, 0, Math.PI, 0, true);   // near half of the base
   ctx.closePath();
   ctx.fillStyle = shade(o.color, 0.84); ctx.fill();
   ctx.save(); ctx.clip();
@@ -387,16 +387,16 @@ export function cone(ctx, o) {
 
 // Soft ground shadow, drawn from a cached sprite.
 let shadowSpr = null;
-export function shadow(ctx, x, y, z, rx, ry, a = 0.26) {
+export function shadow(ctx, x, y, z, rx, ry, a = 0.42) {
   if (!shadowSpr) {
     const S = 128;
     const c = document.createElement('canvas');
     c.width = c.height = S;
     const g = c.getContext('2d');
     const grd = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
-    grd.addColorStop(0, 'rgba(24,32,26,1)');
-    grd.addColorStop(0.55, 'rgba(24,32,26,0.5)');
-    grd.addColorStop(1, 'rgba(24,32,26,0)');
+    grd.addColorStop(0, 'rgba(28,38,30,1)');
+    grd.addColorStop(0.5, 'rgba(28,38,30,0.62)');
+    grd.addColorStop(1, 'rgba(28,38,30,0)');
     g.fillStyle = grd; g.beginPath(); g.arc(S / 2, S / 2, S / 2, 0, Math.PI * 2); g.fill();
     shadowSpr = c;
   }

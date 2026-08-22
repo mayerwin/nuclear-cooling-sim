@@ -90,6 +90,8 @@ export class UI {
         if (sim.view === 'cut') {
           sim.cutFocus = m === 'both' ? 'both' : m;
           sim.fitCut();
+          document.querySelectorAll('[data-cut]').forEach(x =>
+            x.classList.toggle('on', x.dataset.cut === sim.cutFocus));
           return;
         }
         if (m === 'active') sim.cam.focus(s.active.x + 7, s.active.y + 7, 1.15);
@@ -104,12 +106,27 @@ export class UI {
       $('#viewSite').classList.toggle('on', v === 'site');
       $('#viewCut').classList.toggle('on', v === 'cut');
       document.body.classList.toggle('cutmode', v === 'cut');
+      if (v === 'cut') {
+        const wide = window.innerWidth > 860;
+        this.sim.cutFocus = wide ? 'both' : 'active';
+        this.sim.fitCut(true);
+        document.querySelectorAll('[data-cut]').forEach(x =>
+          x.classList.toggle('on', x.dataset.cut === this.sim.cutFocus));
+      }
       $('#viewHint').innerHTML = v === 'cut'
         ? 'Every moving line is a flow the model computed. When a loop stops here, it stopped there.'
         : 'Switch to <b>Cutaway</b> to watch the water, steam and hydrogen move inside each containment.';
     };
     $('#viewSite').onclick = () => setView('site');
     $('#viewCut').onclick = () => setView('cut');
+    document.querySelectorAll('[data-cut]').forEach(b => {
+      b.onclick = () => {
+        this.sim.cutFocus = b.dataset.cut;
+        this.sim.fitCut();
+        document.querySelectorAll('[data-cut]').forEach(x =>
+          x.classList.toggle('on', x === b));
+      };
+    });
 
     // ---- top actions ----
     $('#btnReset').onclick = () => {
@@ -206,7 +223,8 @@ export class UI {
         this.gauge('Heat removed / produced', (p.coolingMargin * 100).toFixed(0), '%',
           clamp(p.coolingMargin, 0, 1), [0.98, 0.6], true) +
         this.gauge('Containment pressure', p.pCtmt.toFixed(2), ' MPa', clamp(p.pCtmt / 1.1, 0, 1), [0.38, 0.62]) +
-        this.gauge('Hydrogen generated', p.h2.toFixed(0), ' kg', clamp((p.h2 + p.h2Building) / 900, 0, 1), [0.05, 0.25]) +
+        this.gauge('Hydrogen generated', (p.h2 + p.h2Building).toFixed(0), ' kg',
+          clamp((p.h2 + p.h2Building) / 900, 0, 1), [0.05, 0.25]) +
         this.gauge('Core damage', (p.coreDamage * 100).toFixed(1), ' %', p.coreDamage, [0.01, 0.2]) +
         this.gauge('Cs-137 released', cons.pbq < 0.01 ? cons.pbq.toExponential(1) : cons.pbq.toFixed(2),
           ' PBq', clamp(Math.log10(1 + cons.pbq) / 2, 0, 1), [0.01, 0.2]) +
@@ -219,9 +237,10 @@ export class UI {
       const paths = p.paths && p.paths.length
         ? p.paths.map(x => `<div class="p">${x}</div>`).join('')
         : '<div class="none">⛔ NO HEAT REMOVAL PATH AVAILABLE</div>';
-      const grace = i === 0
+      const wrecked = p.coreDamage > 0.01 || !p.ctmtIntact;
+      const grace = wrecked ? null : (i === 0
         ? (p.acPower ? null : `${(p.battery * p.batteryHours).toFixed(1)} h of battery left`)
-        : `${(72 * (p.pccwst / 3e6)).toFixed(0)} h before anyone has to do anything`;
+        : `${(72 * (p.pccwst / 3e6)).toFixed(0)} h before anyone has to do anything`);
       c.paths.innerHTML = paths + (grace
         ? `<div class="grace">\u23f1 ${grace}</div>` : '');
       c.alarms.innerHTML = p.alarms.map(a => `<span class="alarm">${a}</span>`).join('');
@@ -291,7 +310,7 @@ export class UI {
     const f = this.sim.feed;
     const host = document.querySelector('#feedInner');
     host.innerHTML = f.slice(-40).reverse().map(e =>
-      `<div class="ev ${e.kind}"><span class="tm">${fmtTime(e.t)}</span><span class="tx">${e.msg}</span></div>`
+      `<div class="ev ${e.kind}"><span class="tm">${fmtTime(e.t)}</span><span class="tx">${e.msg}${e.n > 1 ? ` <b class="xn">\u00d7${e.n}</b>` : ''}</span></div>`
     ).join('');
   }
 }

@@ -96,10 +96,21 @@ export class CutawayView {
       ctx.fillStyle = shade(o.liquid || '#2f7fd0', 1.3);
       ctx.fill();
     }
-    if (o.steam && lv < z1 - 0.02) {
+    if (lv < z1 - 0.02) {
+      // whatever is above the water is NOT water: dark, with a steam haze
       const surf = this.P(u, lv);
-      ctx.fillStyle = `rgba(228,238,246,${0.08 + 0.16 * o.steam})`;
-      ctx.fillRect(top.x - rx - 1, top.y - ry, rx * 2 + 2, surf.y - (top.y - ry));
+      ctx.fillStyle = 'rgba(10,14,19,0.72)';
+      ctx.fillRect(top.x - rx - 1, top.y - ry - 2, rx * 2 + 2, surf.y - (top.y - ry) + 2);
+      if (o.steam) {
+        ctx.fillStyle = `rgba(200,216,228,${0.06 + 0.13 * o.steam})`;
+        ctx.fillRect(top.x - rx - 1, top.y - ry - 2, rx * 2 + 2, surf.y - (top.y - ry) + 2);
+      }
+      // a bright waterline so the level is unmissable
+      ctx.strokeStyle = shade(o.liquid || '#2f7fd0', 1.5);
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.ellipse(surf.x, surf.y, rx, ry, 0, Math.PI, 0, false);
+      ctx.stroke();
     }
     if (o.inner) o.inner(ctx);
     ctx.restore();
@@ -260,7 +271,21 @@ export class CutawayView {
   }
 
   flushTags(ctx) {
-    for (const t of this.tagQ) this.paintTag(ctx, t);
+    ctx.font = '600 10px ui-sans-serif, system-ui, sans-serif';
+    const placed = [];
+    for (const t of this.tagQ) {
+      const w = ctx.measureText(t.text).width + 12;
+      for (let k = 0; k < 12; k++) {
+        let hit = false;
+        for (const q of placed) {
+          if (Math.abs(q.x - t.x) < (q.w + w) / 2 + 5 && Math.abs(q.y - t.y) < 19) { hit = true; break; }
+        }
+        if (!hit) break;
+        t.y -= 19;
+      }
+      placed.push({ x: t.x, y: t.y, w });
+      this.paintTag(ctx, t);
+    }
     this.tagQ.length = 0;
   }
 
@@ -271,14 +296,17 @@ export class CutawayView {
     ctx.font = '600 10px ui-sans-serif, system-ui, sans-serif';
     const w = ctx.measureText(text).width + 12;
     const y = p.y;
-    ctx.fillStyle = tone === 'hot' ? 'rgba(74,20,14,0.9)'
-      : tone === 'ok' ? 'rgba(10,44,28,0.88)' : 'rgba(12,20,28,0.86)';
+    ctx.fillStyle = tone === 'hot' ? 'rgba(74,20,14,0.92)'
+      : tone === 'warn' ? 'rgba(72,50,10,0.92)'
+        : tone === 'ok' ? 'rgba(10,44,28,0.9)' : 'rgba(12,20,28,0.88)';
     rr(ctx, p.x - w / 2, y - 8, w, 16, 4); ctx.fill();
-    ctx.strokeStyle = tone === 'hot' ? 'rgba(255,120,90,0.6)'
-      : tone === 'ok' ? 'rgba(99,224,138,0.55)' : 'rgba(150,200,230,0.35)';
+    ctx.strokeStyle = tone === 'hot' ? 'rgba(255,120,90,0.65)'
+      : tone === 'warn' ? 'rgba(255,196,77,0.6)'
+        : tone === 'ok' ? 'rgba(99,224,138,0.55)' : 'rgba(150,200,230,0.35)';
     ctx.lineWidth = 1;
     rr(ctx, p.x - w / 2, y - 8, w, 16, 4); ctx.stroke();
-    ctx.fillStyle = tone === 'hot' ? '#ffd6c9' : tone === 'ok' ? '#c9f7d9' : '#d8e8f4';
+    ctx.fillStyle = tone === 'hot' ? '#ffd6c9' : tone === 'warn' ? '#ffe3ab'
+      : tone === 'ok' ? '#c9f7d9' : '#d8e8f4';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(text, p.x, y);
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
@@ -322,11 +350,13 @@ export class CutawayView {
     const p = this.plant, s = p.sys || {};
     this.shell(ctx);
 
-    const rpv = { u: 3.7, r: 1.05, z0: 1.7, z1: 6.7 };
+    const rpv = { u: this.passive ? 4.9 : 3.7, r: 1.05, z0: 1.7, z1: 6.7 };
     const coreZ0 = 2.4, coreZ1 = 4.4;
-    const surf = coreZ0 + Math.max(0, Math.min(1, p.level)) * (rpv.z1 - 0.6 - coreZ0);
+    // 0% means the vessel is empty, not 'empty down to the core'
+    const surf = rpv.z0 + Math.max(0, Math.min(1, p.level)) * (rpv.z1 - 0.6 - rpv.z0);
     const wt = Math.min(640, p.Tclad);
 
+    this.atmosphere(ctx, time);          // gas fills the space behind the kit
     if (this.passive) this.passiveScene(ctx, rpv, surf, time);
     else this.activeScene(ctx, rpv, surf, time);
 
@@ -349,7 +379,7 @@ export class CutawayView {
     }
     this.caption(ctx, rpv.u, rpv.z0 - 0.45, 'reactor vessel');
 
-    this.atmosphere(ctx, time);
+    this.breachMarks(ctx, time);
     this.powerSpine(ctx, time);
     this.readouts(ctx, rpv, surf);
     this.flushCaptions(ctx);
@@ -385,7 +415,7 @@ export class CutawayView {
     ctx.lineTo(C.x, C.y);
     ctx.stroke();
     ctx.strokeStyle = 'rgba(20,18,16,0.45)'; ctx.lineWidth = 1; ctx.stroke();
-    this.caption(ctx, 6.5, inner.apex + 0.55,
+    this.caption(ctx, P_ ? 1.6 : 6.5, P_ ? 11.6 : inner.apex + 0.6,
       P_ ? 'steel containment vessel' : 'reinforced concrete containment');
 
     if (P_) {
@@ -400,7 +430,7 @@ export class CutawayView {
       ctx.lineTo(c1.x, c1.y);
       ctx.stroke();
       ctx.strokeStyle = 'rgba(20,18,16,0.4)'; ctx.lineWidth = 1; ctx.stroke();
-      this.caption(ctx, 6.5, 15.35, 'shield building + air chimney');
+      this.caption(ctx, 10.2, 12.35, 'shield building + chimney');
     }
     ctx.lineWidth = 1;
   }
@@ -503,14 +533,17 @@ export class CutawayView {
       this.pipe(ctx, [[u, 3.0], [u, 2.35], [rpv.u + 0.8, rpv.z0 + 0.8]],
         { w: 4.5, color: '#2f7fd0', flow: s.accum, phase: time });
     }
-    this.caption(ctx, 11.1, 5.2, 'accumulators (~1 min)');
+    this.caption(ctx, 11.1, 5.35, 'accumulators (~1 min)');
 
     // emergency injection - a pump, and a pump needs a bus
     const inj = s.aux > 0;
     this.pipe(ctx, [[1.4, 2.4], [2.3, 2.4], [rpv.u - 0.9, rpv.z0 + 0.5]],
       { w: 6, color: '#2f7fd0', flow: inj ? 1 : 0, phase: time });
     this.pump(ctx, 1.4, 2.4, inj, time);
-    this.tag(ctx, 2.0, 3.5, inj ? 'ECCS ON' : 'ECCS OFF', inj ? 'ok' : 'hot');
+    const needed = p.scrammed && p.coolingMargin < 1.0;
+    this.tag(ctx, 2.0, 3.5,
+      inj ? 'ECCS RUNNING' : needed ? 'ECCS CANNOT RUN' : 'ECCS standby',
+      inj ? 'ok' : needed ? 'hot' : null);
 
     // containment sprays, which also need that bus
     if (s.sprays > 0) {
@@ -552,7 +585,7 @@ export class CutawayView {
       level: 0.55 + 1.1 * (s.gravity ? 1 : 0.45), liquid: tempColor(p.Tctmt)
     });
 
-    const sg = { u: 9.1, r: 0.92, z0: 1.7, z1: 8.6 };
+    const sg = { u: 9.3, r: 0.92, z0: 1.7, z1: 8.6 };
     this.vessel(ctx, {
       u: sg.u, r: sg.r, z0: sg.z0, z1: sg.z1, level: sg.z0 + 4.5,
       liquid: tempColor(552), wall: STEEL, head: true, steam: 1
@@ -567,7 +600,7 @@ export class CutawayView {
     this.pump(ctx, rpv.u + 2.2, sg.z0 - 0.5, s.rcp > 0, time);
 
     // IRWST: 2,000 t of borated water, inside containment, above the core
-    const irw = { u0: 0.95, u1: 5.0, z0: 6.3, z1: 9.3 };
+    const irw = { u0: 0.95, u1: 3.5, z0: 6.3, z1: 9.3 };
     const irwLvl = irw.z0 + (irw.z1 - irw.z0) * Math.max(0.08, Math.min(1, p.irwst / 2.1e6));
     this.pool(ctx, {
       u0: irw.u0, u1: irw.u1, z0: irw.z0, z1: irw.z1,
@@ -576,29 +609,29 @@ export class CutawayView {
     this.caption(ctx, (irw.u0 + irw.u1) / 2, irw.z1 + 0.55, 'IRWST 2,000 t');
 
     // PRHR heat exchanger, a coil in that pool on a thermosiphon
-    const hx = { u: 2.6, z0: irw.z0 + 0.4, z1: irw.z1 - 0.5 };
+    const hx = { u: 2.2, z0: irw.z0 + 0.4, z1: irw.z1 - 0.5 };
     ctx.strokeStyle = s.prhr > 0 ? tempColor(Math.min(620, p.Tcore)) : STEEL_D;
     ctx.lineWidth = 4.5;
     ctx.beginPath();
     for (let i = 0; i <= 14; i++) {
-      const q = this.P(hx.u + (i % 2 ? 0.55 : -0.55), hx.z0 + (hx.z1 - hx.z0) * (i / 14));
+      const q = this.P(hx.u + (i % 2 ? 0.48 : -0.48), hx.z0 + (hx.z1 - hx.z0) * (i / 14));
       if (i === 0) ctx.moveTo(q.x, q.y); else ctx.lineTo(q.x, q.y);
     }
     ctx.stroke();
     this.pipe(ctx, [[rpv.u, rpv.z1 - 0.8], [rpv.u - 0.9, rpv.z1 + 1.0], [hx.u, hx.z0]],
       { w: 7, color: hot, flow: s.prhr, phase: time });
-    this.pipe(ctx, [[hx.u, hx.z1], [1.35, hx.z1 + 0.3], [1.35, 3.0], [rpv.u - 1.1, rpv.z0 + 0.9]],
+    this.pipe(ctx, [[hx.u, hx.z1], [0.7, hx.z1 + 0.3], [0.7, 3.0], [rpv.u - 1.15, rpv.z0 + 0.9]],
       { w: 7, color: tempColor(400), flow: s.prhr, phase: time });
     if (s.prhr > 0) {
       this.arrows(ctx, [[rpv.u - 0.9, rpv.z1 + 1.0], [hx.u, hx.z0]],
         { flow: s.prhr, phase: time, color: '#ffd27a' });
       this.bubbles(ctx, hx.u, hx.z0, irwLvl, 0.7, 0.6, time, 21);
     }
-    this.caption(ctx, hx.u - 0.3, hx.z1 + 0.35, 'PRHR heat exchanger');
+    this.caption(ctx, hx.u - 0.2, hx.z1 + 0.4, 'PRHR heat exchanger');
 
     // core makeup tanks
     for (let i = 0; i < 2; i++) {
-      const u = 6.0 + i * 1.15;
+      const u = 6.6 + i * 1.15;
       this.vessel(ctx, {
         u, r: 0.4, z0: 7.4, z1: 9.7,
         level: 7.4 + 2.3 * Math.max(0, Math.min(1, p.cmtLevel)),
@@ -607,7 +640,7 @@ export class CutawayView {
       this.pipe(ctx, [[u, 7.4], [u, 6.3], [rpv.u + 0.6, rpv.z0 + 1.5]],
         { w: 5, color: '#2f7fd0', flow: s.cmt, phase: time });
     }
-    this.caption(ctx, 6.6, 10.35, 'core makeup tanks');
+    this.caption(ctx, 7.2, 10.4, 'core makeup tanks');
 
     // accumulators
     for (let i = 0; i < 2; i++) {
@@ -623,12 +656,12 @@ export class CutawayView {
     this.caption(ctx, 10.9, 5.45, 'accumulators');
 
     // automatic depressurisation into the pool
-    this.valve(ctx, 5.4, 10.2, s.ads);
+    this.valve(ctx, 5.9, 10.2, s.ads);
     if (s.ads) {
-      this.pipe(ctx, [[5.4, 10.2], [3.6, 10.2], [3.6, irwLvl + 0.25]],
+      this.pipe(ctx, [[5.9, 10.2], [2.9, 10.2], [2.9, irwLvl + 0.25]],
         { w: 5, color: '#dbe6ee', flow: 1, phase: time });
     }
-    this.caption(ctx, 5.4, 10.75, s.ads ? 'ADS OPEN' : 'ADS armed');
+    this.caption(ctx, 5.9, 10.8, s.ads ? 'ADS OPEN' : 'ADS armed');
 
     // gravity injection straight down into the vessel
     this.pipe(ctx, [[irw.u0 + 0.5, irw.z0], [irw.u0 + 0.5, 2.1], [rpv.u - 0.95, rpv.z0 + 0.5]],
@@ -644,7 +677,21 @@ export class CutawayView {
     this.pump(ctx, 14.0, 3.4, s.feed > 0, time);
     this.pipe(ctx, [[15.0, 3.4], [15.9, 3.4]],
       { w: 7, color: p.uhs && s.feed ? '#2f7fd0' : '#4a5058', flow: p.uhs && s.feed ? 1 : 0, phase: time });
-    this.caption(ctx, 15.2, 4.15, p.uhs ? 'to the sea' : 'heat sink lost (not needed)');
+    this.caption(ctx, 15.0, 4.2, p.uhs ? 'to the sea' : 'heat sink lost (not needed here)');
+
+    if (p.sabotaged) {
+      this.tag(ctx, 6.5, 12.0, 'PASSIVE SYSTEMS DISABLED (what-if)', 'hot');
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,90,70,0.75)'; ctx.lineWidth = 3;
+      for (const [u, z] of [[2.6, 7.8], [6.6, 8.5], [10.9, 4.0], [1.45, 4.6]]) {
+        const q = this.P(u, z);
+        ctx.beginPath();
+        ctx.moveTo(q.x - 11, q.y - 11); ctx.lineTo(q.x + 11, q.y + 11);
+        ctx.moveTo(q.x + 11, q.y - 11); ctx.lineTo(q.x - 11, q.y + 11);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
 
     this.pccs(ctx, time);
   }
@@ -655,15 +702,15 @@ export class CutawayView {
     const on = s.pccs > 0;
     this.arrows(ctx, [[0.15, 12.2], [0.15, 3.0], [0.4, 1.4]],
       { flow: on ? 0.9 : 0, phase: time, color: AIR, alpha: 0.85 });
-    this.arrows(ctx, [[12.85, 1.4], [12.85, 9.2], [10.2, 13.4], [6.5, 16.5]],
+    this.arrows(ctx, [[12.85, 1.4], [12.85, 9.2], [10.6, 12.9], [6.5, 15.6]],
       { flow: on ? 0.9 : 0, phase: time, color: '#f2b877', alpha: 0.9 });
-    const tank = { u0: 4.6, u1: 8.4, z0: 14.5, z1: 15.7 };
+    const tank = { u0: 4.9, u1: 8.1, z0: 13.9, z1: 15.0 };
     const lvl = tank.z0 + (tank.z1 - tank.z0) * Math.max(0, Math.min(1, p.pccwst / 3.0e6));
     this.pool(ctx, {
       u0: tank.u0, u1: tank.u1, z0: tank.z0, z1: tank.z1,
       level: lvl, liquid: '#2f7fd0', wall: STEEL
     });
-    this.tag(ctx, (tank.u0 + tank.u1) / 2, tank.z1 + 0.6,
+    this.tag(ctx, (tank.u0 + tank.u1) / 2, tank.z1 + 0.75,
       `${(p.pccwst / 1000) | 0} t of water, above everything`, 'ok');
     if (s.film > 0 && on) {
       ctx.strokeStyle = 'rgba(130,206,244,0.8)';
@@ -676,7 +723,50 @@ export class CutawayView {
         const b = this.P(u, zTop - t * 9.0 - 0.7);
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
       }
-      this.caption(ctx, 6.5, 11.35, 'evaporating water film');
+      this.caption(ctx, 9.6, 11.5, 'evaporating water film');
+    }
+  }
+
+  // ---- what the end states actually look like -------------------------
+  breachMarks(ctx, time) {
+    const p = this.plant;
+    const u0 = 0.85, u1 = 12.15;
+    if (p.vesselBreach) {
+      // a hole torn in the vessel bottom, and corium on the containment floor
+      const rpvU = this.passive ? 4.9 : 3.7, rpvZ0 = 1.7;
+      const a = this.P(rpvU - 0.55, rpvZ0), b = this.P(rpvU + 0.55, rpvZ0);
+      ctx.strokeStyle = '#0d1116'; ctx.lineWidth = 7;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      const c = this.P(rpvU, 0.62);
+      const g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, 90);
+      const f = 0.55 + 0.2 * Math.sin(time * 2);
+      g.addColorStop(0, `rgba(255,196,90,${f})`);
+      g.addColorStop(0.45, `rgba(238,104,36,${f * 0.7})`);
+      g.addColorStop(1, 'rgba(170,40,14,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.ellipse(c.x, c.y, 90, 22, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#e2621f';
+      ctx.beginPath();
+      ctx.ellipse(c.x, c.y, 46 + 14 * p.mcci, 11 + 3 * p.mcci, 0, 0, Math.PI * 2);
+      ctx.fill();
+      this.caption(ctx, rpvU + 2.6, 0.95, 'corium on the floor');
+    }
+    if (p.explosions > 0 || p.rupturedByPower) {
+      // the top of the building is gone
+      const A = this.P(u0 - 0.3, 10.4), B = this.P(u1 + 0.3, 10.4);
+      ctx.fillStyle = '#121c26';                      // open sky, not a void
+      ctx.fillRect(A.x - 6, A.y - 260, B.x - A.x + 12, 260);
+      ctx.strokeStyle = '#8b8579'; ctx.lineWidth = 6; ctx.lineJoin = 'round';
+      ctx.beginPath();
+      for (let i = 0; i <= 26; i++) {
+        const u = u0 - 0.3 + (u1 - u0 + 0.6) * (i / 26);
+        const q = this.P(u, 10.4 + hash2(i, 3, 1) * 0.9);
+        if (i === 0) ctx.moveTo(q.x, q.y); else ctx.lineTo(q.x, q.y);
+      }
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,130,70,0.55)'; ctx.lineWidth = 2;
+      ctx.stroke();
+      this.tag(ctx, 6.5, 11.4, 'ROOF BLOWN OFF', 'hot');
     }
   }
 
@@ -693,22 +783,17 @@ export class CutawayView {
     }
     const h2f = Math.min(1, (p.h2 + p.h2Building) / 900);
     if (h2f > 0.01) {
-      const zTop = 13.0, zBot = 10.4 - h2f * 7.2;
+      const zTop = 10.35, zBot = 10.35 - h2f * 7.0;
       const a = this.P(u0, zTop), b = this.P(u1, zTop);
       const c = this.P(u1, zBot), d = this.P(u0, zBot);
-      ctx.fillStyle = rgba(H2COL, 0.12 + 0.3 * h2f);
+      ctx.fillStyle = rgba(H2COL, 0.10 + 0.22 * h2f);
       poly(ctx, [a, b, c, d]);
       ctx.strokeStyle = rgba(H2COL, 0.65); ctx.lineWidth = 1.6;
       ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(c.x, c.y); ctx.stroke();
       this.tag(ctx, 6.5, zBot + 0.6, `hydrogen ${(p.h2 + p.h2Building) | 0} kg`, 'hot');
     }
-    if (p.explosions > 0 || !p.ctmtIntact) {
-      const A = this.P(u0, 10.4), B = this.P(u1, 10.4);
-      ctx.strokeStyle = 'rgba(255,120,80,0.85)'; ctx.lineWidth = 3;
-      ctx.setLineDash([9, 7]);
-      ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
-      ctx.setLineDash([]);
-      this.tag(ctx, 6.5, 11.1, p.explosions > 0 ? 'BUILDING BLOWN APART' : 'CONTAINMENT FAILED', 'hot');
+    if (!p.ctmtIntact && p.explosions === 0) {
+      this.tag(ctx, 6.5, 11.1, 'CONTAINMENT FAILED', 'hot');
     }
   }
 
@@ -746,10 +831,18 @@ export class CutawayView {
       ctx.fillStyle = '#8ff0b4';
       ctx.fillText('nothing above this line depends on this row', c.x, c.y);
     } else {
-      ctx.fillStyle = items[3].on ? 'rgba(200,214,226,0.8)' : '#ff9080';
-      ctx.fillText(items[3].on
-        ? 'every cooling path above needs this chain'
-        : 'the chain is broken - there is no cooling path left', c.x, c.y);
+      // describe the plant, not the lamps: a lit GRID lamp with no cooling
+      // path is exactly the contradiction a reader would call out
+      const cooled = p.coolingMargin >= 0.99;
+      const onBattery = !s.grid && !s.diesel && s.battery > 0;
+      let txt, col;
+      if (!cooled) { txt = 'no cooling path left - the chain is broken'; col = '#ff9080'; }
+      else if (onBattery) {
+        txt = `running on batteries - ${(s.battery * p.batteryHours).toFixed(1)} h left`;
+        col = '#ffd28a';
+      } else { txt = 'every cooling path above needs this chain'; col = 'rgba(200,214,226,0.8)'; }
+      ctx.fillStyle = col;
+      ctx.fillText(txt, c.x, c.y);
     }
     ctx.textAlign = 'left';
   }
@@ -758,13 +851,15 @@ export class CutawayView {
   readouts(ctx, rpv, surf) {
     const p = this.plant;
     const covered = p.level > 0.995;
-    this.tag(ctx, rpv.u, rpv.z1 + 1.55, `${(p.Tclad - 273).toFixed(0)} °C`,
-      p.Tclad > 1100 ? 'hot' : 'ok');
+    const T = p.Tclad - 273;
+    this.tag(ctx, rpv.u, rpv.z1 + 1.55, `${T.toFixed(0)} \u00b0C`,
+      T > 800 ? 'hot' : T > 360 ? 'warn' : 'ok');
     const a = this.P(rpv.u - 1.85, surf), b = this.P(rpv.u - 1.12, surf);
     ctx.strokeStyle = covered ? 'rgba(99,224,138,0.85)' : 'rgba(255,120,90,0.95)';
     ctx.lineWidth = 1.8;
     ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-    this.tag(ctx, rpv.u - 2.35, surf, `${(p.level * 100).toFixed(0)}%`, covered ? 'ok' : 'hot');
+    this.tag(ctx, rpv.u - 2.35, surf, `${(p.level * 100).toFixed(0)}%`,
+      covered ? 'ok' : p.level > 0.75 ? 'warn' : 'hot');
   }
 
   title(ctx) {

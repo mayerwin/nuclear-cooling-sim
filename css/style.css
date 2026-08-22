@@ -269,9 +269,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--
 body.cutmode #left .toggles .slider,body.cutmode #left .tg:nth-child(2){opacity:.4;pointer-events:none}
 @media (max-width:860px){
   .viewSwitch{margin-left:4px;padding:2px}
-  .viewSwitch button{padding:6px 7px;font-size:10px;gap:3px}
-  .viewSwitch button span{display:none}
-  .viewSwitch button.on span{display:inline}
+  .viewSwitch button{padding:6px 8px;font-size:10px;gap:4px}
 }
 
 .whyBox .watch{margin-top:8px;padding:8px 9px;border-radius:8px;font-size:11px;line-height:1.5;
@@ -291,3 +289,20 @@ body.cutmode #left .toggles .slider,body.cutmode #left .tg:nth-child(2){opacity:
 .ledger tr:nth-child(4) th{color:var(--crit)}
 .ledger b{color:#fff}
 .ledger i{font-style:italic;color:#dfeaf2}
+
+.ev .xn{color:var(--dim);font-weight:800;font-size:9.5px}
+#feedInner{padding-top:10px}
+#feed::before{content:'';position:absolute;top:0;left:0;right:0;height:12px;z-index:2;
+  pointer-events:none;background:linear-gradient(180deg,rgba(11,18,27,.95),rgba(11,18,27,0))}
+
+/* ---- cutaway A/B switch (mainly for phones, where the panels are closed) --- */
+#cutSwitch{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:118px;z-index:34;
+  gap:4px;background:rgba(9,15,23,.9);border:1px solid var(--line);border-radius:11px;padding:4px;
+  backdrop-filter:blur(8px)}
+body.cutmode #cutSwitch{display:flex}
+#cutSwitch button{background:transparent;border:0;color:var(--dim);border-radius:8px;cursor:pointer;
+  padding:7px 12px;font:700 11px/1 ui-sans-serif,system-ui}
+#cutSwitch button.on{background:rgba(87,217,255,.18);color:var(--passive);
+  box-shadow:inset 0 0 0 1px rgba(87,217,255,.4)}
+@media (max-width:860px){ #cutSwitch .wide-only{display:none} #cutSwitch{bottom:120px} }
+@media (min-width:861px){ body.cutmode #cutSwitch{bottom:96px} }

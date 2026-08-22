@@ -81,7 +81,16 @@ export class Renderer {
     ctx.stroke();
 
     cam.applyTransform(ctx);
-    for (const c of sim.cuts) { c.draw(ctx, sim.visTime); c.title(ctx); }
+    const dpr = CW / (window.innerWidth || CW);
+    const wide = CW / dpr > 860;
+    const focus = wide ? sim.cutFocus : (sim.cutFocus === 'both' ? 'active' : sim.cutFocus);
+    for (const c of sim.cuts) {
+      if (focus === 'active' && c.passive) continue;
+      if (focus === 'passive' && !c.passive) continue;
+      c.labels = sim.showLabels;
+      c.draw(ctx, sim.visTime);
+      c.title(ctx);
+    }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.drawCutLegend(ctx, CW, CH);
     return undefined;
@@ -89,40 +98,45 @@ export class Renderer {
 
   drawCutLegend(ctx, CW, CH) {
     const dpr = CW / (window.innerWidth || CW);
-    const narrow = CW / dpr < 861;
+    const cw = CW / dpr, ch = CH / dpr;
+    const narrow = cw < 861;
     const items = [
-      ['#3a8fd8', 'cold water'], ['#41a9c4', 'warm'], ['#d3a53c', 'hot'],
-      ['#ef4326', 'fuel > 1300 C'], ['#d9e04a', 'hydrogen'],
-      ['#8fd8e8', 'air draught'], ['#ffd35c', 'electrical power']
+      ['#2f7fd0', 'cold water'], ['#3fc2b4', 'normal 347 \u00b0C'], ['#e0a03c', 'hot'],
+      ['#ef3a22', 'fuel failing'], ['#d9e04a', 'hydrogen'],
+      ['#7fd0e4', 'air draught'], ['#ffd35c', 'electrical power']
     ];
-    const left = (narrow ? 10 : 322) * dpr;
-    const right = CW - (narrow ? 10 : 348) * dpr;
     ctx.save();
-    ctx.font = `${9.5 * dpr}px ui-sans-serif, system-ui, sans-serif`;
-    // a strip behind it, or it lands on top of the section captions
-    const stripH = 34 * dpr;
-    ctx.fillStyle = 'rgba(8,13,19,0.82)';
-    ctx.fillRect(0, CH - (narrow ? 140 : 40) * dpr, CW, stripH);
-    // lay out into as many rows as it takes
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
+    const left = narrow ? 10 : 322;
+    const right = cw - (narrow ? 10 : 344);
     const rows = [[]];
     let x = left;
     for (const it of items) {
-      const w = ctx.measureText(it[1]).width + 22 * dpr;
+      const w = ctx.measureText(it[1]).width + 24;
       if (x + w > right && rows[rows.length - 1].length) { rows.push([]); x = left; }
-      rows[rows.length - 1].push([it, x, w]);
+      rows[rows.length - 1].push([it, x]);
       x += w;
     }
-    const baseY = CH - (narrow ? 126 : 26) * dpr - (rows.length - 1) * 15 * dpr;
+    const h = rows.length * 17 + 8;
+    const baseY = ch - (narrow ? 128 : 78) - h;
+    ctx.fillStyle = 'rgba(8,13,19,0.72)';
+    roundRect(ctx, left - 8, baseY, right - left + 16, h, 7);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(120,170,210,0.16)'; ctx.lineWidth = 1;
+    roundRect(ctx, left - 8, baseY, right - left + 16, h, 7);
+    ctx.stroke();
     rows.forEach((row, ri) => {
-      const y = baseY + ri * 15 * dpr;
+      const y = baseY + 16 + ri * 17;
       for (const [it, px] of row) {
         ctx.fillStyle = it[0];
-        ctx.fillRect(px, y - 7 * dpr, 9 * dpr, 9 * dpr);
-        ctx.fillStyle = 'rgba(205,222,236,0.85)';
-        ctx.fillText(it[1], px + 13 * dpr, y + dpr);
+        ctx.fillRect(px, y - 8, 10, 10);
+        ctx.fillStyle = 'rgba(208,224,238,0.9)';
+        ctx.fillText(it[1], px + 15, y + 1);
       }
     });
     ctx.restore();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
   drawSite(sim) {
@@ -294,19 +308,19 @@ export class Renderer {
       if (c.pbq < 1e-4) continue;
       const o = project(v.s.x + v.parts.reactor.x, v.s.y + v.parts.reactor.y, 0);
       ctx.save();
-      ctx.setLineDash([8, 6]);
+      ctx.setLineDash([9 / Math.max(0.4, sim.cam.zoom), 7 / Math.max(0.4, sim.cam.zoom)]);
       for (const rg of [
         { r: c.exclusionR * 0.55, col: '255,70,60' },
         { r: c.exclusionR, col: '255,160,40' },
         { r: c.exclusionR * 1.9, col: '255,232,90' }
       ]) {
         const rr = rg.r * 1.6;      // km -> tiles, 1 tile ~ 625 m
-        ctx.strokeStyle = `rgba(${rg.col},0.5)`;
-        ctx.lineWidth = 1.6;
+        ctx.strokeStyle = `rgba(${rg.col},0.75)`;
+        ctx.lineWidth = 3 / Math.max(0.4, sim.cam.zoom);
         ctx.beginPath();
         ctx.ellipse(o.x, o.y, rr * TW * 1.414, rr * TH * 1.414, 0, 0, Math.PI * 2);
         ctx.stroke();
-        ctx.fillStyle = `rgba(${rg.col},0.045)`;
+        ctx.fillStyle = `rgba(${rg.col},0.085)`;
         ctx.fill();
       }
       ctx.setLineDash([]);
@@ -317,15 +331,25 @@ export class Renderer {
   // ---- screen-space labels -------------------------------------------
   // Plates are placed with the dpr transform, sat on their bottom edge above
   // the anchor, and de-collided highest priority first.
+  // Plates are screen-space, but they must be placed with the DPR transform,
+  // not the identity one: cam.toScreen returns device pixels, and drawing an
+  // 11px font into those on a 2x display renders every label at half size.
   drawLabels(ctx, sim, CW, CH) {
     if (!sim.showLabels || sim.cam.zoom < 0.7) return;
     const cam = sim.cam;
+    const dpr = CW / (window.innerWidth || CW);
+    const cw = CW / dpr, ch = CH / dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // keep plates clear of the side panels rather than sliding under them
+    const narrow = cw < 861;
+    const padL = narrow ? 8 : 318, padR = narrow ? 8 : 344;
     const plates = [];
     for (const v of sim.views) {
       for (const t of v.tags()) {
         const s = cam.toScreen(t.x, t.y, t.z);
-        if (s[0] < -160 || s[0] > CW + 160 || s[1] < -60 || s[1] > CH + 60) continue;
-        plates.push({ ...t, sx: s[0], sy: s[1] });
+        const sx = s[0] / dpr, sy = s[1] / dpr;
+        if (sx < padL - 40 || sx > cw - padR + 40 || sy < 40 || sy > ch - 60) continue;
+        plates.push({ ...t, sx, sy });
       }
     }
     plates.sort((a, b) => b.prio - a.prio);
@@ -333,6 +357,8 @@ export class Renderer {
     const placed = [];
     for (const pl of plates) {
       const w = ctx.measureText(pl.text).width + 16;
+      // clamp so the plate never runs under a panel or off the canvas
+      pl.sx = Math.max(padL + w / 2, Math.min(cw - padR - w / 2, pl.sx));
       let by = pl.sy - 30;
       for (let tries = 0; tries < 14; tries++) {
         let hit = false;
@@ -358,21 +384,23 @@ export class Renderer {
       ctx.fillText(pl.text, pl.sx, by + 9.5);
     }
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
   drawCompass(ctx, CW, CH, sim) {
     const dpr = CW / (window.innerWidth || CW);
     const narrow = CW / dpr < 861;
-    const R = 28 * dpr;
-    const cx = (narrow ? 18 : 326) * dpr + R;
-    const cy = (narrow ? 100 : 108) * dpr;
     ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const R = 28;
+    const cx = (narrow ? 18 : 326) + R;
+    const cy = (narrow ? 100 : 108);
     ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(9,15,23,0.5)'; ctx.fill();
-    ctx.strokeStyle = 'rgba(140,190,220,0.26)'; ctx.lineWidth = dpr; ctx.stroke();
+    ctx.strokeStyle = 'rgba(140,190,220,0.26)'; ctx.lineWidth = 1; ctx.stroke();
     const th = (sim.fx.windDeg || 0) * Math.PI / 180;
     const ax = Math.sin(th), ay = -Math.cos(th);
-    ctx.strokeStyle = '#57d9ff'; ctx.lineWidth = 2.4 * dpr; ctx.lineCap = 'round';
+    ctx.strokeStyle = '#57d9ff'; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(cx - ax * R * 0.6, cy - ay * R * 0.6);
     ctx.lineTo(cx + ax * R * 0.62, cy + ay * R * 0.62);
@@ -384,23 +412,24 @@ export class Renderer {
     ctx.closePath();
     ctx.fillStyle = '#57d9ff'; ctx.fill();
     ctx.fillStyle = 'rgba(210,232,244,0.85)';
-    ctx.font = `${9 * dpr}px ui-sans-serif, system-ui, sans-serif`;
+    ctx.font = '9px ui-sans-serif, system-ui, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('WIND', cx, cy - R - 5 * dpr);
+    ctx.fillText('WIND', cx, cy - R - 5);
     let tiles = 1;
     for (const c of [16, 8, 4, 2, 1]) {
-      if (c * TW * 2 * sim.cam.zoom <= 120 * dpr) { tiles = c; break; }
+      if (c * TW * 2 * sim.cam.zoom / dpr <= 120) { tiles = c; break; }
     }
-    const px = tiles * TW * 2 * sim.cam.zoom;
-    const bx = cx - R, by = cy + R + 13 * dpr;
-    ctx.strokeStyle = 'rgba(220,235,245,0.7)'; ctx.lineWidth = 1.6 * dpr;
+    const px = tiles * TW * 2 * sim.cam.zoom / dpr;
+    const bx = cx - R, by = cy + R + 13;
+    ctx.strokeStyle = 'rgba(220,235,245,0.7)'; ctx.lineWidth = 1.6;
     ctx.beginPath();
-    ctx.moveTo(bx, by - 4 * dpr); ctx.lineTo(bx, by); ctx.lineTo(bx + px, by);
-    ctx.lineTo(bx + px, by - 4 * dpr);
+    ctx.moveTo(bx, by - 4); ctx.lineTo(bx, by); ctx.lineTo(bx + px, by);
+    ctx.lineTo(bx + px, by - 4);
     ctx.stroke();
     ctx.textAlign = 'left';
-    ctx.fillText(`${tiles * 25} m`, bx, by + 11 * dpr);
+    ctx.fillText(`${tiles * 25} m`, bx, by + 11);
     ctx.restore();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.textAlign = 'left';
   }
 

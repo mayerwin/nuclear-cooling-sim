@@ -53,22 +53,22 @@ function tree(ctx, p, dead, time) {
   }
   shadow(ctx, p.x, p.y, p.z, 15 * s, 8 * s, 0.24);
   const burnt = p.hp < 0.55;
-  const trunkH = (p.conifer ? 0.34 : 0.5) * s;
-  cylinder(ctx, {
-    x: p.x, y: p.y, z: p.z, r: 0.08 * s, h: trunkH,
-    color: burnt ? '#3d3128' : TRUNK, cap: false, edge: false
-  });
+  const trunkH = (p.conifer ? 0.30 : 0.5) * s;
+  const b0 = project(p.x, p.y, p.z);
+  ctx.fillStyle = burnt ? '#3d3128' : TRUNK;
+  ctx.fillRect(b0.x - 2.1 * s, b0.y - trunkH * TZ, 4.2 * s, trunkH * TZ + 1);
   const pal = p.conifer
     ? (dead > 0.5 ? CONIF_DEAD : CONIF_LIVE)
     : (dead > 0.5 ? LEAF_DEAD : LEAF_LIVE);
   const col = burnt ? '#4a4034' : pal[(hash2(p.gx, p.gy, 3) * pal.length) | 0];
 
   if (p.conifer) {
+    // three tiers, drawn bottom first so each sits in front of the one above
     for (let i = 0; i < 3; i++) {
-      const z0 = p.z + trunkH + i * 0.42 * s;
       cone(ctx, {
-        x: p.x, y: p.y, z: z0, r: (0.62 - i * 0.15) * s, h: 0.86 * s,
-        color: mix(col, '#dff0d0', i * 0.10)
+        x: p.x, y: p.y, z: p.z + trunkH + i * 0.40 * s,
+        r: (0.60 - i * 0.155) * s, h: 0.78 * s,
+        color: mix(col, '#e2f2d6', i * 0.13)
       });
     }
   } else {

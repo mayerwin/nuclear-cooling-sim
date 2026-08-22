@@ -56,7 +56,7 @@ export class PlantView {
     // The occlusion rule: a solid at (mx,my) hides a point at (mx,by) when
     // (w+d)/2 > my - by. Every setback below satisfies it.
     this.parts = {
-      intake: { x: -4.6, y: -4.6, w: 2.4, d: 1.9 },
+      intake: { x: -2.3, y: -2.3, w: 2.2, d: 1.7 },
       towers: [{ x: -1.2, y: 7.2, r: 1.85 }, { x: 7.2, y: -1.2, r: 1.85 }],
       edg: { x: 0.8, y: 4.6, w: 3.0, d: 2.2 },
       stack: { x: 4.8, y: 1.4 },
@@ -169,19 +169,29 @@ export class PlantView {
     const S = this.s, o = this.parts.intake;
     const x = S.x + o.x, y = S.y + o.y;
     const drowned = this.plant.flooded > 1;
-    // jetty out to the pumphouse
-    const A = project(x + o.w, y + 0.6, 0.12), B = project(x + o.w + 3.4, y + 3.2, 0.12);
-    ctx.strokeStyle = 'rgba(150,144,132,0.85)'; ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
-    ctx.strokeStyle = 'rgba(80,76,68,0.5)'; ctx.lineWidth = 1;
-    ctx.stroke();
+    // a pier on piles, running back to the shore, so the pumphouse is not a
+    // slab floating on open water
+    const px0 = x + o.w, py0 = y + 0.45, px1 = x + o.w + 1.9, py1 = y + 1.9;
+    for (let i = 0; i <= 4; i++) {
+      const t = i / 4;
+      const cx = px0 + (px1 - px0) * t, cy = py0 + (py1 - py0) * t;
+      const a = project(cx, cy, 0.45), b = project(cx, cy, -0.45);
+      ctx.strokeStyle = 'rgba(84,74,62,0.85)'; ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+    const A0 = project(px0, py0 - 0.26, 0.45), A1 = project(px1, py1 - 0.26, 0.45);
+    const B1 = project(px1, py1 + 0.26, 0.45), B0 = project(px0, py0 + 0.26, 0.45);
+    ctx.fillStyle = '#b3a894';
+    poly(ctx, [A0, A1, B1, B0]);
+    ctx.strokeStyle = 'rgba(60,54,46,0.5)'; ctx.lineWidth = 1;
+    polyLine(ctx, [A0, A1, B1, B0], true);
     box(ctx, {
-      x, y, z: 0.1, w: o.w, d: o.h, h: 1.4,
+      x, y, z: -0.3, w: o.w, d: o.h, h: 1.9,
       color: drowned ? mix(CONCRETE_D, '#3f6a80', 0.5) : CONCRETE_D, top: ROOF_G
     });
     for (let i = 0; i < 3; i++) {
       box(ctx, {
-        x: x + 0.3 + i * 0.65, y: y + 0.45, z: 1.5, w: 0.4, d: 0.5, h: 0.35,
+        x: x + 0.3 + i * 0.65, y: y + 0.45, z: 1.6, w: 0.4, d: 0.5, h: 0.35,
         color: MACHINE, edge: false
       });
     }
@@ -317,13 +327,18 @@ export class PlantView {
         color: dead ? 'rgba(96,80,74,0.9)' : 'rgba(88,94,100,0.95)'
       });
     }
+    // conductors span pylon to pylon and then to an off-site tower, so no
+    // wire ends in empty sky
+    const far = pylon(ctx, { x: x - 3.4, y: y + 5.6, z, h: 3.6, w: 0.5, color: dead ? 'rgba(96,80,74,0.9)' : 'rgba(88,94,100,0.95)' });
     const A = project(x + 0.6, y + 2.2, z + 3.6), B = project(x + 3.0, y + 2.2, z + 3.6);
-    const C = project(x + 7.5, y + 7.0, z + 3.2);
-    ctx.strokeStyle = dead ? 'rgba(110,90,80,0.55)' : 'rgba(56,62,68,0.75)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = dead ? 'rgba(110,90,80,0.6)' : 'rgba(52,58,64,0.85)';
+    ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.moveTo(A.x, A.y); ctx.quadraticCurveTo((A.x + B.x) / 2, A.y + 6, B.x, B.y);
-    ctx.quadraticCurveTo((B.x + C.x) / 2, B.y + 14, C.x, C.y);
+    ctx.moveTo(A.x, A.y); ctx.quadraticCurveTo((A.x + B.x) / 2, A.y + 7, B.x, B.y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(A.x, A.y);
+    ctx.quadraticCurveTo((A.x + far.x) / 2, Math.max(A.y, far.y) + 12, far.x, far.y);
     ctx.stroke();
   }
 
@@ -332,6 +347,19 @@ export class PlantView {
     const x = S.x + t.x, y = S.y + t.y;
     shadow(ctx, x, y, z, 92, 48, 0.26);
     coolingTower(ctx, { x, y, z, r: t.r, h: 9.6, color: TOWER });
+    // a deep shaft: bright rim, dark interior, near wall lit and far wall dark
+    const rimZ = z + 9.6, rr = t.r * 0.70;
+    const rim = project(x, y, rimZ);
+    ctx.beginPath();
+    ctx.ellipse(rim.x, rim.y, rr * TW * 1.414, rr * TH * 1.414, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#2b2f33'; ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(rim.x, rim.y, rr * TW * 1.414 * 0.82, rr * TH * 1.414 * 0.82, 0, Math.PI, 0, false);
+    ctx.fillStyle = '#4c5359'; ctx.fill();
+    ctx.strokeStyle = 'rgba(240,238,230,0.5)'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(rim.x, rim.y, rr * TW * 1.414, rr * TH * 1.414, 0, Math.PI, 0, true);
+    ctx.stroke();
     ctx.strokeStyle = 'rgba(94,90,84,0.8)'; ctx.lineWidth = 1.3;
     for (let i = 0; i < 12; i++) {
       const a = (i / 12) * Math.PI * 2;
@@ -396,10 +424,10 @@ export class PlantView {
       const lvl = Math.max(0, Math.min(1, p.pccwst / 3.0e6));
       cylinder(ctx, {
         x, y, z: z + 6.52, r: r.r * 0.8, h: 1.5, color: STEEL, rib: 3,
-        capColor: lvl > 0.02 ? mix('#2f6f92', '#4aa6c8', lvl) : '#6d757a'
+        capColor: lvl > 0.02 ? mix('#1d4d68', '#2f7c9c', lvl) : '#5f676c'
       });
-      const lp = project(x, y, z + 6.52 + 1.5 * lvl);
-      ctx.strokeStyle = 'rgba(96,206,255,0.8)'; ctx.lineWidth = 2;
+      const lp = project(x, y, z + 6.52 + 1.5);
+      ctx.strokeStyle = 'rgba(150,166,176,0.9)'; ctx.lineWidth = 2.2;
       ctx.beginPath();
       ctx.ellipse(lp.x, lp.y, r.r * 0.8 * TW * 1.414, r.r * 0.8 * TH * 1.414, 0, 0, Math.PI * 2);
       ctx.stroke();
@@ -451,6 +479,16 @@ export class PlantView {
   }
 
   drawWreck(ctx, x, y, z, r, h) {
+    // the blown-open core, glowing up out of the ruin
+    const g0 = project(x, y, z + h - 0.5);
+    const grd = ctx.createRadialGradient(g0.x, g0.y, 0, g0.x, g0.y, r * TW * 1.5);
+    grd.addColorStop(0, 'rgba(255,190,90,0.85)');
+    grd.addColorStop(0.5, 'rgba(240,110,40,0.4)');
+    grd.addColorStop(1, 'rgba(180,50,20,0)');
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.ellipse(g0.x, g0.y, r * TW * 1.5, r * TH * 1.5, 0, 0, Math.PI * 2);
+    ctx.fill();
     ctx.save();
     ctx.beginPath();
     for (let i = 0; i <= 22; i++) {
@@ -509,12 +547,12 @@ export class PlantView {
 
     if (p.powerFrac > 0.05 && !p.scrammed) {
       for (const t of this.parts.towers)
-        fx.steam(S.x + t.x, S.y + t.y, z + 9.8, 9, dt,
-          { r: 0.42, grow: 0.30, max: 4.6, rise: 2.0, spread: 0.9, a: 0.16, turb: 0.5 });
+        fx.steam(S.x + t.x, S.y + t.y, z + 10.8, 9, dt,
+          { r: 0.34, grow: 0.30, max: 4.4, rise: 2.1, spread: 0.8, a: 0.13, turb: 0.5 });
     } else if (p.powerFrac > 0.002) {
       for (const t of this.parts.towers)
-        fx.steam(S.x + t.x, S.y + t.y, z + 9.8, 3, dt,
-          { r: 0.3, grow: 0.24, max: 3.2, rise: 1.3, spread: 0.7, a: 0.1, turb: 0.4 });
+        fx.steam(S.x + t.x, S.y + t.y, z + 10.6, 3, dt,
+          { r: 0.24, grow: 0.22, max: 3.0, rise: 1.4, spread: 0.6, a: 0.09, turb: 0.4 });
     }
     if (!p.grid && p.dieselsOk && p.diesels > 0 && p.acPower) {
       const e = this.parts.edg;
@@ -542,9 +580,11 @@ export class PlantView {
         { r: 0.28, grow: 0.28, max: 7, rise: 1.9, col: [36, 32, 32], a: 0.32, spread: 0.7, turb: 0.5 });
     }
     if (p.explosions > 0) {
-      fx.fire(rx, ry, z + 2.4, 11, dt, { spread: 1.8, r: 0.32 });
-      fx.smoke(rx, ry, z + 4.0, 13, dt,
-        { r: 0.34, grow: 0.22, max: 9, rise: 2.8, col: [32, 29, 29], a: 0.3, spread: 1.0, turb: 0.9 });
+      // The column starts above the ruin, not on top of it: the wreck is the
+      // thing worth looking at and smoke drawn at its base just erases it.
+      fx.fire(rx, ry, z + 2.2, 8, dt, { spread: 1.6, r: 0.3, a: 0.42 });
+      fx.smoke(rx, ry, z + 5.4, 11, dt,
+        { r: 0.32, grow: 0.24, max: 9, rise: 3.0, col: [34, 31, 31], a: 0.26, spread: 0.9, turb: 1.0 });
     }
     if (p.vesselBreach) {
       fx.smoke(rx, ry, z + 0.9, 10, dt,
