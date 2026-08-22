@@ -117,11 +117,35 @@
         </ul>
       </div>
     </div>
-    <p class="fine">Pick a scenario on the left and watch both units answer the same hazard.
-      Everything here is a simplified but physically-grounded model: Way–Wigner decay heat,
-      latent-heat boil-off, Zr–H₂O oxidation with its 6.5&nbsp;MJ/kg exotherm and hydrogen yield,
-      ideal-gas containment pressure, and a source term scaled to the measured Cs-137 releases at
-      Fukushima (≈15&nbsp;PBq) and Chernobyl (≈85&nbsp;PBq). It is a teaching tool, not a licensing code.</p>
+    <h3 class="ledgerHead">What is real here, and what is not</h3>
+    <p class="fine">Half the value of a simulation is knowing which numbers to trust. So:</p>
+    <table class="ledger">
+      <tr><th>Computed</th><td>Way–Wigner decay heat. Latent-heat boil-off against the net
+        heat imbalance. Zr–H₂O oxidation above 1100&nbsp;K with its 6.5&nbsp;MJ/kg exotherm and
+        0.044&nbsp;kg H₂ per kg of zircaloy. Saturated-pool containment pressure,
+        <i>p</i>&nbsp;=&nbsp;<i>p</i><sub>air</sub>(T)&nbsp;+&nbsp;<i>p</i><sub>sat</sub>(T)&nbsp;+&nbsp;<i>p</i><sub>H2</sub>.
+        Hydrogen migration and deflagration. Released Cs-137 integrated over time.
+        <b>Every flow animated in the cutaway</b> — if a loop is moving there, the model is
+        moving it.</td></tr>
+      <tr><th>Scaled</th><td>Time: the AUTO clock compresses quiet hours up to 1800× and drops
+        to near real time when a core is coming apart. Distance: one map tile is about 25&nbsp;m,
+        so the contamination footprint is a schematic of the plume, not a dispersion
+        calculation. The site is staged for the camera rather than laid out to a real plant plan.</td></tr>
+      <tr><th>Assumed</th><td>Both units are 3,400&nbsp;MW thermal so the comparison is
+        like-for-like. The Gen-II unit is a large dry PWR containment; a Mark-I BWR is a harder
+        case. The Gen-III+ unit is AP1000-class: PRHR, CMTs, ADS, IRWST gravity injection and a
+        steel shell cooled by air and an evaporating film. 8&nbsp;h of battery against a 72&nbsp;h
+        gravity tank.</td></tr>
+      <tr><th>Faked</th><td>The consequence figures (land, evacuees, cost, latent cancers) are
+        scaling laws fitted to <b>two</b> data points — Fukushima ≈15&nbsp;PBq and Chernobyl
+        ≈85&nbsp;PBq. They are the right order of magnitude and nothing more. The latent-cancer
+        number is a straight LNT extrapolation, shown because people ask for it, not because the
+        model believes it precisely. The tsunami inundation is cinematic, not hydrodynamic.</td></tr>
+    </table>
+    <p class="fine">Not convinced the passive kit is what does the work? Turn on
+      <b>Disable passive systems</b> and run the same scenario: Unit B melts down too, and faster
+      than Unit A, because it has no steam-driven pump to fall back on. That toggle is in the UI
+      so the comparison can be falsified.</p>
     <button class="btn primary big" id="startBtn">Start the simulator</button>
   </div>
 </div>

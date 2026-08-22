@@ -61,14 +61,14 @@ export class Sim {
     let cx, cy, contentW;
     const focus = wide ? this.cutFocus : (this.cutFocus === 'both' ? 'active' : this.cutFocus);
     // section centre u = 6.5 maps to grid (ox + 3.25, oy - 3.25)
-    if (focus === 'active') { cx = 3.25; cy = -3.25; contentW = 470; }
-    else if (focus === 'passive') { cx = 3.25 + 8.75; cy = -3.25 - 8.75; contentW = 470; }
+    if (focus === 'active') { cx = 4.0; cy = -4.0; contentW = 520; }
+    else if (focus === 'passive') { cx = 4.0 + 8.75; cy = -4.0 - 8.75; contentW = 520; }
     else { cx = 3.25 + 4.375; cy = -3.25 - 4.375; contentW = 1010; }
     const zoom = clamp(Math.min(usable / contentW, usableH / 660), 0.34, 2.2);
     // The section is all above z = 0, so centre it by hand: the camera looks at
     // the ground plane and would otherwise put the whole building off the top.
     this.cutCam.ox = 0;
-    this.cutCam.oy = 225 * zoom + (wide ? 24 : 34) * dpr;
+    this.cutCam.oy = 225 * zoom + (wide ? 22 : -16) * dpr;
     if (snap) this.cutCam.snap(cx, cy, zoom); else this.cutCam.focus(cx, cy, zoom);
   }
 

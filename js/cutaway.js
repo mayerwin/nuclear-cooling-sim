@@ -531,9 +531,9 @@ export class CutawayView {
     this.pipe(ctx, [[14.6, 3.4], [12.6, 3.4], [12.6, 2.2], [sg.u + 0.5, 2.2]],
       { w: 6, color: tempColor(330), flow: s.feed ? 1 : 0, phase: time });
     this.pump(ctx, 14.0, 3.4, s.feed > 0, time);
-    this.pipe(ctx, [[15.0, 3.4], [16.4, 3.4]],
+    this.pipe(ctx, [[15.0, 3.4], [15.9, 3.4]],
       { w: 7, color: sink ? '#2f7fd0' : '#4a5058', flow: sink ? 1 : 0, phase: time });
-    this.caption(ctx, 15.6, 4.1, p.uhs ? 'to the sea' : 'HEAT SINK LOST');
+    this.caption(ctx, 15.2, 4.15, p.uhs ? 'to the sea' : 'HEAT SINK LOST');
 
     // the vent, and whether anybody can open it
     this.valve(ctx, 11.7, 9.4, p.vented);
@@ -594,7 +594,7 @@ export class CutawayView {
         { flow: s.prhr, phase: time, color: '#ffd27a' });
       this.bubbles(ctx, hx.u, hx.z0, irwLvl, 0.7, 0.6, time, 21);
     }
-    this.caption(ctx, hx.u, hx.z0 - 0.55, 'PRHR heat exchanger');
+    this.caption(ctx, hx.u - 0.3, hx.z1 + 0.35, 'PRHR heat exchanger');
 
     // core makeup tanks
     for (let i = 0; i < 2; i++) {
@@ -642,9 +642,9 @@ export class CutawayView {
     this.pipe(ctx, [[14.6, 3.4], [12.6, 3.4], [12.6, 2.2], [sg.u + 0.5, 2.2]],
       { w: 6, color: tempColor(330), flow: s.feed ? 1 : 0, phase: time });
     this.pump(ctx, 14.0, 3.4, s.feed > 0, time);
-    this.pipe(ctx, [[15.0, 3.4], [16.4, 3.4]],
+    this.pipe(ctx, [[15.0, 3.4], [15.9, 3.4]],
       { w: 7, color: p.uhs && s.feed ? '#2f7fd0' : '#4a5058', flow: p.uhs && s.feed ? 1 : 0, phase: time });
-    this.caption(ctx, 15.6, 4.1, p.uhs ? 'to the sea' : 'heat sink lost (not needed)');
+    this.caption(ctx, 15.2, 4.15, p.uhs ? 'to the sea' : 'heat sink lost (not needed)');
 
     this.pccs(ctx, time);
   }
@@ -768,16 +768,31 @@ export class CutawayView {
   }
 
   title(ctx) {
-    const q = this.P(6.5, 17.6);
-    ctx.font = '800 15px ui-sans-serif, system-ui, sans-serif';
+    const p = this.plant;
+    const q = this.P(6.5, 18.4);
     ctx.textAlign = 'center';
+    ctx.font = '800 15px ui-sans-serif, system-ui, sans-serif';
     ctx.fillStyle = this.passive ? '#57d9ff' : '#ff8b5c';
-    ctx.fillText(this.passive ? 'PASSIVE · Gen III+' : 'ACTIVE · Gen II', q.x, q.y);
+    ctx.fillText(this.passive ? 'PASSIVE \u00b7 Gen III+' : 'ACTIVE \u00b7 Gen II', q.x, q.y);
     ctx.font = '600 11px ui-sans-serif, system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(200,218,232,0.75)';
+    ctx.fillStyle = 'rgba(200,218,232,0.7)';
     ctx.fillText(this.passive
-      ? 'gravity · natural circulation · evaporation'
-      : 'pumps · diesels · operators', q.x, q.y + 16);
+      ? 'gravity \u00b7 natural circulation \u00b7 evaporation'
+      : 'pumps \u00b7 diesels \u00b7 operators', q.x, q.y + 15);
+    // the state, big enough to read across the room
+    const good = /SAFE|NORMAL|STABLE/.test(p.state);
+    ctx.font = '800 12px ui-sans-serif, system-ui, sans-serif';
+    const w = ctx.measureText(p.state).width + 20;
+    const by = q.y + 26;
+    ctx.fillStyle = good ? 'rgba(16,58,36,0.9)' : 'rgba(74,18,12,0.9)';
+    rr(ctx, q.x - w / 2, by, w, 20, 5); ctx.fill();
+    ctx.strokeStyle = good ? 'rgba(99,224,138,0.55)' : 'rgba(255,110,80,0.6)';
+    ctx.lineWidth = 1.2;
+    rr(ctx, q.x - w / 2, by, w, 20, 5); ctx.stroke();
+    ctx.fillStyle = good ? '#8ff0b4' : '#ff9c88';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.state, q.x, by + 10.5);
+    ctx.textBaseline = 'alphabetic';
     ctx.textAlign = 'left';
   }
 }

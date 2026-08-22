@@ -28,6 +28,10 @@ export class UI {
         b.classList.add('on');
         this.sim.run(s.id);
         this.showWhy(s);
+        if (this.sim.view !== 'cut' && !this.nudged) {
+          this.nudged = true;
+          this.toast('TIP: press Cutaway to watch the fluids', true);
+        }
         $('#scenarioName').textContent = `${s.name} — ${s.ref}`;
         this.toast(`${s.icon} ${s.name.toUpperCase()} INITIATED`);
         if (window.innerWidth <= 860) this.closePanels();
@@ -176,8 +180,9 @@ export class UI {
     const sim = this.sim;
     $('#clock').textContent = fmtTime(sim.t);
     const auto = SPEEDS[sim.speedIdx] < 0;
+    const narrow = window.innerWidth <= 860;
     this.speedBtns.querySelectorAll('button')[5].textContent =
-      auto ? `AUTO ${Math.round(sim.speed)}\u00d7` : 'AUTO';
+      (auto && !narrow) ? `AUTO ${Math.round(sim.speed)}\u00d7` : 'AUTO';
     // speed highlight (cinematics override)
     this.speedBtns.querySelectorAll('button').forEach((x, j) =>
       x.classList.toggle('on', j === sim.speedIdx));

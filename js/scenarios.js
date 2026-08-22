@@ -20,6 +20,7 @@ export const SCENARIOS = [
       The wave took both in ninety seconds. A passive plant rejects decay heat to a tank of
       water sitting above the core and then to the air; there is no pump to drown, no diesel
       to flood, and no seawater intake in the loop for the first 72 hours.`,
+    watch: `In the cutaway: the DIESEL lamp goes out, then BATTERY, then the coolant pump stops and the water level starts down. On the right the PRHR loop starts <em>because</em> the power died - its valve fails open.`,
     tsunami: { at: 2460, height: 14, speed: 3.2 },
     timeline: [
       { t: 0, msg: 'M9.0 earthquake — automatic scram, all four offsite lines lost', fn: (s, p) => { p.scram('seismic trip + loss of offsite power'); p.grid = false; p.quakeDamage = 0.15; } },
@@ -41,6 +42,7 @@ export const SCENARIOS = [
     why: `A passive plant's safety case does not contain the word "pump". Decay heat moves by
       density difference, gravity head and evaporation — physical processes that cannot be
       switched off, and that get *stronger* as the core gets hotter.`,
+    watch: `In the cutaway: the electrical spine going dark link by link, and everything on the left that was moving stopping with it.`,
     timeline: [
       { t: 0, msg: 'Grid disturbance — turbine trip and reactor scram', fn: (s, p) => { p.scram('turbine trip'); p.grid = false; } },
       { t: 30, msg: 'Diesel A fails to start (fuel-rack fault)', fn: (s, p) => { p.diesels = Math.max(0, p.diesels - 1); } },
@@ -59,6 +61,7 @@ export const SCENARIOS = [
     why: `Gen-II answers with high-head safety-injection pumps on emergency diesels — three
       chained machines that all have to work. The passive answer is a valve that opens when
       power is <em>lost</em>, then 2,000 tonnes of borated water falling downhill into the vessel.`,
+    watch: `In the cutaway: both plants' accumulators dump in seconds. Watch what is still injecting a minute later.`,
     timeline: [
       { t: 0, msg: 'Double-ended guillotine break in a main coolant loop', fn: (s, p) => { p.scram('low pressuriser pressure'); p.leakRate = 260; p.pRPV = 1.2; } },
       { t: 40, msg: 'Blowdown complete — vessel at containment pressure', fn: (s, p) => { p.leakRate = 55; } },
@@ -78,6 +81,7 @@ export const SCENARIOS = [
     why: `Passive systems are actuated by physics, not by a diagnosis. The core makeup tanks and
       ADS respond to pressure and level directly, and — crucially — an operator cannot throttle
       gravity. The AP1000 licensing basis requires <em>no operator action for 72 hours</em>.`,
+    watch: `In the cutaway: the pressuriser relief valve stays a red diamond while the level gauge still reads high - that is the accident.`,
     timeline: [
       { t: 0, msg: 'Feedwater lost — turbine trip, reactor scram', fn: (s, p) => { p.scram('loss of feedwater'); } },
       { t: 15, msg: 'PORV lifts and sticks OPEN — indication in the control room reads CLOSED', fn: (s, p) => { p.leakRate = 26; p.pRPV = 7; } },
@@ -101,6 +105,7 @@ export const SCENARIOS = [
       water and the chain reaction <em>stops</em>. The void coefficient is strongly negative,
       the rods fall in under gravity, and everything sits inside a full pressure containment.
       The same insertion that destroyed Unit 4 is self-terminating here.`,
+    watch: `In the cutaway: the left core's temperature runs away in seconds. The right one drops its rods under gravity and the water that is left keeps moderating.`,
     timeline: [
       { t: 0, msg: 'Coast-down test begins at 200 MWt with xenon poisoning', fn: (s, p) => { p.powerFrac = 0.06; p.pumpsOk = true; } },
       { t: 20, msg: 'Coolant flow drops, voids form in the core', fn: (s, p) => { p.excursion = 0.8; } },
@@ -119,6 +124,7 @@ export const SCENARIOS = [
     why: `The passive answer of last resort is the atmosphere itself: an evaporating water film
       on a steel containment shell plus a natural air chimney. That heat sink cannot dry up,
       warm up, or be blocked by debris.`,
+    watch: `In the cutaway: the 'to the sea' line goes grey on both plants. Only the right-hand one has somewhere else to put the heat - the air.`,
     timeline: [
       { t: 0, msg: 'River temperature exceeds the discharge limit — power reduction ordered', fn: (s, p) => { p.powerFrac = 0.6; } },
       { t: 120, msg: 'Intake screens clog with debris and biofouling', fn: (s, p) => { p.scram('loss of circulating water'); p.uhs = false; } },
@@ -138,6 +144,7 @@ export const SCENARIOS = [
     why: `Fewer moving parts is fewer things to shake out of alignment. Passive injection is
       driven by static heads inside the containment, so there is no rotating machinery whose
       bearings, alignment or power supply the earthquake can take away.`,
+    watch: `In the cutaway: pumps and their power chain are what the shaking takes away. Nothing on the right side needs either.`,
     timeline: [
       { t: 0, msg: 'Ground motion 2.5× design basis — scram, offsite power lost', fn: (s, p) => { p.scram('seismic'); p.grid = false; p.quakeDamage = 0.35; } },
       { t: 20, msg: 'Main transformer fire; onsite fire brigade overwhelmed', fn: (s, p) => { p.fire = 0.5; } },
@@ -158,6 +165,7 @@ export const SCENARIOS = [
     why: `If the safe state is reached by valves that <em>open when they lose power</em> and by
       water that <em>falls when released</em>, then burning the control cables moves the plant
       toward safety instead of away from it. Fail-safe is a property of the physics, not of the wiring.`,
+    watch: `In the cutaway: the ECCS lamp goes out with the cables. On the right, losing signal power <em>opens</em> the valves that matter.`,
     timeline: [
       { t: 0, msg: 'Fire in the cable spreading room beneath the control room', fn: (s, p) => { p.fire = 0.4; } },
       { t: 45, msg: 'Reactor scrammed manually as indications are lost', fn: (s, p) => { p.scram('manual — control room evacuating'); } },
@@ -179,6 +187,7 @@ export const SCENARIOS = [
       density difference and evaporation — and those don't have an off switch. Use the
       <b>disable passive systems</b> toggle to confirm it really is the passive equipment
       doing the work.`,
+    watch: `In the cutaway: every lamp on the left spine is dark and every loop has stopped. On the right, water is still falling downhill.`,
     tsunami: { at: 900, height: 18, speed: 3.6 },
     timeline: [
       { t: 0, msg: 'Extreme seismic event — scram, grid destroyed', fn: (s, p) => { p.scram('extreme seismic'); p.grid = false; p.quakeDamage = 0.6; } },

@@ -95,10 +95,14 @@ export class Renderer {
       ['#ef4326', 'fuel > 1300 C'], ['#d9e04a', 'hydrogen'],
       ['#8fd8e8', 'air draught'], ['#ffd35c', 'electrical power']
     ];
-    const left = (narrow ? 12 : 322) * dpr;
-    const right = CW - (narrow ? 12 : 348) * dpr;
+    const left = (narrow ? 10 : 322) * dpr;
+    const right = CW - (narrow ? 10 : 348) * dpr;
     ctx.save();
     ctx.font = `${9.5 * dpr}px ui-sans-serif, system-ui, sans-serif`;
+    // a strip behind it, or it lands on top of the section captions
+    const stripH = 34 * dpr;
+    ctx.fillStyle = 'rgba(8,13,19,0.82)';
+    ctx.fillRect(0, CH - (narrow ? 140 : 40) * dpr, CW, stripH);
     // lay out into as many rows as it takes
     const rows = [[]];
     let x = left;
@@ -108,7 +112,7 @@ export class Renderer {
       rows[rows.length - 1].push([it, x, w]);
       x += w;
     }
-    const baseY = CH - (narrow ? 118 : 26) * dpr - (rows.length - 1) * 15 * dpr;
+    const baseY = CH - (narrow ? 126 : 26) * dpr - (rows.length - 1) * 15 * dpr;
     rows.forEach((row, ri) => {
       const y = baseY + ri * 15 * dpr;
       for (const [it, px] of row) {
