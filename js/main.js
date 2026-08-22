@@ -19,6 +19,8 @@ function resize() {
   canvas.style.height = window.innerHeight + 'px';
   if (!sim) return;
   sim.cam.resize(canvas.width, canvas.height);
+  sim.cutCam.resize(canvas.width, canvas.height);
+  if (sim.view === 'cut') sim.fitCut(true);
   const wide = window.innerWidth > 860;
   if (wasWide !== wide) { wasWide = wide; sim.overview(); }
 }
@@ -47,11 +49,12 @@ canvas.addEventListener('pointerdown', (e) => {
   canvas.setPointerCapture(e.pointerId);
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (pointers.size === 1) {
-    drag = { x: e.clientX, y: e.clientY, cx: sim.cam.tx, cy: sim.cam.ty, moved: 0 };
+    const C = sim.activeCam;
+    drag = { x: e.clientX, y: e.clientY, cx: C.tx, cy: C.ty, moved: 0 };
     sim.cine = null;
   } else if (pointers.size === 2) {
     const [a, b] = [...pointers.values()];
-    pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: sim.cam.targetZoom };
+    pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: sim.activeCam.targetZoom };
     drag = null;
   }
 });
@@ -61,19 +64,21 @@ canvas.addEventListener('pointermove', (e) => {
   if (pinch && pointers.size === 2) {
     const [a, b] = [...pointers.values()];
     const d = Math.hypot(a.x - b.x, a.y - b.y);
-    sim.cam.targetZoom = clamp(pinch.z * (d / pinch.d), 0.28, 2.6);
+    sim.activeCam.targetZoom = clamp(pinch.z * (d / pinch.d), 0.28, 3.4);
     return;
   }
   if (!drag) return;
+  const C = sim.activeCam;
   const dpr = canvas.width / window.innerWidth;
-  const dx = (e.clientX - drag.x) * dpr / sim.cam.zoom;
-  const dy = (e.clientY - drag.y) * dpr / sim.cam.zoom;
+  const dx = (e.clientX - drag.x) * dpr / C.zoom;
+  const dy = (e.clientY - drag.y) * dpr / C.zoom;
   drag.moved += Math.abs(dx) + Math.abs(dy);
   // invert the isometric basis
   const wx = (dy / 16 + dx / 32) / 2, wy = (dy / 16 - dx / 32) / 2;
-  sim.cam.tx = clamp(drag.cx - wx, -10, 62);
-  sim.cam.ty = clamp(drag.cy - wy, -10, 62);
-  sim.cam.x = sim.cam.tx; sim.cam.y = sim.cam.ty;
+  const lim = sim.view === 'cut' ? 40 : 62;
+  C.tx = clamp(drag.cx - wx, -lim, lim);
+  C.ty = clamp(drag.cy - wy, -lim, lim);
+  C.x = C.tx; C.y = C.ty;
 });
 const endPointer = (e) => {
   pointers.delete(e.pointerId);
@@ -85,14 +90,16 @@ canvas.addEventListener('pointercancel', endPointer);
 
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
-  sim.cam.targetZoom = clamp(sim.cam.targetZoom * (e.deltaY > 0 ? 0.9 : 1.11), 0.28, 2.6);
+  const C = sim.activeCam;
+  C.targetZoom = clamp(C.targetZoom * (e.deltaY > 0 ? 0.9 : 1.11), 0.28, 3.4);
 }, { passive: false });
 
 let lastTap = 0;
 canvas.addEventListener('pointerup', (e) => {
   const now = performance.now();
   if (now - lastTap < 300) {
-    sim.cam.targetZoom = sim.cam.targetZoom > sim.fitZoom() * 1.4 ? sim.fitZoom() : sim.fitZoom() * 2.1;
+    if (sim.view === 'cut') sim.fitCut();
+    else sim.cam.targetZoom = sim.cam.targetZoom > sim.fitZoom() * 1.4 ? sim.fitZoom() : sim.fitZoom() * 2.1;
   }
   lastTap = now;
 });
@@ -104,6 +111,8 @@ window.addEventListener('keydown', (e) => {
   if (k === '2') sim.overview();
   if (k === '3') sim.cam.focus(sim.world.sites.passive.x + 7, sim.world.sites.passive.y + 7, 1.05);
   if (k === 'r') document.getElementById('btnReset').click();
+  if (k === 'c') document.getElementById('viewCut').click();
+  if (k === 'v') document.getElementById('viewSite').click();
   if (k === '+' || k === '=') sim.speedIdx = Math.min(5, sim.speedIdx + 1);
   if (k === '-') sim.speedIdx = Math.max(0, sim.speedIdx - 1);
 });

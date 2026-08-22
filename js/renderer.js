@@ -56,6 +56,72 @@ export class Renderer {
 
   // -------------------------------------------------------------------
   draw(sim) {
+    if (sim.view === 'cut') return this.drawCut(sim);
+    return this.drawSite(sim);
+  }
+
+  // The inside of both plants, cut open. Drawn back to front by hand: the
+  // geometry is fixed, so a sort would only add a way to get it wrong.
+  drawCut(sim) {
+    const ctx = this.ctx, cam = sim.cutCam;
+    const CW = this.canvas.width, CH = this.canvas.height;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const g = ctx.createLinearGradient(0, 0, 0, CH);
+    g.addColorStop(0, '#0c141d');
+    g.addColorStop(0.5, '#121c26');
+    g.addColorStop(1, '#0a1119');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, CW, CH);
+    // faint blueprint grid
+    ctx.strokeStyle = 'rgba(120,170,210,0.05)';
+    ctx.lineWidth = 1;
+    const step = 40;
+    ctx.beginPath();
+    for (let x = 0; x < CW; x += step) { ctx.moveTo(x, 0); ctx.lineTo(x, CH); }
+    for (let y = 0; y < CH; y += step) { ctx.moveTo(0, y); ctx.lineTo(CW, y); }
+    ctx.stroke();
+
+    cam.applyTransform(ctx);
+    for (const c of sim.cuts) { c.draw(ctx, sim.visTime); c.title(ctx); }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.drawCutLegend(ctx, CW, CH);
+    return undefined;
+  }
+
+  drawCutLegend(ctx, CW, CH) {
+    const dpr = CW / (window.innerWidth || CW);
+    const narrow = CW / dpr < 861;
+    const items = [
+      ['#3a8fd8', 'cold water'], ['#41a9c4', 'warm'], ['#d3a53c', 'hot'],
+      ['#ef4326', 'fuel > 1300 C'], ['#d9e04a', 'hydrogen'],
+      ['#8fd8e8', 'air draught'], ['#ffd35c', 'electrical power']
+    ];
+    const left = (narrow ? 12 : 322) * dpr;
+    const right = CW - (narrow ? 12 : 348) * dpr;
+    ctx.save();
+    ctx.font = `${9.5 * dpr}px ui-sans-serif, system-ui, sans-serif`;
+    // lay out into as many rows as it takes
+    const rows = [[]];
+    let x = left;
+    for (const it of items) {
+      const w = ctx.measureText(it[1]).width + 22 * dpr;
+      if (x + w > right && rows[rows.length - 1].length) { rows.push([]); x = left; }
+      rows[rows.length - 1].push([it, x, w]);
+      x += w;
+    }
+    const baseY = CH - (narrow ? 118 : 26) * dpr - (rows.length - 1) * 15 * dpr;
+    rows.forEach((row, ri) => {
+      const y = baseY + ri * 15 * dpr;
+      for (const [it, px] of row) {
+        ctx.fillStyle = it[0];
+        ctx.fillRect(px, y - 7 * dpr, 9 * dpr, 9 * dpr);
+        ctx.fillStyle = 'rgba(205,222,236,0.85)';
+        ctx.fillText(it[1], px + 13 * dpr, y + dpr);
+      }
+    });
+    ctx.restore();
+  }
+
+  drawSite(sim) {
     const ctx = this.ctx, cam = sim.cam, w = this.world;
     const CW = this.canvas.width, CH = this.canvas.height;
     ctx.setTransform(1, 0, 0, 1, 0, 0);

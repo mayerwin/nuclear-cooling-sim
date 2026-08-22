@@ -25,6 +25,10 @@
     <div class="clk" id="clock">00:00:00</div>
     <div class="clklbl">time since initiating event</div>
   </div>
+  <div class="viewSwitch" id="viewSwitch">
+    <button id="viewSite" class="on" title="The site and its surroundings (V)">🏭 <span>Site</span></button>
+    <button id="viewCut" title="Inside both reactors (C)">🔬 <span>Cutaway</span></button>
+  </div>
   <div class="speeds" id="speeds"></div>
   <div class="topActions">
     <button class="btn ghost" id="btnHelp" title="What am I looking at?">?</button>
@@ -55,6 +59,8 @@
       <button class="btn sm" data-cam="both">Both</button>
       <button class="btn sm" data-cam="passive">Passive unit</button>
     </div>
+    <p class="hint" id="viewHint">Switch to <b>Cutaway</b> to watch the water, steam and
+      hydrogen move inside each containment.</p>
   </div>
   <div class="whyBox" id="whyBox"></div>
 </aside>

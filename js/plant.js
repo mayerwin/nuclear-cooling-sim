@@ -183,6 +183,13 @@ export class Plant {
 
     // ---- heat removal ---------------------------------------------------
     this.prhrRunning = false;
+    // Everything the cutaway view animates is read from here, so the picture
+    // can never disagree with the model.
+    const sys = this.sys = {
+      rcp: 0, natCirc: 0, feed: 0, aux: 0, rcic: 0, prhr: 0, cmt: 0,
+      accum: 0, gravity: 0, sprays: 0, pccs: 0, film: 0, boil: 0,
+      ads: false, vent: false, grid: false, diesel: false, battery: 0
+    };
     let q = 0;          // W removed from the primary system
     let qInside = 0;    // of which is dumped *inside* the containment
     let inject = 0;     // kg/s makeup
@@ -190,11 +197,13 @@ export class Plant {
 
     if (!this.scrammed && acPower && this.uhs && this.pumpsOk) {
       q = Pth;
+      sys.feed = 1;
       this.paths.push('Main feedwater + condenser');
     } else {
       if (acPower && this.pumpsOk && this.uhs && this.quakeDamage < 0.8) {
         q += Pth * 1.15;
         inject += 40;
+        sys.aux = 1;
         this.paths.push(P ? 'Normal RHR (non-safety)' : 'Aux feedwater + RHR pumps');
       }
       if (!P) {
@@ -206,12 +215,23 @@ export class Plant {
           const qr = Math.min(Pth, P0 * 0.02);
           q += qr; qInside += qr;
           inject += 22;
+          sys.rcic = 1;
           this.paths.push('RCIC steam-driven pump (on batteries)');
         } else if (this.rcic && this.rcicOk && this.pCtmt >= 0.46 && !this.rcicTripped) {
           this.rcicTripped = true;
           this.log('RCIC trips on high turbine exhaust back-pressure', 'crit');
         }
       }
+    }
+
+    // Accumulators are passive kit a Gen-II plant already has. They dump on
+    // low pressure, empty in about a minute, and then the design is back to
+    // needing a running pump.
+    if (!P && this.accumLevel > 0 && this.pRPV < 4.9) {
+      inject += 55;
+      sys.accum = 1;
+      this.accumLevel = Math.max(0, this.accumLevel - dt / 620);
+      this.paths.push('Accumulators (passive, ~1 min of water)');
     }
 
     if (P && !this.sabotaged) {
@@ -223,12 +243,14 @@ export class Plant {
         const qp = Math.min(Math.max(0, Pth * 1.25 - q), cap);
         q += qp; qInside += qp;
         this.prhrRunning = qp > 0;
+        sys.prhr = qp > 0 ? Math.max(0.35, Math.min(1, qp / (P0 * 0.02))) : 0;
         this.irwst = Math.max(0, this.irwst - (qp / H_FG) * dt * 0.55);
         if (qp > 0) this.paths.push('PRHR HX - natural circulation');
       }
       // Core makeup tanks: gravity + pressure balance, no pump involved
       if (this.cmtLevel > 0 && (this.water < RPV_WATER * 0.94 || this.pRPV < 12)) {
         inject += 26;
+        sys.cmt = 1;
         this.cmtLevel = Math.max(0, this.cmtLevel - dt / 4200);
         this.paths.push('Core makeup tanks (gravity)');
       }
@@ -240,12 +262,14 @@ export class Plant {
       if (this.adsFired) this.pRPV = Math.max(0.14, this.pRPV - dt * 0.02);
       if (this.accumLevel > 0 && this.pRPV < 4.9) {
         inject += 60;
+        sys.accum = 1;
         this.accumLevel = Math.max(0, this.accumLevel - dt / 900);
         this.paths.push('Nitrogen accumulators');
       }
       if (this.pRPV < 0.9 && this.irwst > 1e5) {
         this.gravityInj = true;
         inject += 90;
+        sys.gravity = 1;
         this.irwst = Math.max(0, this.irwst - 90 * dt * 0.25);   // sump recirculation
         this.paths.push('IRWST gravity injection + sump recirculation');
       }
@@ -340,11 +364,14 @@ export class Plant {
       // steel shell + natural air draught + an evaporating gravity water film
       const film = this.pccwst > 0 ? 1 : 0.42;
       ctmtRemoval = (14e6 + 30e6 * film) * clamp((this.Tctmt - 322) / 55, 0, 1.6);
+      sys.pccs = clamp((this.Tctmt - 322) / 55, 0.12, 1.6);
+      sys.film = this.pccwst > 0 ? 1 : 0;
       if (this.pccwst > 0) this.pccwst = Math.max(0, this.pccwst - dt * (ctmtRemoval / 2.3e6) * 0.6);
       this.paths.push(this.pccwst > 0
         ? 'PCCS - air draught + gravity water film' : 'PCCS - air-cooled only');
     } else if (acPower && this.uhs) {
       ctmtRemoval = 34e6 * clamp((this.Tctmt - 315) / 40, 0, 1.4);
+      sys.sprays = clamp((this.Tctmt - 315) / 40, 0.15, 1.4);
       this.paths.push('Containment sprays / fan coolers');
     } else {
       ctmtRemoval = 1.2e6;      // conduction through the shell, and that is all
@@ -434,6 +461,17 @@ export class Plant {
     this.releasedBq += this.releaseRate * dt;
     this.doseSite = 0.0001 + this.releaseRate * 3.0e-13
       + this.coreDamage * 0.02 * (this.ctmtIntact ? 0.01 : 1);
+
+    // reactor coolant pumps, or the natural circulation that replaces them
+    sys.rcp = (acPower && this.pumpsOk && this.quakeDamage < 0.8)
+      ? (this.scrammed ? 0.55 : 1) : 0;
+    if (!sys.rcp && this.level > 0.9 && this.water > 1e5) sys.natCirc = 0.3;
+    sys.boil = Math.min(1, (this.steamToCtmt || 0) / 40);
+    sys.ads = this.adsFired;
+    sys.vent = this.vented;
+    sys.grid = this.grid;
+    sys.diesel = dieselAvail && !this.grid;
+    sys.battery = this.battery;
 
     // ---- state label ------------------------------------------------------
     // Evaluated fresh every step in severity order, so the plant can never get

@@ -8,6 +8,7 @@ import { PlantView } from './plantview.js';
 import { FX } from './fx.js';
 import { Camera } from './iso.js';
 import { byId } from './scenarios.js';
+import { CutawayView } from './cutaway.js';
 import { clamp, lerp, smoothstep } from './util.js';
 
 export const SPEEDS = [0, 1, 30, 120, 900, -1];   // -1 = AUTO (adaptive)
@@ -25,6 +26,9 @@ export class Sim {
     this.whiteout = 0;
     this.showZones = true;
     this.showLabels = true;
+    this.view = 'site';                 // 'site' | 'cut'
+    this.cutFocus = 'both';             // 'both' | 'active' | 'passive'
+    this.cutCam = new Camera(canvas.width, canvas.height);
     this.scenario = null;
     this.pending = [];
     this.feed = [];
@@ -47,12 +51,41 @@ export class Sim {
 
   overview() { this.cam.focus(26, 26, this.fitZoom()); }
 
+  // The cutaway has its own camera: two cross-sections side by side on a wide
+  // screen, one at a time on a phone.
+  fitCut(snap) {
+    const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+    const wide = this.cutCam.w / dpr > 860;
+    const usable = this.cutCam.w - (wide ? 680 * dpr : 24 * dpr);
+    const usableH = this.cutCam.h - (wide ? 190 * dpr : 260 * dpr);
+    let cx, cy, contentW;
+    const focus = wide ? this.cutFocus : (this.cutFocus === 'both' ? 'active' : this.cutFocus);
+    // section centre u = 6.5 maps to grid (ox + 3.25, oy - 3.25)
+    if (focus === 'active') { cx = 3.25; cy = -3.25; contentW = 470; }
+    else if (focus === 'passive') { cx = 3.25 + 8.75; cy = -3.25 - 8.75; contentW = 470; }
+    else { cx = 3.25 + 4.375; cy = -3.25 - 4.375; contentW = 1010; }
+    const zoom = clamp(Math.min(usable / contentW, usableH / 660), 0.34, 2.2);
+    // The section is all above z = 0, so centre it by hand: the camera looks at
+    // the ground plane and would otherwise put the whole building off the top.
+    this.cutCam.ox = 0;
+    this.cutCam.oy = 225 * zoom + (wide ? 24 : 34) * dpr;
+    if (snap) this.cutCam.snap(cx, cy, zoom); else this.cutCam.focus(cx, cy, zoom);
+  }
+
+  setView(v) {
+    this.view = v;
+    if (v === 'cut') this.fitCut(true); else this.overview();
+  }
+
+  get activeCam() { return this.view === 'cut' ? this.cutCam : this.cam; }
+
   makePlants() {
     const s = this.world.sites;
     this.active = new Plant(MODE.ACTIVE, 'Unit A — Active Cooling (Gen II)');
     this.passive = new Plant(MODE.PASSIVE, 'Unit B — Passive Cooling (Gen III+)');
     this.plants = [this.active, this.passive];
     this.views = [new PlantView(this.active, s.active), new PlantView(this.passive, s.passive)];
+    this.cuts = [new CutawayView(this.active, 0, 0), new CutawayView(this.passive, 8.75, -8.75)];
     this.hook();
   }
 
@@ -185,7 +218,7 @@ export class Sim {
     this.visTime += rdt;
     this.whiteout *= Math.pow(0.02, rdt);
     this.cam.update(rdt);
-    this.cam.resize(this.cam.w, this.cam.h);
+    this.cutCam.update(rdt);
 
     if (this.cine) {
       this.cine.t += rdt;

@@ -81,14 +81,31 @@ export class UI {
     };
     document.querySelectorAll('[data-cam]').forEach(b => {
       b.onclick = () => {
-        const s = this.sim.world.sites;
-        const m = b.dataset.cam;
-        if (m === 'active') this.sim.cam.focus(s.active.x + 7, s.active.y + 7, 1.05);
-        else if (m === 'passive') this.sim.cam.focus(s.passive.x + 7, s.passive.y + 7, 1.05);
-        else this.sim.overview();
-        this.sim.cine = null;
+        const sim = this.sim, s = sim.world.sites, m = b.dataset.cam;
+        sim.cine = null;
+        if (sim.view === 'cut') {
+          sim.cutFocus = m === 'both' ? 'both' : m;
+          sim.fitCut();
+          return;
+        }
+        if (m === 'active') sim.cam.focus(s.active.x + 7, s.active.y + 7, 1.15);
+        else if (m === 'passive') sim.cam.focus(s.passive.x + 7, s.passive.y + 7, 1.15);
+        else sim.overview();
       };
     });
+
+    // ---- view switcher ----
+    const setView = (v) => {
+      this.sim.setView(v);
+      $('#viewSite').classList.toggle('on', v === 'site');
+      $('#viewCut').classList.toggle('on', v === 'cut');
+      document.body.classList.toggle('cutmode', v === 'cut');
+      $('#viewHint').innerHTML = v === 'cut'
+        ? 'Every moving line is a flow the model computed. When a loop stops here, it stopped there.'
+        : 'Switch to <b>Cutaway</b> to watch the water, steam and hydrogen move inside each containment.';
+    };
+    $('#viewSite').onclick = () => setView('site');
+    $('#viewCut').onclick = () => setView('cut');
 
     // ---- top actions ----
     $('#btnReset').onclick = () => {
