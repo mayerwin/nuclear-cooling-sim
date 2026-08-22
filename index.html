@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+<title>Passive vs Active Nuclear Cooling — Isometric Accident Simulator</title>
+<meta name="description" content="An isometric, RollerCoaster-Tycoon-style simulator comparing actively cooled Gen-II reactors with passively cooled Gen-III+ reactors under Fukushima, Chernobyl, Three Mile Island and other severe accident scenarios." />
+<meta name="theme-color" content="#0a1018" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230e1a24'/%3E%3Cg fill='%2364e08a'%3E%3Ccircle cx='32' cy='32' r='6'/%3E%3Cpath d='M32 8a24 24 0 0 1 20.8 12L38 28.5A10 10 0 0 0 32 26z'/%3E%3Cpath d='M52.8 44A24 24 0 0 1 32 56V38.5a10 10 0 0 0 5.2-1.4z'/%3E%3Cpath d='M11.2 44A24 24 0 0 1 11.2 20L26 28.5a10 10 0 0 0 0 7z'/%3E%3C/g%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<canvas id="stage"></canvas>
+
+<!-- ======================= TOP BAR ======================= -->
+<header id="topbar">
+  <div class="brand">
+    <span class="logo">☢</span>
+    <div>
+      <h1>Passive <span class="vs">vs</span> Active Cooling</h1>
+      <p id="scenarioName">Select a scenario — both units run side by side</p>
+    </div>
+  </div>
+  <div class="clock">
+    <div class="clk" id="clock">00:00:00</div>
+    <div class="clklbl">time since initiating event</div>
+  </div>
+  <div class="speeds" id="speeds"></div>
+  <div class="topActions">
+    <button class="btn ghost" id="btnHelp" title="What am I looking at?">?</button>
+    <button class="btn ghost" id="btnReset" title="Reset simulation">⟲</button>
+    <button class="btn ghost only-mobile" id="btnPanels" title="Panels">▤</button>
+  </div>
+</header>
+
+<!-- ======================= LEFT: SCENARIOS ======================= -->
+<aside id="left" class="panel">
+  <div class="panelHead">
+    <h2>Trigger a catastrophe</h2>
+    <button class="closeBtn only-mobile" data-close="left">×</button>
+  </div>
+  <div id="scenarioList"></div>
+  <div class="panelHead"><h2>Controls</h2></div>
+  <div class="toggles">
+    <label class="tg"><input type="checkbox" id="tgExplain" checked><span>Equipment labels</span></label>
+    <label class="tg"><input type="checkbox" id="tgZones" checked><span>Evacuation zones</span></label>
+    <label class="tg danger"><input type="checkbox" id="tgSabotage"><span>Disable passive systems <em>(what-if)</em></span></label>
+    <div class="slider">
+      <span>Wind</span>
+      <input type="range" id="wind" min="0" max="360" value="52">
+      <span id="windVal">52°</span>
+    </div>
+    <div class="camBtns">
+      <button class="btn sm" data-cam="active">Active unit</button>
+      <button class="btn sm" data-cam="both">Both</button>
+      <button class="btn sm" data-cam="passive">Passive unit</button>
+    </div>
+  </div>
+  <div class="whyBox" id="whyBox"></div>
+</aside>
+
+<!-- ======================= RIGHT: TELEMETRY ======================= -->
+<aside id="right" class="panel">
+  <div class="panelHead">
+    <h2>Reactor telemetry</h2>
+    <button class="closeBtn only-mobile" data-close="right">×</button>
+  </div>
+  <div id="cards"></div>
+  <div class="panelHead"><h2>Consequences</h2></div>
+  <div id="consequences"></div>
+</aside>
+
+<!-- ======================= EVENT FEED ======================= -->
+<section id="feed"><div id="feedInner"></div></section>
+
+<!-- ======================= MOBILE TABS ======================= -->
+<nav id="mobileTabs" class="only-mobile">
+  <button data-open="left">☢ Scenarios</button>
+  <button data-open="right">📊 Telemetry</button>
+  <button data-open="feedsheet">📋 Log</button>
+</nav>
+
+<!-- ======================= INTRO / HELP ======================= -->
+<div id="modal" class="modalWrap open">
+  <div class="modal">
+    <button class="modalClose" id="modalClose">×</button>
+    <h2><span class="logo">☢</span> Two ways to keep a reactor cool</h2>
+    <p class="lede">A reactor that has been shut down still makes heat — about <b>6.5% of full power</b> the instant
+      the rods drop, and still ~0.5% a day later. For a 3,400&nbsp;MW core that is <b>220&nbsp;MW</b> falling to
+      <b>17&nbsp;MW</b>: enough to boil itself dry and melt in hours if nothing carries that heat away.
+      Every nuclear accident in history is a story about losing that heat path.</p>
+    <div class="cols">
+      <div class="col act">
+        <h3>Active cooling <small>Gen II — Fukushima, TMI, most of today's fleet</small></h3>
+        <ul>
+          <li>Motor-driven pumps push water through the core.</li>
+          <li>Pumps need the grid → then diesels → then batteries.</li>
+          <li>Heat ends up in the sea or a river, via more pumps.</li>
+          <li>Operators must diagnose and act, often in minutes.</li>
+          <li><b>Chain of dependencies. Break any link and the clock starts.</b></li>
+        </ul>
+      </div>
+      <div class="col pas">
+        <h3>Passive cooling <small>Gen III+ — AP1000, ESBWR, SMRs</small></h3>
+        <ul>
+          <li>Water sits <em>above</em> the core and falls into it.</li>
+          <li>Hot water rises, cold water sinks — natural circulation.</li>
+          <li>Steam condenses on a steel shell cooled by an air draught.</li>
+          <li>Valves <em>open</em> when they lose power (fail-safe).</li>
+          <li><b>No pump, no diesel, no operator, for 72 hours.</b></li>
+        </ul>
+      </div>
+    </div>
+    <p class="fine">Pick a scenario on the left and watch both units answer the same hazard.
+      Everything here is a simplified but physically-grounded model: Way–Wigner decay heat,
+      latent-heat boil-off, Zr–H₂O oxidation with its 6.5&nbsp;MJ/kg exotherm and hydrogen yield,
+      ideal-gas containment pressure, and a source term scaled to the measured Cs-137 releases at
+      Fukushima (≈15&nbsp;PBq) and Chernobyl (≈85&nbsp;PBq). It is a teaching tool, not a licensing code.</p>
+    <button class="btn primary big" id="startBtn">Start the simulator</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
