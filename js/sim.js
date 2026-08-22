@@ -255,7 +255,9 @@ export class Sim {
   }
 
   stepSim(dt) {
-    this.t += dt;
+    // The clock is "time since the initiating event", so it does not run
+    // before there is one. The plants still step: they are at steady state.
+    if (this.scenario) this.t += dt;
     // scenario timeline
     for (const e of this.pending) {
       if (!e.done && this.t >= e.t) {
