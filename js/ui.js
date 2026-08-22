@@ -64,7 +64,7 @@ export class UI {
     });
 
     // ---- toggles ----
-    $('#tgExplain').onchange = (e) => { import('./plantview.js').then(m => m.PlantView.explain = e.target.checked); };
+    $('#tgExplain').onchange = (e) => { this.sim.showLabels = e.target.checked; };
     $('#tgZones').onchange = (e) => this.sim.showZones = e.target.checked;
     $('#tgSabotage').onchange = (e) => {
       this.sim.sabotage = e.target.checked;

@@ -4,10 +4,8 @@
 import { Sim } from './sim.js';
 import { Renderer } from './renderer.js';
 import { UI } from './ui.js';
-import { buildMaterials } from './textures.js';
 import { PlantView } from './plantview.js';
 import { clamp } from './util.js';
-import { drawProp } from './props.js';
 
 const canvas = document.getElementById('stage');
 const ctx = canvas.getContext('2d');
@@ -25,13 +23,11 @@ function resize() {
   if (wasWide !== wide) { wasWide = wide; sim.overview(); }
 }
 
-buildMaterials(ctx);
 let sim = new Sim(canvas);
 resize();
 sim.world.bakeTerrain();
 sim.world.bakeOverlay();
-sim.propsFn = (g, p, w, t) => drawProp(g, p, w, t);
-sim.bakeScene();
+
 
 const renderer = new Renderer(canvas, sim.world);
 renderer.buildOcean();

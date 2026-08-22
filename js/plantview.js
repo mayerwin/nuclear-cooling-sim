@@ -1,523 +1,573 @@
 // ---------------------------------------------------------------------------
-// plantview.js — isometric geometry for the two stations, including how they
-// come apart. Structures are emitted into a shared depth-sorted draw list so
-// they interleave correctly with terrain props.
+// plantview.js - the two stations as they appear on the site map.
+//
+// Every structure is emitted into the renderer's single sorted list as its own
+// piece with its own depth key, so nothing can draw on the wrong side of
+// anything else. Nothing is cached in a layer, so nothing pops.
 // ---------------------------------------------------------------------------
-import { MAT } from './textures.js';
-import { P, box, cylinder, coolingTower, dome, pipe, pylon, cone, quadFlat, shadow, revolve } from './draw3d.js';
-import { TW, TH, EH } from './iso.js';
-import { clamp, lerp, TAU, mulberry32, smoothstep } from './util.js';
+import {
+  project, box, prism, cylinder, revolve, coolingTower, dome, cone, pylon,
+  shadow, shade, rgba, mix, hash2, poly, polyLine, TW, TH, TZ, EDGE
+} from './iso.js';
 import { MODE } from './plant.js';
+
+const CONCRETE = '#cfccc2';
+const CONCRETE_D = '#a9a69c';
+const SHELL = '#dfe2e2';
+const HALL = '#b9c3c9';
+const ROOF = '#5d7a8c';
+const ROOF_G = '#6f8474';
+const STEEL = '#c2c8cc';
+const MACHINE = '#8d959b';
+const TOWER = '#c6c2b6';
+const TARMAC = '#6d6f73';
+
+function gableLow(ctx, x, y, z, w, d, h, c) {
+  const my = y + d / 2, tz = z + h;
+  const A = project(x, y, z), B = project(x + w, y, z);
+  const C = project(x + w, y + d, z), D = project(x, y + d, z);
+  const R1 = project(x, my, tz), R2 = project(x + w, my, tz);
+  ctx.fillStyle = shade(c, 1.05); poly(ctx, [A, B, R2, R1]);
+  ctx.fillStyle = shade(c, 0.86); poly(ctx, [B, R2, C]);
+  ctx.fillStyle = shade(c, 0.76); poly(ctx, [D, C, R2, R1]);
+  ctx.strokeStyle = EDGE; ctx.lineWidth = 1; ctx.lineJoin = 'round';
+  polyLine(ctx, [A, B, R2, R1], true);
+  polyLine(ctx, [D, C, R2, R1], true);
+}
 
 export class PlantView {
   constructor(plant, site) {
     this.plant = plant;
     this.s = site;
-    this.rng = mulberry32(plant.mode === MODE.PASSIVE ? 22 : 11);
     this.passive = plant.mode === MODE.PASSIVE;
-    this.t = 0;
+    this.z = site.z;
     this.layout();
+  }
+
+  layout() {
+    // A 14x14 site square. Local (0,0) is the seaward corner - which is
+    // exactly where Gen-II plants historically put the equipment a wave
+    // can reach.
+    // The site is staged like a set. In this projection x+y is distance from
+    // the camera, so: tall things at the BACK (they can never occlude what is
+    // in front), the reactor building alone in the MIDDLE where nothing can
+    // stand in front of it, and only low things at the FRONT.
+    //
+    // The occlusion rule: a solid at (mx,my) hides a point at (mx,by) when
+    // (w+d)/2 > my - by. Every setback below satisfies it.
+    this.parts = {
+      intake: { x: -4.6, y: -4.6, w: 2.4, d: 1.9 },
+      towers: [{ x: -1.2, y: 7.2, r: 1.85 }, { x: 7.2, y: -1.2, r: 1.85 }],
+      edg: { x: 0.8, y: 4.6, w: 3.0, d: 2.2 },
+      stack: { x: 4.8, y: 1.4 },
+      aux: { x: 2.2, y: 9.0, w: 2.4, d: 3.0 },
+      reactor: { x: 7.0, y: 7.0, r: this.passive ? 1.62 : 1.45 },
+      fuel: { x: 9.6, y: 2.8, w: 2.6, d: 2.6 },
+      turbine: { x: 10.8, y: 8.4, w: 3.4, d: 5.8 },
+      switchyard: { x: 4.6, y: 11.8 },
+      tanks: [{ x: 9.4, y: 11.2, r: 0.86 }, { x: 10.8, y: 12.4, r: 0.7 }],
+      gate: { x: 12.6, y: 5.4 },
+      park: { x: 12.4, y: 7.0 }
+    };
+  }
+
+  // ---------------------------------------------------------------------
+  // Emit every piece into the shared sorted list. key = x + y + (w+d)/2 for
+  // footprints, x + y for anything drawn from its centre.
+  collect(list, time) {
+    const S = this.s, z = this.z, P_ = this.passive, p = this.plant;
+    const put = (k, f) => list.push({ k, f });
+    const pt = this.parts;
+
+    // flat ground dressing first (they never occlude, but they must sit under
+    // the structures, so they get a very low key)
+    put(-1e6, (c) => this.drawApron(c));
+
+    const it = pt.intake;
+    put(S.x + it.x + S.y + it.y + (it.w + it.h) / 2, (c) => this.drawIntake(c));
+
+    const e = pt.edg;
+    put(S.x + e.x + S.y + e.y + (e.w + e.d) / 2, (c) => this.drawEDG(c));
+
+    const a = pt.aux;
+    put(S.x + a.x + S.y + a.y + (a.w + a.d) / 2, (c) => this.drawAux(c));
+
+    const f = pt.fuel;
+    put(S.x + f.x + S.y + f.y + (f.w + f.d) / 2, (c) => this.drawFuel(c));
+
+    put(S.x + pt.stack.x + S.y + pt.stack.y, (c) => this.drawStack(c));
+    put(S.x + pt.reactor.x + S.y + pt.reactor.y, (c) => this.drawReactor(c, time));
+
+    const t = pt.turbine;
+    put(S.x + t.x + S.y + t.y + (t.w + t.d) / 2, (c) => this.drawTurbine(c));
+    // transformer bank stands apart from the hall so it sorts on its own depth
+    put(S.x + t.x - 1.0 + S.y + t.y + 2.4, (c) => this.drawTransformers(c));
+
+    for (const tk of pt.tanks) put(S.x + tk.x + S.y + tk.y, (c) => this.drawTank(c, tk));
+    put(S.x + pt.switchyard.x + S.y + pt.switchyard.y, (c) => this.drawSwitchyard(c));
+    for (const tw of pt.towers) put(S.x + tw.x + S.y + tw.y, (c) => this.drawTower(c, tw));
+    put(S.x + pt.gate.x + S.y + pt.gate.y, (c) => this.drawGate(c));
+    put(S.x + pt.park.x + S.y + pt.park.y, (c) => this.drawCars(c));
+
+    // The fence is four separate runs: a single key would put the near run
+    // behind the buildings it is supposed to stand in front of.
+    put(S.x + 0.2 + S.y + 0.2 - 0.1, (c) => this.fenceRun(c, 0.2, 0.2, 13.8, 0.2));
+    put(S.x + 0.2 + S.y + 0.2, (c) => this.fenceRun(c, 0.2, 0.2, 0.2, 13.8));
+    put(S.x + 13.8 + S.y + 0.2, (c) => this.fenceRun(c, 13.8, 0.2, 13.8, 13.8));
+    put(S.x + 0.2 + S.y + 13.8, (c) => this.fenceRun(c, 0.2, 13.8, 13.8, 13.8));
   }
 
   L(lx, ly) { return [this.s.x + lx, this.s.y + ly]; }
 
-  layout() {
-    const z = this.s.z;
-    const P_ = this.passive;
-    this.z = z;
-    // Local layout is expressed in a 14x14 site square. Local (0,0) is the
-    // seaward corner (lowest x+y), which is exactly where Gen-II plants
-    // historically put the equipment a wave can reach.
-    this.parts = {
-      intake: { x: -4.2, y: -4.2, w: 2.2, h: 1.8, z: 0.1 },
-      edg: { x: 0.6, y: 1.0, w: 3.4, h: 2.4 },
-      reactor: { x: 5.6, y: 5.6, r: 1.45 },
-      aux: { x: 2.4, y: 4.8, w: 2.4, h: 3.8 },
-      turbine: { x: 8.6, y: 2.4, w: 4.6, h: 8.4 },
-      stack: { x: 4.4, y: 1.6 },
-      fuel: { x: 2.0, y: 9.6, w: 3.0, h: 3.2 },
-      switchyard: { x: 9.2, y: 11.0 },
-      tanks: [{ x: 6.6, y: 11.6, r: 0.95 }, { x: 8.4, y: 11.9, r: 0.8 }],
-      towers: [{ x: 11.8, y: 13.2, r: 1.95 }, { x: 14.4, y: 10.4, r: 1.95 }],
-      gate: { x: 12.0, y: 0.9 }
-    };
-    this.crater = null;
-  }
-
-  // ---------------------------------------------------------------------
-  // Everything that does not change frame-to-frame is baked into the scene
-  // layer; only the reactor building (glow, damage) is redrawn live.
-  sig() {
-    const p = this.plant;
-    return [p.grid ? 1 : 0, p.flooded > 1 ? 1 : 0, p.fire > 0.15 ? 1 : 0, p.explosions,
-    p.ctmtIntact ? 1 : 0, Math.round((p.pccwst || 0) / 3e5), Math.round(p.coreDamage * 6)].join(',');
-  }
-
-  collect(list, world, want) {
-    const p = this.plant, S = this.s;
-    const push = (lx, ly, fn, bias = 0, st = true) => {
-      if (want === 'static' && !st) return;
-      if (want === 'live' && st) return;
-      list.push({ d: (S.x + lx) + (S.y + ly) + bias, fn });
-    };
-    const P_ = this.passive;
-
-    // ---- seawater intake (only the active design needs it for safety) ----
-    push(this.parts.intake.x, this.parts.intake.y, (ctx) => this.drawIntake(ctx));
-    // ---- perimeter fence ----
-    push(0, 0, (ctx) => this.drawFence(ctx), -14);
-    push(0, 0, (ctx) => this.drawPads(ctx), -13.9);
-
-    push(this.parts.edg.x, this.parts.edg.y, (ctx) => this.drawEDG(ctx));
-    push(this.parts.fuel.x, this.parts.fuel.y, (ctx) => this.drawFuelBldg(ctx));
-    push(this.parts.aux.x, this.parts.aux.y, (ctx) => this.drawAux(ctx));
-    push(this.parts.stack.x, this.parts.stack.y, (ctx) => this.drawStack(ctx));
-    push(this.parts.reactor.x, this.parts.reactor.y, (ctx) => this.drawReactor(ctx), 0, false);
-    push(this.parts.turbine.x, this.parts.turbine.y, (ctx) => this.drawTurbine(ctx));
-    for (const t of this.parts.tanks) push(t.x, t.y, (ctx) => this.drawTank(ctx, t));
-    push(this.parts.switchyard.x, this.parts.switchyard.y, (ctx) => this.drawSwitchyard(ctx));
-    for (const t of this.parts.towers) push(t.x, t.y, (ctx) => this.drawTower(ctx, t));
-    push(this.parts.gate.x, this.parts.gate.y, (ctx) => this.drawGate(ctx));
-  }
-
-  // ---------------------------------------------------------------------
-  drawPads(ctx) {
+  // ---- flat dressing --------------------------------------------------
+  drawApron(ctx) {
     const S = this.s, z = this.z;
-    ctx.save();
-    // concrete apron under the nuclear island
-    const a = P(S.x + 1.4, S.y + 1.4, z), b = P(S.x + 12.6, S.y + 1.4, z);
-    const c = P(S.x + 12.6, S.y + 12.6, z), d = P(S.x + 1.4, S.y + 12.6, z);
-    ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(c[0], c[1]); ctx.lineTo(d[0], d[1]); ctx.closePath();
-    ctx.save(); ctx.clip();
-    ctx.save();
-    ctx.transform((b[0] - a[0]) / 340, (b[1] - a[1]) / 340, (d[0] - a[0]) / 340, (d[1] - a[1]) / 340, a[0], a[1]);
-    ctx.fillStyle = MAT.concrete; ctx.fillRect(0, 0, 340, 340);
-    ctx.restore();
-    const bx0 = Math.min(a[0], b[0], c[0], d[0]), bx1 = Math.max(a[0], b[0], c[0], d[0]);
-    const by0 = Math.min(a[1], b[1], c[1], d[1]), by1 = Math.max(a[1], b[1], c[1], d[1]);
-    ctx.fillStyle = 'rgba(20,26,34,0.10)'; ctx.fillRect(bx0, by0, bx1 - bx0, by1 - by0);
-    ctx.restore();
-    // yellow hazard striping at the island edge
-    ctx.strokeStyle = 'rgba(214,182,60,0.5)'; ctx.lineWidth = 2; ctx.setLineDash([7, 6]);
-    ctx.stroke(); ctx.setLineDash([]);
-    ctx.restore();
+    const quad = (x0, y0, x1, y1, col, alpha) => {
+      const A = project(S.x + x0, S.y + y0, z), B = project(S.x + x1, S.y + y0, z);
+      const C = project(S.x + x1, S.y + y1, z), D = project(S.x + x0, S.y + y1, z);
+      ctx.globalAlpha = alpha === undefined ? 1 : alpha;
+      ctx.fillStyle = col;
+      poly(ctx, [A, B, C, D]);
+      ctx.globalAlpha = 1;
+    };
+    quad(0.6, 0.6, 13.4, 13.4, '#c3c0b6');
+    quad(0.6, 0.6, 13.4, 13.4, 'rgba(120,116,106,0.10)');
+    // roadway ring
+    quad(5.6, 0.8, 6.4, 13.2, TARMAC, 0.5);
+    quad(0.8, 10.4, 13.2, 11.2, TARMAC, 0.42);
+    // hazard striping at the nuclear island
+    const A = project(S.x + 5.2, S.y + 5.2, z), B = project(S.x + 8.8, S.y + 5.2, z);
+    const C = project(S.x + 8.8, S.y + 8.8, z), D = project(S.x + 5.2, S.y + 8.8, z);
+    ctx.strokeStyle = 'rgba(206,176,64,0.45)';
+    ctx.lineWidth = 2; ctx.setLineDash([6, 5]);
+    polyLine(ctx, [A, B, C, D], true);
+    ctx.setLineDash([]);
   }
 
-  drawFence(ctx) {
-    const S = this.s, z = this.z, h = 0.55;
-    const pts = [[0.2, 0.2], [13.8, 0.2], [13.8, 13.8], [0.2, 13.8], [0.2, 0.2]];
-    ctx.strokeStyle = 'rgba(120,128,136,0.85)';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < pts.length - 1; i++) {
-      const a0 = P(S.x + pts[i][0], S.y + pts[i][1], z + h);
-      const a1 = P(S.x + pts[i + 1][0], S.y + pts[i + 1][1], z + h);
-      const b0 = P(S.x + pts[i][0], S.y + pts[i][1], z);
-      ctx.beginPath();
-      ctx.moveTo(a0[0], a0[1]); ctx.lineTo(a1[0], a1[1]);
-      ctx.stroke();
-      ctx.globalAlpha = 0.5;
-      ctx.beginPath(); ctx.moveTo(a0[0], a0[1]); ctx.lineTo(b0[0], b0[1]); ctx.stroke();
-      ctx.globalAlpha = 1;
-      // mesh hint
-      const n = 14;
-      ctx.globalAlpha = 0.22;
-      for (let k = 0; k <= n; k++) {
-        const t = k / n;
-        const px = lerp(a0[0], a1[0], t), py = lerp(a0[1], a1[1], t);
-        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, py + h * EH); ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
+  fenceRun(ctx, x0, y0, x1, y1) {
+    const S = this.s, z = this.z, h = 0.52;
+    const a0 = project(S.x + x0, S.y + y0, z + h), a1 = project(S.x + x1, S.y + y1, z + h);
+    const b0 = project(S.x + x0, S.y + y0, z), b1 = project(S.x + x1, S.y + y1, z);
+    ctx.strokeStyle = 'rgba(126,132,138,0.9)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(a0.x, a0.y); ctx.lineTo(a1.x, a1.y); ctx.stroke();
+    ctx.globalAlpha = 0.3;
+    const n = 22;
+    ctx.beginPath();
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      const px = a0.x + (a1.x - a0.x) * t, py = a0.y + (a1.y - a0.y) * t;
+      ctx.moveTo(px, py); ctx.lineTo(px, py + h * TZ);
     }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.beginPath(); ctx.moveTo(b0.x, b0.y); ctx.lineTo(b1.x, b1.y);
+    ctx.strokeStyle = 'rgba(90,96,102,0.5)'; ctx.stroke();
   }
 
+  // ---- structures ------------------------------------------------------
   drawIntake(ctx) {
-    const S = this.s, pt = this.parts.intake;
-    const x = S.x + pt.x, y = S.y + pt.y;
-    const dmg = this.plant.flooded > 2 ? 1 : 0;
-    shadow(ctx, x + pt.w / 2, y + pt.h / 2, pt.z, 40, 20, 0.22);
-    box(ctx, x, y, pt.z, pt.w, pt.h, 1.5, { wall: MAT.concreteDark, top: MAT.roofGreen, k: dmg ? 0.75 : 1 });
-    // intake channel water
-    const a = P(x - 1.2, y - 1.2, 0.02), b = P(x + pt.w + 1.2, y - 1.2, 0.02);
-    ctx.save();
-    ctx.globalAlpha = 0.35; ctx.fillStyle = '#2a6f92';
-    ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]);
-    const c = P(x + pt.w + 1.2, y + pt.h + 1, 0.02), d = P(x - 1.2, y + pt.h + 1, 0.02);
-    ctx.lineTo(c[0], c[1]); ctx.lineTo(d[0], d[1]); ctx.closePath(); ctx.fill();
-    ctx.restore();
+    const S = this.s, o = this.parts.intake;
+    const x = S.x + o.x, y = S.y + o.y;
+    const drowned = this.plant.flooded > 1;
+    // jetty out to the pumphouse
+    const A = project(x + o.w, y + 0.6, 0.12), B = project(x + o.w + 3.4, y + 3.2, 0.12);
+    ctx.strokeStyle = 'rgba(150,144,132,0.85)'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
+    ctx.strokeStyle = 'rgba(80,76,68,0.5)'; ctx.lineWidth = 1;
+    ctx.stroke();
+    box(ctx, {
+      x, y, z: 0.1, w: o.w, d: o.h, h: 1.4,
+      color: drowned ? mix(CONCRETE_D, '#3f6a80', 0.5) : CONCRETE_D, top: ROOF_G
+    });
+    for (let i = 0; i < 3; i++) {
+      box(ctx, {
+        x: x + 0.3 + i * 0.65, y: y + 0.45, z: 1.5, w: 0.4, d: 0.5, h: 0.35,
+        color: MACHINE, edge: false
+      });
+    }
   }
 
   drawEDG(ctx) {
-    const S = this.s, e = this.parts.edg, z = this.z;
-    const x = S.x + e.x, y = S.y + e.y;
+    const S = this.s, o = this.parts.edg, z = this.z;
+    const x = S.x + o.x, y = S.y + o.y;
     const drowned = this.plant.flooded > 1;
-    shadow(ctx, x + e.w / 2, y + e.h / 2, z, 56, 28, 0.25);
-    box(ctx, x, y, z, e.w, e.h, 2.0, {
-      wall: MAT.concreteDark, top: MAT.roofGreen, k: drowned ? 0.6 : 1,
-      tint: drowned ? 'rgba(20,60,80,0.45)' : null
+    shadow(ctx, x + o.w / 2, y + o.d / 2, z, 46, 24, 0.22);
+    box(ctx, {
+      x, y, z, w: o.w, d: o.d, h: 1.9,
+      color: drowned ? mix(CONCRETE_D, '#2f5f78', 0.55) : CONCRETE_D,
+      top: ROOF_G, panels: { cols: 5, rows: 2, seed: 3, joint: 'rgba(60,54,46,0.16)' }
     });
-    // exhaust stacks
     for (let i = 0; i < 3; i++) {
-      cylinder(ctx, x + 0.6 + i * 1.0, y + 0.5, z + 2.0, 0.16, 1.5, MAT.rust, { k: drowned ? 0.7 : 1 });
+      cylinder(ctx, {
+        x: x + 0.7 + i * 1.0, y: y + 0.5, z: z + 1.9, r: 0.14, h: 1.2,
+        color: drowned ? '#6d5b4c' : '#9c6a4a'
+      });
     }
-    // louvre detail
-    const a = P(x + e.w, y + 0.3, z + 1.6), b = P(x + e.w, y + e.h - 0.3, z + 1.6);
-    ctx.strokeStyle = 'rgba(30,40,50,0.55)'; ctx.lineWidth = 1;
-    for (let k = 0; k < 5; k++) {
+    // louvre band on the sunny face
+    const l0 = project(x + o.w, y + 0.3, z + 1.55), l1 = project(x + o.w, y + o.d - 0.3, z + 1.55);
+    ctx.strokeStyle = 'rgba(60,66,72,0.4)'; ctx.lineWidth = 1;
+    for (let k = 0; k < 4; k++) {
       ctx.beginPath();
-      ctx.moveTo(a[0], a[1] + k * 3); ctx.lineTo(b[0], b[1] + k * 3); ctx.stroke();
+      ctx.moveTo(l0.x, l0.y + k * 3.2); ctx.lineTo(l1.x, l1.y + k * 3.2); ctx.stroke();
     }
-  }
-
-  drawFuelBldg(ctx) {
-    const S = this.s, f = this.parts.fuel, z = this.z;
-    const x = S.x + f.x, y = S.y + f.y;
-    shadow(ctx, x + f.w / 2, y + f.h / 2, z, 60, 30, 0.25);
-    box(ctx, x, y, z, f.w, f.h, 3.0, { wall: MAT.concrete, top: MAT.roof });
-    // spent-fuel pool skylight glow
-    const a = P(x + 0.6, y + 0.6, z + 3.0), b = P(x + f.w - 0.6, y + 0.6, z + 3.0);
-    const d = P(x + 0.6, y + f.h - 0.6, z + 3.0);
-    quadFlat(ctx, a, b, d, this.plant.coreDamage > 0.2 ? 'rgba(120,255,190,0.5)' : 'rgba(90,180,220,0.45)', 0.9);
   }
 
   drawAux(ctx) {
-    const S = this.s, a = this.parts.aux, z = this.z;
-    const x = S.x + a.x, y = S.y + a.y;
-    shadow(ctx, x + a.w / 2, y + a.h / 2, z, 60, 30, 0.28);
-    box(ctx, x, y, z, a.w, a.h, 3.6, { wall: MAT.concrete, top: MAT.roofGreen });
-    box(ctx, x + 0.3, y + a.h * 0.25, z + 3.6, a.w - 0.6, a.h * 0.5, 0.9, { wall: MAT.glass, top: MAT.roof, density: 26 });
+    const S = this.s, o = this.parts.aux, z = this.z;
+    const x = S.x + o.x, y = S.y + o.y;
+    shadow(ctx, x + o.w / 2, y + o.d / 2, z, 50, 26, 0.24);
+    box(ctx, {
+      x, y, z, w: o.w, d: o.d, h: 3.2, color: CONCRETE, top: ROOF_G,
+      windows: { cols: 3, rows: 4, seed: 11 }
+    });
+    box(ctx, {
+      x: x + 0.3, y: y + o.d * 0.22, z: z + 3.2, w: o.w - 0.6, d: o.d * 0.56, h: 0.8,
+      color: '#8fa4b0', top: ROOF, windows: { cols: 3, rows: 1, seed: 5 }
+    });
+  }
+
+  drawFuel(ctx) {
+    const S = this.s, o = this.parts.fuel, z = this.z;
+    const x = S.x + o.x, y = S.y + o.y;
+    shadow(ctx, x + o.w / 2, y + o.d / 2, z, 52, 26, 0.24);
+    box(ctx, { x, y, z, w: o.w, d: o.d, h: 2.7, color: CONCRETE, top: ROOF });
+    // spent-fuel pool skylight; it glows faintly blue, and green if the core
+    // next door has come apart
+    const A = project(x + 0.6, y + 0.6, z + 2.7), B = project(x + o.w - 0.6, y + 0.6, z + 2.7);
+    const C = project(x + o.w - 0.6, y + o.d - 0.6, z + 2.7), D = project(x + 0.6, y + o.d - 0.6, z + 2.7);
+    ctx.fillStyle = this.plant.coreDamage > 0.2 ? 'rgba(126,240,180,0.55)' : 'rgba(112,190,224,0.5)';
+    poly(ctx, [A, B, C, D]);
+    ctx.strokeStyle = 'rgba(70,62,52,0.35)'; ctx.lineWidth = 1;
+    polyLine(ctx, [A, B, C, D], true);
   }
 
   drawStack(ctx) {
-    const S = this.s, st = this.parts.stack, z = this.z;
-    const x = S.x + st.x, y = S.y + st.y;
+    const S = this.s, o = this.parts.stack, z = this.z;
+    const x = S.x + o.x, y = S.y + o.y;
     const broken = this.plant.explosions > 1;
-    cylinder(ctx, x, y, z, 0.3, broken ? 4 : 8.2, MAT.concrete, { k: 1 });
+    const h = broken ? 3.6 : 8.0;
+    cylinder(ctx, { x, y, z, r: 0.28, h, color: broken ? '#8f8a80' : CONCRETE, rib: 5 });
     if (!broken) {
-      const top = P(x, y, z + 8.2);
-      ctx.fillStyle = 'rgba(220,60,50,0.9)';
-      ctx.beginPath(); ctx.ellipse(top[0], top[1], 0.3 * TW * 0.7071, 0.3 * TH * 0.7071, 0, 0, TAU); ctx.fill();
-      // red/white bands
-      for (let i = 0; i < 3; i++) {
-        const zz = z + 3 + i * 2.2;
-        const p0 = P(x, y, zz);
-        ctx.globalAlpha = 0.5; ctx.strokeStyle = '#c8443c'; ctx.lineWidth = 4;
-        ctx.beginPath(); ctx.ellipse(p0[0], p0[1], 0.3 * TW * 0.7071, 0.3 * TH * 0.7071, 0, Math.PI * 0.05, Math.PI * 0.95); ctx.stroke();
-        ctx.globalAlpha = 1;
+      for (const t of [0.42, 0.62, 0.82]) {
+        const p = project(x, y, z + h * t);
+        ctx.strokeStyle = 'rgba(196,72,56,0.75)'; ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y, 0.28 * TW * 1.414, 0.28 * TH * 1.414, 0, 0.15, Math.PI - 0.15);
+        ctx.stroke();
       }
-    }
-  }
-
-  drawReactor(ctx) {
-    const S = this.s, r = this.parts.reactor, z = this.z;
-    const x = S.x + r.x, y = S.y + r.y;
-    const p = this.plant;
-    const wrecked = p.explosions > 0 || !p.ctmtIntact;
-    const glow = p.vesselBreach ? 1 : p.coreDamage;
-
-    shadow(ctx, x, y, z, 96, 48, 0.3);
-
-    if (this.passive) {
-      // --- AP1000-style shield building: cylinder + air-inlet ring +
-      //     PCCWST gravity tank on the roof + central air diffuser ---
-      cylinder(ctx, x, y, z, r.r * 1.12, 6.4, MAT.concrete, { k: 1, cap: false });
-      // air inlet band
-      const bz = z + 5.6;
-      const bp = P(x, y, bz);
-      ctx.save();
-      ctx.beginPath(); ctx.ellipse(bp[0], bp[1], r.r * TW * 0.7071, r.r * TH * 0.7071 + 12, 0, 0, TAU);
-      ctx.clip();
-      ctx.fillStyle = 'rgba(24,32,40,0.9)';
-      const top = P(x, y, z + 6.4);
-      ctx.fillRect(bp[0] - 200, top[1], 400, 22);
-      ctx.strokeStyle = 'rgba(150,164,176,0.9)'; ctx.lineWidth = 1.4;
-      for (let i = -9; i <= 9; i++) {
-        ctx.beginPath(); ctx.moveTo(bp[0] + i * 9, top[1]); ctx.lineTo(bp[0] + i * 9, top[1] + 22); ctx.stroke();
-      }
-      ctx.restore();
-      // roof slab
-      cylinder(ctx, x, y, z + 6.4, r.r * 1.16, 0.35, MAT.concrete, { capColor: 'rgba(176,178,174,0.98)' });
-      // PCCWST — the tank whose water buys 72 hours
-      const lvl = clamp(p.pccwst / 3.0e6, 0, 1);
-      cylinder(ctx, x, y, z + 6.75, r.r * 0.86, 1.6, MAT.steel, {
-        capColor: 'rgba(96,104,110,0.95)',
-        capInner: `rgba(${lerp(120, 40, lvl) | 0},${lerp(140, 130, lvl) | 0},${lerp(150, 190, lvl) | 0},0.95)`
-      });
-      // level band
-      const tp = P(x, y, z + 6.75 + 1.6 * lvl);
-      ctx.strokeStyle = 'rgba(90,200,255,0.75)'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.ellipse(tp[0], tp[1], r.r * 0.86 * TW * 0.7071, r.r * 0.86 * TH * 0.7071, 0, 0, TAU); ctx.stroke();
-      // air diffuser chimney
-      cylinder(ctx, x, y, z + 8.35, r.r * 0.36, 1.2, MAT.steel, { capColor: 'rgba(40,48,54,0.95)' });
-      if (wrecked) this.drawWreck(ctx, x, y, z, r.r, 6.0);
-    } else {
-      // --- Gen-II: concrete containment cylinder + hemispherical dome ---
-      const h = wrecked ? 3.2 : 5.0;
-      cylinder(ctx, x, y, z, r.r, h, MAT.concreteDark, { cap: !wrecked, capColor: 'rgba(150,152,150,0.95)' });
-      if (!wrecked) {
-        const prof = [];
-        for (let i = 0; i <= 10; i++) { const t = i / 10; prof.push({ t, r: r.r * Math.cos(t * Math.PI * 0.5) }); }
-        revolve(ctx, x, y, z + h, 1.9, prof, MAT.shell, { cap: false });
-      } else {
-        this.drawWreck(ctx, x, y, z, r.r, h);
-      }
-      // buttresses
-      for (let i = 0; i < 4; i++) {
-        const a = i * Math.PI / 2 + Math.PI / 4;
-        box(ctx, x + Math.cos(a) * r.r * 0.98 - 0.2, y + Math.sin(a) * r.r * 0.98 - 0.2,
-          z, 0.4, 0.4, wrecked ? 2.0 : 3.0, { wall: MAT.concreteDark, top: MAT.concreteDark, outline: false });
-      }
-    }
-
-    // corium / molten core glow at the base
-    if (glow > 0.05) {
-      const g0 = P(x, y, z + 0.1);
-      const rr = (28 + 40 * glow) * (p.vesselBreach ? 1.6 : 1);
-      const gr = ctx.createRadialGradient(g0[0], g0[1], 0, g0[0], g0[1], rr);
-      const a = 0.25 + 0.55 * glow;
-      gr.addColorStop(0, `rgba(255,${200 - 120 * glow | 0},80,${a})`);
-      gr.addColorStop(0.5, `rgba(255,${120 - 60 * glow | 0},30,${a * 0.5})`);
-      gr.addColorStop(1, 'rgba(180,40,10,0)');
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = gr;
-      ctx.save(); ctx.translate(g0[0], g0[1]); ctx.scale(1, 0.5);
-      ctx.beginPath(); ctx.arc(0, 0, rr, 0, TAU); ctx.fill(); ctx.restore();
-      ctx.globalCompositeOperation = 'source-over';
-    }
-
-  }
-
-  drawWreck(ctx, x, y, z, r, h) {
-    const R = mulberry32(7);
-    const top = P(x, y, z + h);
-    // jagged blown-out top
-    ctx.save();
-    ctx.beginPath();
-    for (let i = 0; i <= 20; i++) {
-      const a = (i / 20) * TAU;
-      const rr = r * (0.85 + R() * 0.35);
-      const px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr;
-      const q = P(px, py, z + h - 0.4 - R() * 0.9);
-      if (i === 0) ctx.moveTo(q[0], q[1]); else ctx.lineTo(q[0], q[1]);
-    }
-    ctx.closePath();
-    ctx.fillStyle = 'rgba(28,26,28,0.92)'; ctx.fill();
-    ctx.restore();
-    // twisted rebar
-    ctx.strokeStyle = 'rgba(58,52,48,0.9)'; ctx.lineWidth = 1.2;
-    for (let i = 0; i < 22; i++) {
-      const a = R() * TAU, rr = r * (0.7 + R() * 0.4);
-      const b0 = P(x + Math.cos(a) * rr, y + Math.sin(a) * rr, z + h - 0.5);
-      ctx.beginPath(); ctx.moveTo(b0[0], b0[1]);
-      ctx.quadraticCurveTo(b0[0] + (R() - 0.5) * 26, b0[1] - 12 - R() * 22,
-        b0[0] + (R() - 0.5) * 40, b0[1] - 20 - R() * 30);
-      ctx.stroke();
     }
   }
 
   drawTurbine(ctx) {
-    const S = this.s, t = this.parts.turbine, z = this.z;
-    const x = S.x + t.x, y = S.y + t.y;
-    shadow(ctx, x + t.w / 2, y + t.h / 2, z, 120, 60, 0.3);
-    box(ctx, x, y, z, t.w, t.h, 3.6, { wall: MAT.siding, top: MAT.roof, density: 30 });
-    // saw-tooth roof monitors
-    for (let i = 0; i < 4; i++) {
-      box(ctx, x + 0.6, y + 0.8 + i * 2.0, z + 3.6, t.w - 1.2, 0.9, 0.55,
-        { wall: MAT.glass, top: MAT.roof, density: 24, outline: false });
+    const S = this.s, o = this.parts.turbine, z = this.z;
+    const x = S.x + o.x, y = S.y + o.y;
+    shadow(ctx, x + o.w / 2, y + o.d / 2, z, 100, 52, 0.26);
+    box(ctx, {
+      x, y, z, w: o.w, d: o.d, h: 2.9, color: HALL, top: HALL,
+      panels: { cols: 10, rows: 5, band: 4, seed: 21, color: '#a8c6da' }
+    });
+    // low-pitch roof and a run of ridge vents
+    gableLow(ctx, x, y, z + 2.9, o.w, o.d, 0.6, ROOF);
+    for (let i = 0; i < 5; i++) {
+      box(ctx, {
+        x: x + o.w * 0.42, y: y + 0.6 + i * 1.05, z: z + 3.5, w: o.w * 0.16, d: 0.45, h: 0.22,
+        color: '#8ea3ae', edge: false
+      });
     }
-    // transformer bank + bus ducts on the seaward face
+    // gantry crane rail down the hall
+    const g0 = project(x + o.w * 0.5, y + 0.2, z + 3.0), g1 = project(x + o.w * 0.5, y + o.d - 0.2, z + 3.0);
+    ctx.strokeStyle = 'rgba(96,104,110,0.5)'; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(g0.x, g0.y); ctx.lineTo(g1.x, g1.y); ctx.stroke();
+    // overhead pipe bridge to the containment
+    const A = project(x, y + 3.0, z + 2.6), B = project(S.x + 7.2, S.y + 6.2, z + 2.6);
+    ctx.strokeStyle = 'rgba(150,156,162,0.95)'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
+    ctx.strokeStyle = 'rgba(70,62,52,0.3)'; ctx.lineWidth = 1; ctx.stroke();
+  }
+
+  drawTransformers(ctx) {
+    const S = this.s, o = this.parts.turbine, z = this.z;
+    const x = S.x + o.x - 1.35, y = S.y + o.y + 1.2;
     for (let i = 0; i < 3; i++) {
-      box(ctx, x - 1.3, y + 1.4 + i * 2.2, z, 1.0, 1.2, 1.1, { wall: MAT.transformer, top: MAT.machine, outline: false });
+      box(ctx, { x, y: y + i * 2.2, z, w: 1.0, d: 1.2, h: 1.0, color: MACHINE, top: '#6f767c' });
+      cylinder(ctx, { x: x + 0.5, y: y + i * 2.2 + 0.6, z: z + 1.0, r: 0.16, h: 0.5, color: '#6f767c', edge: false });
     }
   }
 
   drawTank(ctx, t) {
     const S = this.s, z = this.z;
     const x = S.x + t.x, y = S.y + t.y;
-    shadow(ctx, x, y, z, 30, 15, 0.22);
-    cylinder(ctx, x, y, z, t.r, 2.2, MAT.steel, { capColor: 'rgba(160,168,174,0.95)' });
-    if (this.passive) {
-      const p0 = P(x, y, z + 2.35);
-      ctx.fillStyle = 'rgba(80,190,240,0.85)'; ctx.font = 'bold 9px system-ui';
-      ctx.textAlign = 'center';
-    }
+    shadow(ctx, x, y, z, 24, 12, 0.2);
+    cylinder(ctx, { x, y, z, r: t.r, h: 1.8, color: STEEL, rib: 3, capColor: shade(STEEL, 0.98) });
   }
 
   drawSwitchyard(ctx) {
-    const S = this.s, sy = this.parts.switchyard, z = this.z;
-    const x = S.x + sy.x, y = S.y + sy.y;
+    const S = this.s, o = this.parts.switchyard, z = this.z;
+    const x = S.x + o.x, y = S.y + o.y;
     const dead = !this.plant.grid;
     for (let i = 0; i < 3; i++) {
-      box(ctx, x + i * 1.5, y, z, 1.0, 1.1, 1.0, { wall: MAT.transformer, top: MAT.machine, outline: false, k: dead ? 0.7 : 1 });
+      box(ctx, {
+        x: x + i * 1.4, y, z, w: 0.9, d: 1.0, h: 0.9,
+        color: dead ? mix(MACHINE, '#5a4a44', 0.4) : MACHINE, top: '#6f767c'
+      });
     }
     for (let i = 0; i < 2; i++) {
-      const t = pylon(ctx, x + 0.6 + i * 2.4, y + 2.4, z, 4.2, 0.6, dead ? 'rgba(70,62,58,0.9)' : 'rgba(84,92,100,0.95)');
+      pylon(ctx, {
+        x: x + 0.6 + i * 2.4, y: y + 2.2, z, h: 3.8, w: 0.5,
+        color: dead ? 'rgba(96,80,74,0.9)' : 'rgba(88,94,100,0.95)'
+      });
     }
-    // catenary wires heading off-site
-    ctx.strokeStyle = dead ? 'rgba(60,50,46,0.6)' : 'rgba(40,46,52,0.8)';
+    const A = project(x + 0.6, y + 2.2, z + 3.6), B = project(x + 3.0, y + 2.2, z + 3.6);
+    const C = project(x + 7.5, y + 7.0, z + 3.2);
+    ctx.strokeStyle = dead ? 'rgba(110,90,80,0.55)' : 'rgba(56,62,68,0.75)';
     ctx.lineWidth = 1;
-    const a = P(x + 0.6, y + 2.4, z + 4.0), b = P(x + 3.0, y + 2.4, z + 4.0);
-    const c = P(x + 7.5, y + 7.5, z + 3.6);
-    ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.quadraticCurveTo((a[0] + b[0]) / 2, a[1] + 6, b[0], b[1]);
-    ctx.quadraticCurveTo((b[0] + c[0]) / 2, b[1] + 14, c[0], c[1]); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(A.x, A.y); ctx.quadraticCurveTo((A.x + B.x) / 2, A.y + 6, B.x, B.y);
+    ctx.quadraticCurveTo((B.x + C.x) / 2, B.y + 14, C.x, C.y);
+    ctx.stroke();
   }
 
   drawTower(ctx, t) {
     const S = this.s, z = this.z;
     const x = S.x + t.x, y = S.y + t.y;
-    shadow(ctx, x, y, z, 110, 55, 0.3);
-    coolingTower(ctx, x, y, z, t.r, 11.5, MAT.towerConcrete, {});
-    // support columns at the base
-    ctx.strokeStyle = 'rgba(90,90,86,0.85)'; ctx.lineWidth = 1.4;
-    for (let i = 0; i < 14; i++) {
-      const a = (i / 14) * TAU;
-      const rr = t.r;
-      const b0 = P(x + Math.cos(a) * rr, y + Math.sin(a) * rr, z);
-      const b1 = P(x + Math.cos(a) * rr * 0.86, y + Math.sin(a) * rr * 0.86, z + 0.9);
-      ctx.beginPath(); ctx.moveTo(b0[0], b0[1]); ctx.lineTo(b1[0], b1[1]); ctx.stroke();
+    shadow(ctx, x, y, z, 92, 48, 0.26);
+    coolingTower(ctx, { x, y, z, r: t.r, h: 9.6, color: TOWER });
+    ctx.strokeStyle = 'rgba(94,90,84,0.8)'; ctx.lineWidth = 1.3;
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      if (Math.cos(a) + Math.sin(a) <= -0.2) continue;
+      const b0 = project(x + Math.cos(a) * t.r, y + Math.sin(a) * t.r, z);
+      const b1 = project(x + Math.cos(a) * t.r * 0.86, y + Math.sin(a) * t.r * 0.86, z + 0.85);
+      ctx.beginPath(); ctx.moveTo(b0.x, b0.y); ctx.lineTo(b1.x, b1.y); ctx.stroke();
     }
   }
 
   drawGate(ctx) {
-    const S = this.s, g = this.parts.gate, z = this.z;
-    const x = S.x + g.x, y = S.y + g.y;
-    box(ctx, x, y, z, 1.1, 1.0, 0.9, { wall: MAT.stucco, top: MAT.tileRoof, outline: false });
+    const S = this.s, o = this.parts.gate, z = this.z;
+    box(ctx, {
+      x: S.x + o.x, y: S.y + o.y, z, w: 1.1, d: 1.0, h: 0.85,
+      color: '#e2dac8', top: '#b4523f'
+    });
   }
 
-  // --- annotations, drawn live so they stay screen-sized -----------------
-  drawTags(ctx) {
-    if (!PlantView.explain || PlantView.zoom < 0.85) return;
-    const S = this.s, z = this.z, p = this.plant, P_ = this.passive;
-    const e = this.parts.edg, r = this.parts.reactor, sy = this.parts.switchyard;
-    const it = this.parts.intake, t = this.parts.turbine, a = this.parts.aux;
-    this.tag(ctx, S.x + it.x + it.w / 2, S.y + it.y + it.h / 2, it.z + 1.5,
-      P_ ? 'Circulating-water intake (power cycle only)' : 'Seawater intake - the safety heat sink', !P_);
-    this.tag(ctx, S.x + e.x + e.w / 2, S.y + e.y + e.h / 2, z + 2.0,
-      P_ ? 'Diesels (non-safety, convenience only)'
-        : (p.flooded > 1 ? 'Emergency diesels - FLOODED' : 'Emergency diesel generators - at grade'),
-      !P_ || p.flooded > 1);
-    this.tag(ctx, S.x + a.x + a.w / 2, S.y + a.y + a.h / 2, z + 4.6, 'Control room / auxiliary building', false);
-    this.tag(ctx, S.x + t.x + t.w / 2, S.y + t.y + t.h / 2, z + 4.4, 'Turbine hall & generator', false);
-    this.tag(ctx, S.x + sy.x + 2, S.y + sy.y + 1.5, z + 4.6,
-      p.grid ? 'Switchyard - offsite grid' : 'Switchyard - OFFSITE POWER LOST', !p.grid);
-    if (P_) {
-      this.tag(ctx, S.x + r.x, S.y + r.y, z + 10.4,
-        `PCCWST gravity tank - ${(p.pccwst / 1000).toFixed(0)} t of water above the core`, false);
-      this.tag(ctx, S.x + r.x + 2.4, S.y + r.y - 2.4, z + 6.6,
-        'Steel containment cooled by an air draught', false);
-    } else {
-      this.tag(ctx, S.x + r.x, S.y + r.y, z + 8.2,
-        p.ctmtIntact ? 'Containment - cooled only by powered sprays' : 'CONTAINMENT BREACHED', true);
+  drawCars(ctx) {
+    const S = this.s, o = this.parts.park, z = this.z;
+    const cols = ['#c8564a', '#4a7ba0', '#e0ddd4', '#5c6f5a', '#d0a44e'];
+    for (let i = 0; i < 8; i++) {
+      const hx = hash2(i, 7, 1), hy = hash2(i, 9, 2);
+      const cx = S.x + o.x + (i % 4) * 0.45, cy = S.y + o.y + Math.floor(i / 4) * 0.7 + hy * 0.1;
+      box(ctx, {
+        x: cx, y: cy, z, w: 0.30, d: 0.5, h: 0.16,
+        color: cols[(hx * cols.length) | 0], edge: false
+      });
     }
   }
 
-  // --- floating annotation (only in explain mode) ------------------------
-  tag(ctx, x, y, z, text, danger) {
-    const p = P(x, y, z);
-    const dy = -26;
-    ctx.save();
-    ctx.font = '600 11px ui-sans-serif, system-ui, sans-serif';
-    const w = ctx.measureText(text).width + 16;
-    ctx.strokeStyle = danger ? 'rgba(255,120,90,0.85)' : 'rgba(150,220,255,0.7)';
-    ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(p[0], p[1] + dy); ctx.stroke();
-    ctx.beginPath(); ctx.arc(p[0], p[1], 2.4, 0, TAU);
-    ctx.fillStyle = danger ? 'rgba(255,120,90,0.95)' : 'rgba(150,220,255,0.9)'; ctx.fill();
-    const bx = p[0] - w / 2, by = p[1] + dy - 17;
-    ctx.fillStyle = danger ? 'rgba(48,14,10,0.88)' : 'rgba(10,20,30,0.86)';
-    roundRect(ctx, bx, by, w, 18, 5); ctx.fill();
-    ctx.strokeStyle = danger ? 'rgba(255,120,90,0.5)' : 'rgba(150,220,255,0.35)';
-    roundRect(ctx, bx, by, w, 18, 5); ctx.stroke();
-    ctx.fillStyle = danger ? '#ffd9cf' : '#dcefff';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(text, p[0], by + 9.5);
-    ctx.restore();
+  // ---- the reactor building -------------------------------------------
+  drawReactor(ctx, time) {
+    const S = this.s, r = this.parts.reactor, z = this.z;
+    const x = S.x + r.x, y = S.y + r.y;
+    const p = this.plant;
+    const wrecked = p.explosions > 0 || p.rupturedByPower;
+
+    shadow(ctx, x, y, z, 78, 40, 0.28);
+
+    if (this.passive) {
+      // AP1000-style shield building: a cylinder with an air-inlet band near
+      // the top, a gravity water tank on the roof and a central air diffuser.
+      cylinder(ctx, { x, y, z, r: r.r, h: 6.2, color: CONCRETE, rib: 6, cap: false });
+      // air inlet band
+      const bandZ = z + 5.5;
+      const p0 = project(x, y, bandZ);
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(p0.x, p0.y, r.r * TW * 1.414, r.r * TH * 1.414 + 14, 0, 0, Math.PI * 2);
+      ctx.clip();
+      const top = project(x, y, z + 6.2);
+      ctx.fillStyle = '#2b3238';
+      ctx.fillRect(p0.x - 140, top.y, 280, 15);
+      ctx.strokeStyle = 'rgba(180,190,198,0.8)'; ctx.lineWidth = 1.4;
+      for (let i = -10; i <= 10; i++) {
+        ctx.beginPath(); ctx.moveTo(p0.x + i * 8, top.y); ctx.lineTo(p0.x + i * 8, top.y + 15); ctx.stroke();
+      }
+      ctx.restore();
+      cylinder(ctx, { x, y, z: z + 6.2, r: r.r * 1.1, h: 0.32, color: CONCRETE_D });
+      // the tank whose 3,000 t of water buys 72 hours
+      const lvl = Math.max(0, Math.min(1, p.pccwst / 3.0e6));
+      cylinder(ctx, {
+        x, y, z: z + 6.52, r: r.r * 0.8, h: 1.5, color: STEEL, rib: 3,
+        capColor: lvl > 0.02 ? mix('#2f6f92', '#4aa6c8', lvl) : '#6d757a'
+      });
+      const lp = project(x, y, z + 6.52 + 1.5 * lvl);
+      ctx.strokeStyle = 'rgba(96,206,255,0.8)'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(lp.x, lp.y, r.r * 0.8 * TW * 1.414, r.r * 0.8 * TH * 1.414, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      cylinder(ctx, { x, y, z: z + 8.02, r: r.r * 0.34, h: 1.1, color: STEEL, capColor: '#33393e' });
+      box(ctx, {
+        x: x + r.r * 0.55, y: y + r.r * 0.55, z, w: 1.1, d: 1.1, h: 1.7, color: '#c2bfb5'
+      });
+      if (wrecked) this.drawWreck(ctx, x, y, z, r.r, 6.2);
+    } else {
+      // Gen-II: concrete containment cylinder under a hemispherical dome
+      const h = wrecked ? 3.0 : 5.0;
+      cylinder(ctx, { x, y, z, r: r.r, h, color: CONCRETE_D, rib: 5, cap: wrecked });
+      if (!wrecked) dome(ctx, { x, y, z: z + h, r: r.r, h: r.r * 1.5, color: SHELL });
+      else this.drawWreck(ctx, x, y, z, r.r, h);
+      for (let i = 0; i < 4; i++) {
+        const a = i * Math.PI / 2 + Math.PI / 4;
+        if (Math.cos(a) + Math.sin(a) <= 0) continue;
+        box(ctx, {
+          x: x + Math.cos(a) * r.r * 0.98 - 0.18, y: y + Math.sin(a) * r.r * 0.98 - 0.18,
+          z, w: 0.36, d: 0.36, h: wrecked ? 2.0 : 3.0, color: CONCRETE_D, edge: false
+        });
+      }
+      // equipment hatch and personnel airlock on the camera-facing quarter
+      box(ctx, {
+        x: x + r.r * 0.55, y: y + r.r * 0.55, z, w: 1.0, d: 1.0, h: 1.5, color: '#b8b5ab'
+      });
+      cylinder(ctx, {
+        x: x + r.r * 0.62, y: y - r.r * 0.28, z: z + 0.9, r: 0.34, h: 0.9,
+        color: '#a6a39a', cap: true
+      });
+    }
+
+    // corium glow at the base once the core is coming apart
+    const glow = p.vesselBreach ? 1 : p.coreDamage;
+    if (glow > 0.05) {
+      const g0 = project(x, y, z + 0.08);
+      const rr = (24 + 34 * glow) * (p.vesselBreach ? 1.5 : 1);
+      const grd = ctx.createRadialGradient(g0.x, g0.y, 0, g0.x, g0.y, rr);
+      const a = (0.22 + 0.5 * glow) * (0.85 + 0.15 * Math.sin(time * 3));
+      grd.addColorStop(0, `rgba(255,${(200 - 130 * glow) | 0},70,${a})`);
+      grd.addColorStop(0.55, `rgba(255,${(110 - 60 * glow) | 0},28,${a * 0.45})`);
+      grd.addColorStop(1, 'rgba(170,40,10,0)');
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = grd;
+      ctx.beginPath(); ctx.ellipse(g0.x, g0.y, rr, rr * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
   }
 
-  // ---------------------------------------------------------------------
-  // particle emission driven by the physics state
+  drawWreck(ctx, x, y, z, r, h) {
+    ctx.save();
+    ctx.beginPath();
+    for (let i = 0; i <= 22; i++) {
+      const a = (i / 22) * Math.PI * 2;
+      const rr = r * (0.86 + hash2(i, 3, 1) * 0.32);
+      const q = project(x + Math.cos(a) * rr, y + Math.sin(a) * rr,
+        z + h - 0.35 - hash2(i, 5, 2) * 0.8);
+      if (i === 0) ctx.moveTo(q.x, q.y); else ctx.lineTo(q.x, q.y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#2a2724'; ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(64,58,52,0.9)'; ctx.lineWidth = 1.2;
+    for (let i = 0; i < 20; i++) {
+      const a = hash2(i, 11, 3) * Math.PI * 2, rr = r * (0.7 + hash2(i, 13, 4) * 0.4);
+      const b0 = project(x + Math.cos(a) * rr, y + Math.sin(a) * rr, z + h - 0.4);
+      ctx.beginPath();
+      ctx.moveTo(b0.x, b0.y);
+      ctx.quadraticCurveTo(b0.x + (hash2(i, 17, 5) - 0.5) * 24, b0.y - 10 - hash2(i, 19, 6) * 20,
+        b0.x + (hash2(i, 23, 7) - 0.5) * 36, b0.y - 18 - hash2(i, 29, 8) * 26);
+      ctx.stroke();
+    }
+  }
+
+  // ---- annotations (screen space, drawn after the sorted pass) ---------
+  tags() {
+    const S = this.s, z = this.z, p = this.plant, P_ = this.passive, pt = this.parts;
+    const out = [];
+    const add = (lx, ly, lz, text, danger, prio) =>
+      out.push({ x: S.x + lx, y: S.y + ly, z: lz, text, danger, prio: prio || 1 });
+    add(pt.intake.x + 1.2, pt.intake.y + 1, 1.5,
+      P_ ? 'Circulating water (power cycle only)' : 'Seawater intake - the safety heat sink', !P_, 2);
+    add(pt.edg.x + 1.5, pt.edg.y + 1.1, z + 2.0,
+      P_ ? 'Diesels (convenience, not safety)'
+        : (p.flooded > 1 ? 'Emergency diesels - FLOODED' : 'Emergency diesels - at grade'),
+      !P_ || p.flooded > 1, 3);
+    add(pt.aux.x + 1.2, pt.aux.y + 1.5, z + 4.3, 'Control room', false, 1);
+    add(pt.turbine.x + 1.7, pt.turbine.y + 2.9, z + 4.0, 'Turbine hall', false, 1);
+    add(pt.switchyard.x + 1.6, pt.switchyard.y + 1.2, z + 4.2,
+      p.grid ? 'Switchyard - offsite grid' : 'Switchyard - OFFSITE POWER LOST', !p.grid, 3);
+    if (P_) {
+      add(pt.reactor.x, pt.reactor.y, z + 9.6,
+        `Gravity tank - ${(p.pccwst / 1000).toFixed(0)} t above the core`, false, 4);
+    } else {
+      add(pt.reactor.x, pt.reactor.y, z + 8.0,
+        p.ctmtIntact ? 'Containment - powered sprays only' : 'CONTAINMENT BREACHED', true, 4);
+    }
+    return out;
+  }
+
+  // ---- particle emission ----------------------------------------------
   emit(fx, dt, simDt) {
     const p = this.plant, S = this.s, z = this.z;
     const r = this.parts.reactor;
     const rx = S.x + r.x, ry = S.y + r.y;
 
-    // cooling-tower vapour while making power
     if (p.powerFrac > 0.05 && !p.scrammed) {
       for (const t of this.parts.towers)
-        fx.steam(S.x + t.x, S.y + t.y, z + 11.7, 4.5, dt, { r: 0.85, grow: 0.5, max: 5.2, rise: 1.9, spread: 1.1, a: 0.20 });
+        fx.steam(S.x + t.x, S.y + t.y, z + 9.8, 9, dt,
+          { r: 0.42, grow: 0.30, max: 4.6, rise: 2.0, spread: 0.9, a: 0.16, turb: 0.5 });
     } else if (p.powerFrac > 0.002) {
       for (const t of this.parts.towers)
-        fx.steam(S.x + t.x, S.y + t.y, z + 11.7, 1.2, dt, { r: 0.6, grow: 0.4, max: 3.4, rise: 1.2, spread: 0.9, a: 0.12 });
+        fx.steam(S.x + t.x, S.y + t.y, z + 9.8, 3, dt,
+          { r: 0.3, grow: 0.24, max: 3.2, rise: 1.3, spread: 0.7, a: 0.1, turb: 0.4 });
     }
-    // diesel exhaust
     if (!p.grid && p.dieselsOk && p.diesels > 0 && p.acPower) {
       const e = this.parts.edg;
-      fx.smoke(S.x + e.x + 1.6, S.y + e.y + 0.5, z + 3.4, 7, dt,
-        { r: 0.28, grow: 0.3, max: 3.4, rise: 1.6, col: [58, 54, 52], a: 0.42, spread: 0.9 });
+      fx.smoke(S.x + e.x + 1.6, S.y + e.y + 0.5, z + 3.2, 7, dt,
+        { r: 0.22, grow: 0.26, max: 3.4, rise: 1.7, col: [64, 60, 56], a: 0.36, spread: 0.7, turb: 0.4 });
     }
-    // passive containment: warm air + steam out of the top diffuser
     if (this.passive && !p.sabotaged && (p.Tctmt > 330 || p.coolingMargin < 1.02)) {
-      const inten = clamp((p.Tctmt - 320) / 60, 0.15, 2.2);
-      fx.steam(rx, ry, z + 9.0, 5 * inten, dt,
+      const inten = Math.max(0.15, Math.min(2.2, (p.Tctmt - 320) / 60));
+      fx.steam(rx, ry, z + 9.2, 5 * inten, dt,
         { r: 0.5, grow: 0.42, max: 4.6, rise: 2.1, spread: 0.5, a: 0.22 });
     }
-    // PRHR / relief-valve steam from the active plant's stack + roof
     if (!this.passive && p.scrammed && p.steamToCtmt > 1) {
-      fx.steam(rx + 1.2, ry - 1.2, z + 5.6, clamp(p.steamToCtmt * 0.5, 1, 16), dt,
-        { r: 0.55, grow: 0.5, max: 4.5, rise: 2.0, spread: 0.8, a: 0.3 });
+      fx.steam(rx + 1.0, ry - 1.0, z + 5.4, Math.max(1, Math.min(16, p.steamToCtmt * 0.5)), dt,
+        { r: 0.5, grow: 0.45, max: 4.5, rise: 2.0, spread: 0.7, a: 0.28 });
     }
-    // venting / leaking containment
     if (p.vented || !p.ctmtIntact) {
       const st = this.parts.stack;
-      fx.steam(S.x + st.x, S.y + st.y, z + (p.explosions > 1 ? 5 : 10.5), 6, dt,
-        { r: 0.5, grow: 0.6, max: 6, rise: 2.4, spread: 0.4, col: [214, 224, 210], a: 0.34 });
+      fx.steam(S.x + st.x, S.y + st.y, z + (p.explosions > 1 ? 3.8 : 8.0), 6, dt,
+        { r: 0.45, grow: 0.5, max: 6, rise: 2.4, spread: 0.35, col: [214, 222, 212], a: 0.3 });
     }
-    // fires
     if (p.fire > 0.15) {
       const sy = this.parts.switchyard;
-      fx.fire(S.x + sy.x + 1, S.y + sy.y + 0.5, z + 1.0, 12 * p.fire, dt, { spread: 1.1, r: 0.4 });
-      fx.smoke(S.x + sy.x + 1, S.y + sy.y + 0.5, z + 2.0, 12 * p.fire, dt,
-        { r: 0.3, grow: 0.3, max: 7, rise: 1.9, col: [32, 29, 31], a: 0.34, spread: 0.8, turb: 0.4 });
+      fx.fire(S.x + sy.x + 1, S.y + sy.y + 0.5, z + 0.9, 10 * p.fire, dt, { spread: 1.0, r: 0.32 });
+      fx.smoke(S.x + sy.x + 1, S.y + sy.y + 0.5, z + 1.9, 11 * p.fire, dt,
+        { r: 0.28, grow: 0.28, max: 7, rise: 1.9, col: [36, 32, 32], a: 0.32, spread: 0.7, turb: 0.5 });
     }
-    // burning wreckage after an explosion
     if (p.explosions > 0) {
-      fx.fire(rx, ry, z + 2.5, 11, dt, { spread: 1.9, r: 0.32 });
-      fx.smoke(rx, ry, z + 4.2, 13, dt, { r: 0.36, grow: 0.22, max: 9, rise: 2.8, col: [30, 27, 28], a: 0.30, spread: 1.0, turb: 0.9 });
+      fx.fire(rx, ry, z + 2.4, 11, dt, { spread: 1.8, r: 0.32 });
+      fx.smoke(rx, ry, z + 4.0, 13, dt,
+        { r: 0.34, grow: 0.22, max: 9, rise: 2.8, col: [32, 29, 29], a: 0.3, spread: 1.0, turb: 0.9 });
     }
     if (p.vesselBreach) {
-      fx.smoke(rx, ry, z + 1.0, 12, dt, { r: 0.4, grow: 0.34, max: 9, rise: 1.5, col: [62, 52, 46], a: 0.34, spread: 1.2, turb: 0.4 });
+      fx.smoke(rx, ry, z + 0.9, 10, dt,
+        { r: 0.36, grow: 0.3, max: 9, rise: 1.5, col: [64, 54, 48], a: 0.3, spread: 1.1, turb: 0.4 });
     }
-    // radioactive plume
     if (p.releaseRate > 1e6) {
       const hot = p.explosions > 0 || !p.ctmtIntact;
-      fx.plume(rx, ry, z + (hot ? 6 : 10), p.releaseRate * simDt, dt, hot ? 2.2 : 1.1);
+      fx.plume(rx, ry, z + (hot ? 5.5 : 9), p.releaseRate * simDt, dt, hot ? 2.2 : 1.1);
     }
   }
 
-  // explosion visuals
-  boom(fx, cam, world, power, kind) {
+  boom(fx, cam, world, power) {
     const S = this.s, r = this.parts.reactor, z = this.z;
     const x = S.x + r.x, y = S.y + r.y;
     fx.flash(x, y, z + 4, 6 * power, 0.7);
     fx.ring(x, y, z + 1, 9 * power, 9 * power);
-    fx.debris(x, y, z + 5, 70 * power, 5.5 * power);
-    for (let i = 0; i < 46; i++) {
+    fx.debris(x, y, z + 5, 64 * power, 5.2 * power);
+    for (let i = 0; i < 44; i++) {
       fx.smoke(x, y, z + 3 + i * 0.14, 1, 1,
-        { r: 0.55, grow: 0.45, max: 13, rise: 3.8, col: [42, 38, 36], a: 0.38, spread: 1.7, turb: 1.5 });
+        { r: 0.5, grow: 0.42, max: 12, rise: 3.8, col: [44, 40, 38], a: 0.34, spread: 1.6, turb: 1.5 });
     }
-    for (let i = 0; i < 18; i++) fx.fire(x, y, z + 3, 1, 1, { spread: 2.6, r: 0.8 });
+    for (let i = 0; i < 16; i++) fx.fire(x, y, z + 3, 1, 1, { spread: 2.4, r: 0.7 });
     cam.jolt(1.1 * power);
     world.blast(x, y, 5 * power, 0.55 * power);
   }
-}
-PlantView.explain = true;
-PlantView.zoom = 1;
-
-export function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
 }

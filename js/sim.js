@@ -24,6 +24,7 @@ export class Sim {
     this.gloom = 0;
     this.whiteout = 0;
     this.showZones = true;
+    this.showLabels = true;
     this.scenario = null;
     this.pending = [];
     this.feed = [];
@@ -119,7 +120,6 @@ export class Sim {
   softReset() {
     // keep the same world/terrain, restore plants and clear damage
     const w = this.world;
-    w.dirtyProps = true; w.liveCount = -1;
     w.contam.fill(0); w.scorch.fill(0); w.flood.fill(0); w.hasOverlay = false;
     w.dirtyOverlay = true;
     for (const p of w.props) { p.hp = 1; p.burn = 0; }
@@ -213,16 +213,9 @@ export class Sim {
 
     if (this.world.dirtyOverlay) {
       this.overlayTimer = (this.overlayTimer || 0) + rdt;
-      if (this.overlayTimer > 0.6) {
-        this.world.bakeOverlay(); this.world.dirtyProps = true; this.overlayTimer = 0;
-      }
+      if (this.overlayTimer > 0.4) { this.world.bakeOverlay(); this.overlayTimer = 0; }
     }
-    const sig = this.views.map(v => v.sig()).join('|');
-    if (sig !== this.lastSig) { this.lastSig = sig; this.world.dirtyProps = true; }
-    if (this.world.dirtyProps && this.propsFn) {
-      this.propsTimer = (this.propsTimer || 0) + rdt;
-      if (this.propsTimer > 0.6) { this.bakeScene(); this.propsTimer = 0; }
-    }
+
     // ambient gloom from smoke + release
     const rel = this.plants.reduce((a, p) => a + p.releasedBq, 0);
     this.gloom = clamp(Math.max(this.gloom * Math.pow(0.9, rdt), Math.log10(1 + rel / 1e14) * 0.12), 0, 0.85);
@@ -295,17 +288,6 @@ export class Sim {
   }
 
   // -------------------------------------------------------------------
-  bakeScene() {
-    const w = this.world;
-    const entries = [];
-    for (const p of w.props) {
-      if (w.isLive(p, this.tsunami)) continue;
-      entries.push({ d: p.x + p.y, fn: (g) => this.propsFn(g, p, w, 0) });
-    }
-    for (const v of this.views) v.collect(entries, w, 'static');
-    w.bakeScene(entries);
-  }
-
   verdict() {
     const a = this.active.consequences(), b = this.passive.consequences();
     return { a, b };

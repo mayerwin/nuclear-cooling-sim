@@ -1,9 +1,8 @@
 // ---------------------------------------------------------------------------
 // world.js — terrain generation, baking, contamination + flood fields
 // ---------------------------------------------------------------------------
-import { TW, TH, EH } from './iso.js';
+import { TW, TH, TZ, project, P } from './iso.js';
 import { mulberry32, fbm, clamp, lerp, smoothstep, rgb, mixRGB, pick, rnd, TAU } from './util.js';
-import { P } from './draw3d.js';
 
 export const W = 48, H = 48;
 export const T = {
@@ -38,8 +37,7 @@ export class World {
     this.flood = new Float32Array(W * H);    // water depth (elev units)
     this.props = [];
     this.dirtyOverlay = true;
-    this.dirtyProps = true;
-    this.liveCount = -1;
+    this.W = W; this.H = H;
     this.generate();
   }
   idx(x, y) { return y * W + x; }
@@ -181,8 +179,9 @@ export class World {
       if (dense && R() < dense) {
         // keep plant yards clear
         this.props.push({
-          type: 'tree', x: x + 0.2 + R() * 0.6, y: y + 0.2 + R() * 0.6,
-          z: this.z[this.idx(x, y)], s: 0.7 + R() * 0.7, seed: R() * 999,
+          type: 'tree', gx: x, gy: y,
+          x: x + 0.2 + R() * 0.6, y: y + 0.2 + R() * 0.6,
+          z: this.z[this.idx(x, y)], s: 0.72 + R() * 0.66,
           conifer: R() < (t === T.FOREST ? 0.55 : 0.2), hp: 1, burn: 0
         });
         occupied.add(key(x, y));
@@ -199,9 +198,9 @@ export class World {
       if (R() < 0.62) {
         this.type[i] = T.PARK;
         this.props.push({
-          type: 'house', x: x + 0.12, y: y + 0.12, z: this.z[i],
-          w: 0.76, d: 0.76, h: 0.9 + R() * 1.5, seed: R() * 999,
-          tall: R() < 0.18, hp: 1, burn: 0
+          type: 'house', gx: x, gy: y, x: x + 0.12, y: y + 0.12, z: this.z[i],
+          w: 0.76, d: 0.76, h: 0.85 + R() * 1.2,
+          tall: R() < 0.22, hp: 1, burn: 0
         });
       }
     }
@@ -214,9 +213,16 @@ export class World {
       if (t !== T.GRASS && t !== T.MEADOW && t !== T.FARM) continue;
       if (this.inSite(x, y)) continue;
       this.props.push({
-        type: 'house', x: x + 0.15, y: y + 0.15, z: this.z[i],
-        w: 0.7, d: 0.7, h: 0.8 + R() * 0.7, seed: R() * 999, barn: R() < 0.4, hp: 1, burn: 0
+        type: 'house', gx: x, gy: y, x: x + 0.15, y: y + 0.15, z: this.z[i],
+        w: 0.72, d: 0.72, h: 0.8 + R() * 0.6, barn: R() < 0.45, hp: 1, burn: 0
       });
+    }
+    // farm silos
+    for (let n = 0; n < 10; n++) {
+      const x = 4 + Math.floor(R() * 40), y = 4 + Math.floor(R() * 40);
+      if (!this.inb(x, y) || this.inSite(x, y)) continue;
+      if (this.type[this.idx(x, y)] !== T.FARM) continue;
+      this.props.push({ type: 'silo', gx: x, gy: y, x: x + 0.5, y: y + 0.5, z: this.zAt(x, y), hp: 1, burn: 0 });
     }
     // fishing boats
     for (let n = 0; n < 7; n++) {
@@ -224,13 +230,13 @@ export class World {
       const d = (R() - 0.5) * 34;
       const x = (s + d) / 2, y = (s - d) / 2;
       if (x < 0 || y < 0 || x >= W || y >= H) continue;
-      this.props.push({ type: 'boat', x, y, z: 0, seed: R() * 999, hp: 1 });
+      this.props.push({ type: 'boat', gx: x | 0, gy: y | 0, x, y, z: 0, hp: 1, burn: 0 });
     }
     // road-side lamp posts near town
     for (let n = 0; n < 40; n++) {
       const x = Math.floor(R() * W), y = Math.floor(R() * H);
       if (this.tileAt(x, y) !== T.ROAD) continue;
-      this.props.push({ type: 'lamp', x: x + 0.5, y: y + 0.5, z: this.zAt(x, y), seed: R() * 999, hp: 1 });
+      this.props.push({ type: 'lamp', gx: x, gy: y, x: x + 0.5, y: y + 0.5, z: this.zAt(x, y), hp: 1, burn: 0 });
     }
   }
 
@@ -264,7 +270,6 @@ export class World {
       }
     }
     this.dirtyOverlay = true;
-    this.dirtyProps = true;
   }
 
   // --- baking --------------------------------------------------------------
@@ -274,7 +279,7 @@ export class World {
       const p = P(x, y, 0); xs.push(p[0]); ys.push(p[1]);
     }
     const minX = Math.min(...xs) - 8, maxX = Math.max(...xs) + 8;
-    const minY = Math.min(...ys) - 7 * EH - 8, maxY = Math.max(...ys) + 8;
+    const minY = Math.min(...ys) - 7 * TZ - 8, maxY = Math.max(...ys) + 8;
     return { minX, minY, w: maxX - minX, h: maxY - minY };
   }
 
@@ -313,7 +318,7 @@ export class World {
     const zd = this.inb(x, y + 1) ? this.z[this.idx(x, y + 1)] : 0;
     const cliff = (p1, p2, drop, k) => {
       if (drop <= 0.01) return;
-      const q1 = [p1[0], p1[1] + drop * EH], q2 = [p2[0], p2[1] + drop * EH];
+      const q1 = [p1[0], p1[1] + drop * TZ], q2 = [p2[0], p2[1] + drop * TZ];
       g.beginPath();
       g.moveTo(p1[0], p1[1]); g.lineTo(p2[0], p2[1]); g.lineTo(q2[0], q2[1]); g.lineTo(q1[0], q1[1]);
       g.closePath();
@@ -326,7 +331,7 @@ export class World {
       for (let s = 0.2; s < 1; s += 0.22) {
         g.strokeStyle = '#2b2118'; g.lineWidth = 1;
         g.beginPath();
-        g.moveTo(p1[0], p1[1] + drop * EH * s); g.lineTo(p2[0], p2[1] + drop * EH * s); g.stroke();
+        g.moveTo(p1[0], p1[1] + drop * TZ * s); g.lineTo(p2[0], p2[1] + drop * TZ * s); g.stroke();
       }
       g.globalAlpha = 1;
     };
@@ -404,51 +409,6 @@ export class World {
     g.beginPath();
     g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(c2[0], c2[1]); g.lineTo(d[0], d[1]);
     g.closePath(); g.stroke();
-  }
-
-  // A prop is "live" (redrawn every frame) only while it is burning, broken
-  // or being swallowed by water. Everything else is baked once into a layer.
-  isLive(p, tsunami) {
-    if (p.burn > 0.02 || p.hp < 0.999) return true;
-    if (p.type === 'boat') return true;
-    if (tsunami && tsunami.active && p.x + p.y < tsunami.front + 2) return true;
-    return false;
-  }
-
-  bakeScene(entries) {
-    if (!this.propsCanvas) {
-      const b = this.bakeBox;
-      const c = document.createElement('canvas');
-      c.width = this.terrainCanvas.width; c.height = this.terrainCanvas.height;
-      this.propsCanvas = c;
-      this.propsCtx = c.getContext('2d');
-      this.propsCtx.translate(-b.minX, -b.minY);
-    }
-    const g = this.propsCtx;
-    g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
-    g.clearRect(0, 0, this.propsCanvas.width, this.propsCanvas.height);
-    g.restore();
-    entries.sort((a, b) => a.d - b.d);
-    for (const e of entries) e.fn(g);
-    this.dirtyProps = false;
-  }
-
-  bakeProps(drawFn, tsunami) {
-    if (!this.propsCanvas) {
-      const b = this.bakeBox;
-      const c = document.createElement('canvas');
-      c.width = this.terrainCanvas.width; c.height = this.terrainCanvas.height;
-      this.propsCanvas = c;
-      this.propsCtx = c.getContext('2d');
-      this.propsCtx.translate(-b.minX, -b.minY);
-    }
-    const g = this.propsCtx;
-    g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
-    g.clearRect(0, 0, this.propsCanvas.width, this.propsCanvas.height);
-    g.restore();
-    const sorted = this.props.filter(p => !this.isLive(p, tsunami)).sort((a, b) => (a.x + a.y) - (b.x + b.y));
-    for (const p of sorted) drawFn(g, p, this, 0);
-    this.dirtyProps = false;
   }
 
   // contamination + scorch overlay, re-baked lazily
