@@ -3,6 +3,13 @@
 **[▶ Open the simulator](https://mayerwin.github.io/nuclear-cooling-sim/)** — works in any
 desktop or mobile browser, no install, no build step.
 
+> **One-time setup before that link works:** go to
+> **[Settings → Pages](https://github.com/mayerwin/nuclear-cooling-sim/settings/pages)** and set
+> **Source** to **GitHub Actions**, then re-run the
+> [Deploy to GitHub Pages](https://github.com/mayerwin/nuclear-cooling-sim/actions/workflows/pages.yml)
+> workflow. GitHub does not let a workflow token create a Pages site that has never existed, so
+> that first switch has to be flipped by a human; every push after it deploys automatically.
+
 An isometric, RollerCoaster-Tycoon-flavoured simulation that runs **two nuclear stations
 side by side on the same coastline** and hits them with the *same* catastrophe at the *same*
 instant. The only difference between them is how they get decay heat out of the core:
