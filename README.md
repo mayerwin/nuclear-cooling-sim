@@ -26,6 +26,25 @@ Trigger a tsunami and watch one plant boil dry, generate a tonne of hydrogen, bl
 off its reactor building and put a caesium plume over the town downwind — while the other one
 sits at 347 °C with a water level of 100% and nobody on site.
 
+## Two views of the same running model
+
+**🏭 Site** — the isometric map: both stations, the coastline, the river, the town and the
+farmland downwind. This is where the hazard arrives and where the consequences land.
+
+**🔬 Cutaway** — both containments cut open, side by side, with the fluids moving. This is the
+one that answers *why*. You can watch the water level fall in the reactor vessel, the fuel
+bundles above the water line change colour as the cladding heats, bubbles rise as the core
+boils, hydrogen collect under the dome exactly where it explodes, and — under each section —
+an electrical spine (GRID → DIESEL → BATTERY → PUMPS) going dark link by link while the
+pumps that depend on it spin down.
+
+On the passive side the same clock runs and nothing stops: the PRHR heat exchanger keeps
+thermosiphoning into a 2,000-tonne tank sitting above the core, the core makeup tanks feed by
+gravity, and an evaporating water film and an air draught carry the heat out through the steel
+shell. **Every animated flow is read from the model on the step it computed the heat balance** —
+if a loop is moving on screen it is moving in the physics, and if it has stopped, the physics
+stopped it.
+
 ---
 
 ## Why decay heat is the whole story
@@ -77,7 +96,9 @@ This is a teaching tool, not a licensing code — but nothing in it is hand-wave
 The passive plant models the AP1000 safety chain: PRHR heat exchanger on natural circulation,
 core makeup tanks, automatic depressurisation, nitrogen accumulators, IRWST gravity injection
 with sump recirculation, and a steel containment cooled by a natural air draught plus a
-3,000-tonne evaporating water film.
+3,000-tonne evaporating water film. The Gen-II plant gets the passive kit it really has —
+nitrogen accumulators that dump on low pressure — and they behave the way they really do:
+about a minute of water, and then you need a running pump again.
 
 **Not convinced the passive kit is doing the work?** Flip *Disable passive systems (what-if)*
 and run the same scenario. Unit B melts down too — faster than Unit A, since it has no
@@ -90,6 +111,7 @@ falsified.
 |---|---|
 | Pan | Drag (or one finger) |
 | Zoom | Wheel, pinch, or double-tap |
+| Site view / Cutaway view | `V` / `C` |
 | Pause / resume | `Space` |
 | Camera: active / overview / passive | `1` / `2` / `3` |
 | Reset | `R` |
@@ -124,20 +146,37 @@ only the things that actually change are redrawn each frame.
 ```
 js/
   util.js        RNG, value noise, fbm, colour and formatting helpers
-  iso.js         isometric projection, camera, depth sorting
-  textures.js    procedural material library (concrete, siding, brick, glass, rust…)
-  draw3d.js      textured boxes, cylinders, hyperboloid cooling towers, domes, pylons
-  world.js       terrain generation, contamination / scorch / flood fields, layer baking
+  iso.js         projection, camera, and the flat-shaded solid primitives
+  world.js       terrain generation, contamination / scorch / flood fields
   props.js       trees, houses, barns, boats — and their burnt, flattened, irradiated states
-  plantview.js   the two stations' geometry, damage states and particle emission
+  plantview.js   the two stations as they appear on the map, emitted as sorted pieces
+  cutaway.js     the cross-section view: vessels, pools, pipes, flows, hydrogen
   plant.js       the physics: decay heat, boil-off, oxidation, containment, source term
   scenarios.js   the historical initiating events and why each one matters
   fx.js          steam, smoke, fire, debris, shockwaves and the advected radioactive plume
-  renderer.js    scene composition: sky, ocean, tsunami inundation, overlays
+  renderer.js    scene composition for both views
   sim.js         clock, scenario timeline, hazards, cinematics, consequence ledger
   ui.js          control-room panels, gauges, event feed
   main.js        boot, input, animation loop
+tools/
+  review.mjs     headless harness: 24 labelled screenshots across scenarios,
+                 viewports and pixel ratios, and it fails on any console error
 ```
+
+### The one rule that makes an isometric scene behave
+
+Every solid with a ground footprint goes into **one** list, sorted on `x + y + (w + d) / 2`,
+painted back to front. Not one list per category — the moment buildings sort separately from
+scenery, a tree draws through a wall. Structures the eye passes under (a fence, a gantry, a
+pipe bridge) are registered as separate pieces so each sorts on its own depth. Nothing is
+cached in a static layer, because a cached layer is how objects end up popping in and out as
+their state flips them between the cached and live sets. All scenery variation comes from a
+hash of the object's own coordinates rather than `Math.random()`, or the whole world shimmers
+every frame.
+
+Those conventions, and the headless-verification discipline, come from the
+[learnscape](https://github.com/LaurentiuGabriel/learnscape) isometric-explainer skill, which
+is vendored into `.claude/skills/` so the next session inherits it.
 
 ## Caveats worth stating plainly
 
