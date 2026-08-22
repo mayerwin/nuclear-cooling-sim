@@ -38,10 +38,22 @@ export class FX {
     this.p = [];
     this.rings = [];
     this.flashes = [];
-    this.wind = { dir: 0.9, speed: 0.55 };   // dir in world radians, tiles/s
+    this.wind = { dir: 0.9, speed: 1.0 };    // dir in world radians, tiles/s
+    this.windDeg = 150;
+    this.setWindDeg(150);
     this.time = 0;
   }
   clear() { this.p.length = 0; this.rings.length = 0; this.flashes.length = 0; }
+
+  // The user thinks in screen directions ("the plume blows that way"), so
+  // convert a screen bearing (0 = up, 90 = right) into world tile space.
+  setWindDeg(deg) {
+    this.windDeg = deg;
+    const t = deg * Math.PI / 180;
+    const a = Math.sin(t) / 32, b = -Math.cos(t) / 16;
+    const vx = (a + b) / 2, vy = (b - a) / 2;
+    this.wind.dir = Math.atan2(vy, vx);
+  }
 
   add(o) {
     if (this.p.length > MAXP) {
@@ -112,7 +124,7 @@ export class FX {
   // even when the clock is running at 1800x.
   plume(x, y, z, bqFrame, dt, buoy = 1) {
     if (bqFrame <= 0) return;
-    const n = 22 * dt;
+    const n = 13 * dt;
     let k = Math.floor(n) + (Math.random() < (n % 1) ? 1 : 0);
     if (k < 1) return;
     const per = bqFrame / k;
@@ -121,7 +133,7 @@ export class FX {
         kind: 'plume', x: x + (Math.random() - 0.5) * 1.2, y: y + (Math.random() - 0.5) * 1.2, z,
         vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3,
         vz: 0.8 * buoy + Math.random() * 0.6,
-        r: 0.7 + Math.random() * 0.6, grow: 0.13, life: 0, max: 17 + Math.random() * 11,
+        r: 0.7 + Math.random() * 0.6, grow: 0.12, life: 0, max: 15 + Math.random() * 9,
         bq: per, wind: 1.25
       });
     }
@@ -159,12 +171,19 @@ export class FX {
           const cw = 0.42 * dt;
           q.vx += (Math.random() - 0.5) * cw;
           q.vy += (Math.random() - 0.5) * cw;
-          // dry + wet deposition onto the tile below
+          // dry + wet deposition, smeared over a 3x3 footprint so the
+          // ground pattern reads as a plume rather than a dotted line
           if (World && q.bq > 0) {
-            const dep = q.bq * 0.06 * dt;
+            const dep = q.bq * 0.030 * dt;
             q.bq -= dep;
             const gx = q.x | 0, gy = q.y | 0;
-            if (World.inb(gx, gy)) World.deposit(gx, gy, dep / 2.5e13);
+            const unit = dep / 2.5e13;
+            for (let oy = -1; oy <= 1; oy++) {
+              for (let ox = -1; ox <= 1; ox++) {
+                const wgt = (ox === 0 && oy === 0) ? 0.40 : (ox === 0 || oy === 0) ? 0.11 : 0.04;
+                World.deposit(gx + ox, gy + oy, unit * wgt);
+              }
+            }
           }
         }
       }

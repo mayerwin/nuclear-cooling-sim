@@ -94,7 +94,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--
 .tg input:checked::after{transform:translateX(15px);background:var(--accent)}
 .tg.danger input:checked{background:rgba(255,92,72,.35)}
 .tg.danger input:checked::after{background:var(--crit)}
-.tg em{color:var(--dim);font-style:normal;font-size:10px}
+.tg em{color:var(--dim);font-style:normal;font-size:9.5px}
 .slider{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--dim)}
 .slider input{flex:1;accent-color:var(--passive)}
 .camBtns{display:flex;gap:5px;margin:2px 0 8px}

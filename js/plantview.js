@@ -480,8 +480,8 @@ export class PlantView {
     }
     // burning wreckage after an explosion
     if (p.explosions > 0) {
-      fx.fire(rx, ry, z + 2.5, 16, dt, { spread: 1.7, r: 0.34 });
-      fx.smoke(rx, ry, z + 4.2, 18, dt, { r: 0.42, grow: 0.30, max: 10, rise: 2.6, col: [30, 27, 28], a: 0.34, spread: 1.1, turb: 0.5 });
+      fx.fire(rx, ry, z + 2.5, 11, dt, { spread: 1.9, r: 0.32 });
+      fx.smoke(rx, ry, z + 4.2, 13, dt, { r: 0.36, grow: 0.22, max: 9, rise: 2.8, col: [30, 27, 28], a: 0.30, spread: 1.0, turb: 0.9 });
     }
     if (p.vesselBreach) {
       fx.smoke(rx, ry, z + 1.0, 12, dt, { r: 0.4, grow: 0.34, max: 9, rise: 1.5, col: [62, 52, 46], a: 0.34, spread: 1.2, turb: 0.4 });

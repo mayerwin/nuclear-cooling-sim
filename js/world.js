@@ -481,10 +481,24 @@ export class World {
         g.fill();
       }
       if (cm > 0.01) {
-        const t = Math.min(1, cm);
-        // dead / yellowed vegetation then radioactive dust sheen
-        g.fillStyle = `rgba(${120 + 60 * t | 0},${118 + 40 * t | 0},${40 * (1 - t) + 20 | 0},${0.10 + 0.42 * t})`;
+        // yellowed, dying vegetation, then a dusty caesium sheen on top
+        const t = Math.min(1, cm / 1.4);
+        g.fillStyle = `rgba(${140 + 62 * t | 0},${152 + 58 * t | 0},${58 * (1 - t) + 26 | 0},${0.22 + 0.5 * t})`;
         g.fill();
+        if (t > 0.55) {
+          g.save(); g.clip();
+          g.globalAlpha = (t - 0.55) * 0.9;
+          g.strokeStyle = '#e8ff8a'; g.lineWidth = 1;
+          const cx2 = (a[0] + c2[0]) / 2, cy2 = (a[1] + c2[1]) / 2;
+          for (let k = -2; k <= 2; k++) {
+            g.beginPath();
+            g.moveTo(cx2 - 26 + k * 9, cy2 - 12);
+            g.lineTo(cx2 + 6 + k * 9, cy2 + 12);
+            g.stroke();
+          }
+          g.globalAlpha = 1;
+          g.restore();
+        }
       }
     }
     this.dirtyOverlay = false;

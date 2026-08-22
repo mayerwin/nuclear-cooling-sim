@@ -135,6 +135,7 @@ export class Renderer {
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.drawVignette(ctx, CW, CH, sim);
+    this.drawCompass(ctx, CW, CH, sim);
   }
 
   drawOcean(ctx, sim, view) {
@@ -281,6 +282,53 @@ export class Renderer {
       ctx.setLineDash([]);
       ctx.restore();
     }
+  }
+
+  // wind rose + scale bar, tucked into the empty sky beside the left panel
+  drawCompass(ctx, CW, CH, sim) {
+    const dpr = CW / (window.innerWidth || CW);
+    const narrow = CW / dpr < 861;
+    const R = 30 * dpr;
+    const cx = (narrow ? 20 : 328) * dpr + R;
+    const cy = (narrow ? 104 : 112) * dpr;
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU);
+    ctx.fillStyle = 'rgba(9,15,23,0.55)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(140,190,220,0.28)'; ctx.lineWidth = 1 * dpr; ctx.stroke();
+    // the direction the plume travels, in screen terms
+    const th = (sim.fx.windDeg || 0) * Math.PI / 180;
+    const ax = Math.sin(th), ay = -Math.cos(th);
+    ctx.strokeStyle = '#57d9ff'; ctx.lineWidth = 2.4 * dpr; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx - ax * R * 0.6, cy - ay * R * 0.6);
+    ctx.lineTo(cx + ax * R * 0.62, cy + ay * R * 0.62);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx + ax * R * 0.72, cy + ay * R * 0.72);
+    ctx.lineTo(cx + ax * R * 0.3 - ay * R * 0.26, cy + ay * R * 0.3 + ax * R * 0.26);
+    ctx.lineTo(cx + ax * R * 0.3 + ay * R * 0.26, cy + ay * R * 0.3 - ax * R * 0.26);
+    ctx.closePath();
+    ctx.fillStyle = '#57d9ff'; ctx.fill();
+    ctx.fillStyle = 'rgba(210,232,244,0.85)';
+    ctx.font = `${9 * dpr}px ui-sans-serif, system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('WIND', cx, cy - R - 5 * dpr);
+    // scale bar: one tile is about 25 m; pick a round length that fits
+    let tiles = 1;
+    for (const c of [16, 8, 4, 2, 1]) {
+      if (c * TW * sim.cam.zoom <= 120 * dpr) { tiles = c; break; }
+    }
+    const px = tiles * TW * sim.cam.zoom;
+    const bx = cx - R, by = cy + R + 14 * dpr;
+    ctx.strokeStyle = 'rgba(220,235,245,0.75)'; ctx.lineWidth = 1.6 * dpr;
+    ctx.beginPath();
+    ctx.moveTo(bx, by - 4 * dpr); ctx.lineTo(bx, by); ctx.lineTo(bx + px, by);
+    ctx.lineTo(bx + px, by - 4 * dpr);
+    ctx.stroke();
+    ctx.textAlign = 'left';
+    ctx.fillText(`${tiles * 25} m`, bx, by + 11 * dpr);
+    ctx.restore();
   }
 
   makeBackdrop(CW, CH, gloom, key) {
