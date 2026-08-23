@@ -48,7 +48,13 @@ export class Sim {
     const usable = this.cam.w - (wide ? 680 * dpr : 20 * dpr);
     // fit the island in BOTH axes rather than cropping the tips off a phone
     const usableH = this.cam.h - (wide ? 150 : 230) * dpr;
-    return clamp(Math.min(usable / (wide ? 1360 : 1120), usableH / (wide ? 900 : 1150)),
+    // A phone is much taller than the island is, so shrinking the map until
+    // its empty left and right corners fit wastes most of the screen: on a
+    // tall viewport those corners are allowed off the edge instead. A tablet
+    // is square enough that height binds first, so it keeps the whole island.
+    const tall = this.cam.h / this.cam.w > 1.7;
+    const wBudget = wide ? 1360 : (tall ? 1030 : 1220);
+    return clamp(Math.min(usable / wBudget, usableH / (wide ? 900 : 1120)),
       0.30, 0.95);
   }
 

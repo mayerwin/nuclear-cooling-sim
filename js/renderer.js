@@ -350,13 +350,16 @@ export class Renderer {
   // not the identity one: cam.toScreen returns device pixels, and drawing an
   // 11px font into those on a 2x display renders every label at half size.
   drawLabels(ctx, sim, CW, CH) {
-    if (!sim.showLabels || sim.cam.zoom < 0.7) return;
+    if (!sim.showLabels) return;
     const cam = sim.cam;
     const dpr = CW / (window.innerWidth || CW);
     const cw = CW / dpr, ch = CH / dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     // keep plates clear of the side panels rather than sliding under them
     const narrow = cw < 861;
+    // On a phone the whole site is about one plate wide, so the captions only
+    // earn their space once the reader has actually zoomed into a station.
+    if (cam.zoom < (narrow ? 1.15 : 0.7)) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const padL = narrow ? 8 : 318, padR = narrow ? 8 : 344;
     const plates = [];
     for (const v of sim.views) {
@@ -368,6 +371,7 @@ export class Renderer {
       }
     }
     plates.sort((a, b) => b.prio - a.prio);
+    if (narrow) plates.length = Math.min(plates.length, 5);
     ctx.font = '600 11px ui-sans-serif, system-ui, sans-serif';
     const placed = [];
     for (const pl of plates) {
