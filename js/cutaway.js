@@ -133,10 +133,20 @@ export class CutawayView {
     const top = this.P(u, z1), bot = this.P(u, z0);
     const rx = r * ERX, ry = r * ERY;
 
+    // The silhouette closes over the FAR side of the top rim, so the inside of
+    // the far wall is part of the vessel. Closing it over the near rim instead
+    // leaves a lens-shaped hole above the water that reads as a hole in the
+    // drawing the moment a vessel is anywhere near full.
+    const capH = rx * 0.44;
     ctx.beginPath();
     ctx.moveTo(bot.x - rx, bot.y);
     ctx.lineTo(top.x - rx, top.y);
-    ctx.ellipse(top.x, top.y, rx, ry, 0, Math.PI, 0, true);
+    if (o.head) {
+      ctx.bezierCurveTo(top.x - rx, top.y - capH, top.x + rx, top.y - capH,
+        top.x + rx, top.y);
+    } else {
+      ctx.ellipse(top.x, top.y, rx, ry, 0, Math.PI, 0, false);
+    }
     ctx.lineTo(bot.x + rx, bot.y);
     ctx.ellipse(bot.x, bot.y, rx, ry, 0, 0, Math.PI, false);
     ctx.closePath();
@@ -182,7 +192,7 @@ export class CutawayView {
     if (o.head) {
       ctx.beginPath();
       ctx.moveTo(top.x - rx, top.y);
-      ctx.bezierCurveTo(top.x - rx, top.y - rx * 0.72, top.x + rx, top.y - rx * 0.72,
+      ctx.bezierCurveTo(top.x - rx, top.y - capH, top.x + rx, top.y - capH,
         top.x + rx, top.y);
       ctx.stroke();
     } else {
@@ -212,10 +222,14 @@ export class CutawayView {
       ctx.strokeStyle = hot ? C.bad : C.textDim;
       ctx.lineWidth = hot ? 2 : 1.4;
       ctx.beginPath(); ctx.moveTo(q.x - 8, q.y); ctx.lineTo(q.x + 5, q.y); ctx.stroke();
+      const t = this.ts;
       ctx.font = this.f(8, '600');
+      const tw = ctx.measureText(name).width;
+      ctx.fillStyle = 'rgba(12,18,24,0.82)';
+      ctx.fillRect(q.x - 12 * t - tw - 2 * t, q.y - 5 * t, tw + 4 * t, 10 * t);
       ctx.fillStyle = hot ? C.bad : C.textDim;
       ctx.textAlign = 'right';
-      ctx.fillText(name, q.x - 11, q.y + 3);
+      ctx.fillText(name, q.x - 12 * t, q.y + 3 * t);
       ctx.textAlign = 'left';
     }
     const q = this.P(u, Math.max(z0, Math.min(z1, level)));
@@ -392,7 +406,7 @@ export class CutawayView {
     if (!this.labels) return;
     const q = this.P(u, z), t = this.ts;
     ctx.font = this.f(9.5, '500');
-    ctx.fillStyle = C.textDim;
+    ctx.fillStyle = 'rgba(160,182,197,0.92)';
     ctx.textAlign = align || 'center';
     ctx.fillText(text, q.x, q.y);
     ctx.textAlign = 'left';
@@ -548,7 +562,7 @@ export class CutawayView {
       hotZ: 5.35, coldZ: 4.45,
       przr: { u: 5.6, r: 0.44, z0: 6.3, z1: 9.0 }
     };
-    const surf = G.rpv.z0 + Math.max(0, Math.min(1, p.level)) * (G.rpv.z1 - 0.55 - G.rpv.z0);
+    const surf = G.rpv.z0 + Math.max(0, Math.min(1, p.level)) * (G.rpv.z1 - 0.08 - G.rpv.z0);
     this.surf = surf;
 
     this.shell(ctx);
@@ -973,26 +987,51 @@ export class CutawayView {
       }
       ctx.globalAlpha = 1;
     };
-    arrow([[-0.65, 11.4], [-0.65, 2.2], [0.25, 1.3]], C.air, on ? 1 : 0);
+    arrow([[0.2, 11.4], [0.2, 2.1], [0.85, 1.25]], C.air, on ? 1 : 0);
     arrow([[12.75, 1.3], [12.75, 9.6], [11.2, 12.0], [6.5, 13.3]], '#f0b070', on ? 1 : 0);
     this.callout(ctx, (tank.u0 + tank.u1) / 2, tank.z0 + 0.6, 14,
       `PCCS tank \u00b7 ${this.pccwT.toLocaleString()} t`);
-    this.note(ctx, -0.5, 0.35, 'air in');
+    this.note(ctx, 0.4, 0.3, 'air in');
     this.note(ctx, 10.9, 12.35, 'warm air out');
 
     // the evaporating film, drawn ON the shell
     if (s.film > 0 && on) {
-      ctx.strokeStyle = 'rgba(125,200,240,0.85)';
-      ctx.lineWidth = 2.2;
-      for (let i = 0; i < 11; i++) {
-        const t = ((time * 0.45 + i * 0.09) % 1);
-        const u = 1.1 + i * 1.03;
-        const zTop = G.springZ + 0.7 - Math.abs(u - 6.5) * 0.22;
-        const a = this.P(u, zTop - t * 8.4);
-        const b = this.P(u, zTop - t * 8.4 - 0.62);
+      ctx.strokeStyle = 'rgba(158,220,252,0.95)';
+      ctx.lineWidth = 3.2;
+      ctx.lineCap = 'round';
+      // Over the crown, on the shell itself: the film is water running on the
+      // outside of the steel, which is the whole mechanism, so it has to be
+      // drawn there and not floating in the room.
+      const A = this.P(G.wallU0, G.springZ), B = this.P(G.wallU1, G.springZ);
+      const apexY = this.P(6.5, G.apexZ).y;
+      const crown = (q) => {
+        const m = 1 - q;
+        return {
+          x: A.x * (m * m * m + 3 * m * m * q) + B.x * (3 * m * q * q + q * q * q),
+          y: m * m * m * A.y + 3 * m * m * q * apexY + 3 * m * q * q * apexY + q * q * q * B.y
+        };
+      };
+      for (let i = 0; i < 9; i++) {
+        const q = ((time * 0.10 + i / 9) % 1) * 0.94 + 0.03;
+        const p0 = crown(q), p1 = crown(Math.min(0.999, q + 0.035));
+        const dx = p1.x - p0.x, dy = p1.y - p0.y, L = Math.hypot(dx, dy) || 1;
+        const off = 4 * this.ts;
+        ctx.globalAlpha = 0.75;
+        ctx.beginPath();
+        ctx.moveTo(p0.x + (dy / L) * off, p0.y - (dx / L) * off);
+        ctx.lineTo(p1.x + (dy / L) * off, p1.y - (dx / L) * off);
+        ctx.stroke();
+      }
+      for (let i = 0; i < 8; i++) {
+        const t = ((time * 0.42 + i * 0.125) % 1);
+        const u = (i % 2 ? G.wallU1 + 0.28 : G.wallU0 - 0.28);
+        const z0 = G.springZ + 0.15 - t * (G.springZ - G.floorZ);
+        const a = this.P(u, z0), b = this.P(u, z0 - 0.55);
+        ctx.globalAlpha = 0.3 + 0.55 * (1 - t);
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
       }
-      this.note(ctx, 9.4, G.springZ + 1.15, 'evaporating film');
+      ctx.globalAlpha = 1;
+      this.note(ctx, 3.7, G.springZ + 1.05, 'evaporating film');
     }
   }
 
