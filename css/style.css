@@ -308,3 +308,7 @@ body.cutmode #cutSwitch{display:flex}
   box-shadow:inset 0 0 0 1px rgba(87,217,255,.4)}
 @media (max-width:860px){ #cutSwitch .wide-only{display:none} #cutSwitch{bottom:120px} }
 @media (min-width:861px){ body.cutmode #cutSwitch{bottom:96px} }
+
+.howto{margin:6px 0 14px;padding-left:18px}
+.howto li{margin:4px 0}
+.howto b{color:var(--txt)}
