@@ -308,7 +308,9 @@ export class PlantView {
     const S = this.s, z = this.z;
     const x = S.x + t.x, y = S.y + t.y;
     shadow(ctx, x, y, z, 24, 12, 0.2);
-    cylinder(ctx, { x, y, z, r: t.r, h: 1.8, color: STEEL, rib: 3, capColor: shade(STEEL, 0.98) });
+    // A condensate storage tank is a tall thing, and drawn short it disappears
+    // behind the turbine hall leaving only its lid on show.
+    cylinder(ctx, { x, y, z, r: t.r, h: 3.3, color: STEEL, rib: 4, capColor: shade(STEEL, 0.98) });
   }
 
   drawSwitchyard(ctx) {
