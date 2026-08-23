@@ -88,6 +88,7 @@ export class Renderer {
       if (focus === 'active' && c.passive) continue;
       if (focus === 'passive' && !c.passive) continue;
       c.labels = sim.showLabels;
+      c.ts = Math.min(2.4, dpr / Math.max(0.2, cam.zoom));
       c.draw(ctx, sim.visTime);
       c.title(ctx);
     }
@@ -371,31 +372,50 @@ export class Renderer {
     const placed = [];
     for (const pl of plates) {
       const w = ctx.measureText(pl.text).width + 16;
-      // clamp so the plate never runs under a panel or off the canvas
-      pl.sx = Math.max(padL + w / 2, Math.min(cw - padR - w / 2, pl.sx));
-      let by = pl.sy - 30;
-      for (let tries = 0; tries < 14; tries++) {
+      // The anchor is where the thing *is*; the plate goes wherever it fits.
+      // Keeping the two apart, and joining them with an elbow, is the only way
+      // the caption still points at the right building once it has been moved.
+      const ax = pl.sx, ay = pl.sy;
+      let cx = Math.max(padL + w / 2, Math.min(cw - padR - w / 2, ax));
+      let by = ay - 30;
+      for (let tries = 0; tries < 18; tries++) {
         let hit = false;
         for (const q of placed) {
-          if (Math.abs(q.cx - pl.sx) < (q.w + w) / 2 + 4 && Math.abs(q.by - by) < 21) { hit = true; break; }
+          if (Math.abs(q.cx - cx) < (q.w + w) / 2 + 6 && Math.abs(q.by - by) < 21) { hit = true; break; }
         }
         if (!hit) break;
         by -= 21;
       }
-      placed.push({ cx: pl.sx, by, w });
-      const bx = pl.sx - w / 2;
-      ctx.strokeStyle = pl.danger ? 'rgba(255,120,90,0.8)' : 'rgba(150,220,255,0.6)';
+      placed.push({ cx, by, w, ax, ay, text: pl.text, danger: pl.danger });
+    }
+    // leaders first, plates second, so a leader can never be drawn across the
+    // face of a caption
+    for (const q of placed) {
+      ctx.strokeStyle = q.danger ? 'rgba(255,120,90,0.75)' : 'rgba(150,220,255,0.55)';
       ctx.lineWidth = 1.2;
-      ctx.beginPath(); ctx.moveTo(pl.sx, pl.sy); ctx.lineTo(pl.sx, by + 18); ctx.stroke();
-      ctx.beginPath(); ctx.arc(pl.sx, pl.sy, 2.4, 0, Math.PI * 2);
-      ctx.fillStyle = pl.danger ? 'rgba(255,120,90,0.95)' : 'rgba(150,220,255,0.9)'; ctx.fill();
-      ctx.fillStyle = pl.danger ? 'rgba(52,15,11,0.9)' : 'rgba(10,20,30,0.88)';
-      roundRect(ctx, bx, by, w, 18, 5); ctx.fill();
-      ctx.strokeStyle = pl.danger ? 'rgba(255,120,90,0.5)' : 'rgba(150,220,255,0.32)';
-      roundRect(ctx, bx, by, w, 18, 5); ctx.stroke();
-      ctx.fillStyle = pl.danger ? '#ffd9cf' : '#dcefff';
+      const bx = q.cx - q.w / 2, mid = q.by + 9;
+      ctx.beginPath();
+      if (q.ax > bx - 4 && q.ax < bx + q.w + 4) {
+        ctx.moveTo(q.ax, q.ay); ctx.lineTo(q.ax, q.by + 18);
+      } else {
+        const edge = q.ax < bx ? bx : bx + q.w;
+        ctx.moveTo(q.ax, q.ay); ctx.lineTo(q.ax, mid); ctx.lineTo(edge, mid);
+      }
+      ctx.stroke();
+      ctx.beginPath(); ctx.arc(q.ax, q.ay, 2.4, 0, Math.PI * 2);
+      ctx.fillStyle = q.danger ? 'rgba(255,120,90,0.95)' : 'rgba(150,220,255,0.9)';
+      ctx.fill();
+    }
+    for (const q of placed) {
+      const bx = q.cx - q.w / 2;
+      ctx.fillStyle = q.danger ? 'rgba(52,15,11,0.94)' : 'rgba(10,20,30,0.92)';
+      roundRect(ctx, bx, q.by, q.w, 18, 5); ctx.fill();
+      ctx.strokeStyle = q.danger ? 'rgba(255,120,90,0.5)' : 'rgba(150,220,255,0.32)';
+      ctx.lineWidth = 1.2;
+      roundRect(ctx, bx, q.by, q.w, 18, 5); ctx.stroke();
+      ctx.fillStyle = q.danger ? '#ffd9cf' : '#dcefff';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(pl.text, pl.sx, by + 9.5);
+      ctx.fillText(q.text, q.cx, q.by + 9.5);
     }
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     ctx.setTransform(1, 0, 0, 1, 0, 0);

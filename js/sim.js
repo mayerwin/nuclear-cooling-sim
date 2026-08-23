@@ -58,24 +58,38 @@ export class Sim {
   // screen, one at a time on a phone.
   fitCut(snap) {
     const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
-    const wide = this.cutCam.w / dpr > 860;
-    const usable = this.cutCam.w - (wide ? 680 * dpr : 24 * dpr);
-    const usableH = this.cutCam.h - (wide ? 190 * dpr : 260 * dpr);
-    let cx, cy, contentW;
+    const cam = this.cutCam;
+    const wide = cam.w / dpr > 860;
     const focus = wide ? this.cutFocus : (this.cutFocus === 'both' ? 'active' : this.cutFocus);
-    // section centre u = 6.5 maps to grid (ox + 3.25, oy - 3.25)
-    // content spans section u = -0.6 .. 16.1, and the two sections are 17.5
-    // grid units apart in (x - y)
-    if (focus === 'active') { cx = 3.9; cy = -3.9; contentW = 570; }
-    else if (focus === 'passive') { cx = 3.9 + 8.75; cy = -3.9 - 8.75; contentW = 570; }
-    else { cx = 3.9 + 4.375; cy = -3.9 - 4.375; contentW = 1110; }
-    const zoom = clamp(Math.min(usable / contentW, usableH / 660), 0.34, 2.2);
-    // The section is all above z = 0, so centre it by hand: the camera looks at
-    // the ground plane and would otherwise put the whole building off the top.
-    // centre in the band between the panels, not in the canvas
-    this.cutCam.ox = wide ? -20 * dpr : 0;
-    this.cutCam.oy = 225 * zoom + (wide ? 22 : -16) * dpr;
-    if (snap) this.cutCam.snap(cx, cy, zoom); else this.cutCam.focus(cx, cy, zoom);
+
+    // The band of canvas the drawing may actually use: what is left once the
+    // side panels, the header and the legend have taken their share.
+    const bx0 = (wide ? 316 : 8) * dpr;
+    const bx1 = cam.w - (wide ? 348 : 8) * dpr;
+    const by0 = (wide ? 60 : 46) * dpr;
+    const by1 = cam.h - (wide ? 132 : 182) * dpr;
+
+    // The extent the cutaway reported after its last frame. Falls back to the
+    // nominal section box before the first draw.
+    const b = (this.cuts && this.cuts[0] && this.cuts[0].bounds)
+      || { left: -60, right: 520, top: -510, bottom: 130 };
+    const PITCH = 17.5 * 32;              // grid distance between the sections
+    const wBoth = focus === 'both';
+    const cw = (b.right - b.left) + (wBoth ? PITCH : 0);
+    const ch = b.bottom - b.top;
+    const zoom = clamp(Math.min((bx1 - bx0) / cw, (by1 - by0) / ch), 0.34, 2.2);
+
+    // Centre of the content, in the active section's own world coordinates.
+    let mx = (b.left + b.right) / 2 + (wBoth ? PITCH / 2 : 0);
+    if (focus === 'passive') mx += PITCH;
+    const my = (b.top + b.bottom) / 2;
+    // A point on the section line projects to world x = (cx - cy) * TW with
+    // cx = -cy, so the camera target is one division away.
+    const cx = mx / 64, cy = -cx;
+
+    cam.ox = (bx0 + bx1) / 2 - cam.w / 2;
+    cam.oy = (by0 + by1) / 2 - cam.h / 2 - my * zoom;
+    if (snap) cam.snap(cx, cy, zoom); else cam.focus(cx, cy, zoom);
   }
 
   setView(v) {
@@ -227,6 +241,10 @@ export class Sim {
     this.whiteout *= Math.pow(0.02, rdt);
     this.cam.update(rdt);
     this.cutCam.update(rdt);
+    // The cutaway's extent depends on the zoom (its captions are screen-sized),
+    // so the fit is a fixed point rather than a one-shot calculation. Re-solving
+    // it every frame converges in two or three and survives a resize for free.
+    if (this.view === 'cut') this.fitCut(false);
 
     if (this.cine) {
       this.cine.t += rdt;

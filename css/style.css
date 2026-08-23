@@ -43,6 +43,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--
   border:1px solid var(--line)}
 .speeds button{background:transparent;border:0;color:var(--dim);font:600 11px/1 ui-sans-serif,system-ui;
   padding:7px 9px;border-radius:7px;cursor:pointer;min-width:34px}
+.speeds button.auto{min-width:80px;font-variant-numeric:tabular-nums}
 .speeds button.on{background:rgba(99,224,138,.16);color:var(--accent);box-shadow:inset 0 0 0 1px rgba(99,224,138,.35)}
 .topActions{display:flex;gap:6px}
 
@@ -223,6 +224,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--
   .clk{font-size:14px}.clklbl{display:none}
   .speeds{padding:2px;margin-left:auto}
   .speeds button{padding:6px 4px;min-width:24px;font-size:9px}
+  .speeds button.auto{min-width:38px}
   .btn.ghost{padding:7px 9px;font-size:13px}
   #btnPanels{display:none}
   .panel{position:fixed;left:0;right:0;width:auto!important;top:auto;bottom:0;max-height:70vh;

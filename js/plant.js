@@ -224,6 +224,19 @@ export class Plant {
       }
     }
 
+    // Primary pressure on the Gen-II side. With the relief valves cycling the
+    // loop stays near setpoint - which is exactly why the accumulators, set at
+    // 4.9 MPa, cannot help: the plant is too *high* pressure for them until
+    // something opens the loop. A stuck-open relief valve or a break lets it
+    // down, and a breached vessel is at containment pressure by definition.
+    if (!P) {
+      const tgt = this.vesselBreach ? this.pCtmt
+        : this.leakRate > 0.5 ? this.pCtmt
+          : this.leakRate > 0 ? 3.2 : 15.5;
+      const tau = this.vesselBreach ? 12 : this.leakRate > 0.5 ? 40 : 900;
+      this.pRPV += (tgt - this.pRPV) * Math.min(1, dt / tau);
+    }
+
     // Accumulators are passive kit a Gen-II plant already has. They dump on
     // low pressure, empty in about a minute, and then the design is back to
     // needing a running pump.

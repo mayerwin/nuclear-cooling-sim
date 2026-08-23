@@ -352,14 +352,33 @@ export function dome(ctx, o) {
   if (o.edge !== false) {
     ctx.strokeStyle = o.edge || EDGE; ctx.lineWidth = 1; ctx.stroke();
   }
-  // a couple of latitude lines sell the sphere
-  ctx.strokeStyle = 'rgba(60,54,46,0.13)'; ctx.lineWidth = 1;
-  for (const t of [0.35, 0.66]) {
+  // Latitudes and meridians. A prestressed concrete dome is poured in lifts
+  // with tendon galleries running over it, so the lines are on the real thing
+  // as well as being what makes a filled ellipse read as a sphere.
+  ctx.save();
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(58,52,44,0.22)'; ctx.lineWidth = 1;
+  for (const t of [0.3, 0.55, 0.78]) {
     const zz = hpx * t, rr = rx * Math.sqrt(Math.max(0, 1 - t * t));
     ctx.beginPath();
-    ctx.ellipse(b.x, b.y - zz, rr, rr * (ry / rx), 0, 0, Math.PI);
+    ctx.ellipse(b.x, b.y - zz, rr, rr * (ry / rx) + 1.5, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
+  ctx.strokeStyle = 'rgba(58,52,44,0.15)';
+  for (let i = 0; i < 8; i++) {
+    const a2 = (i / 8) * Math.PI * 2;
+    const ex = Math.cos(a2) * rx, ey = Math.sin(a2) * ry;
+    ctx.beginPath();
+    ctx.moveTo(b.x + ex, b.y + ey);
+    ctx.quadraticCurveTo(b.x + ex * 0.72, b.y + ey * 0.72 - hpx * 0.82, b.x, b.y - hpx);
+    ctx.stroke();
+  }
+  ctx.restore();
+  // springline ring
+  ctx.strokeStyle = 'rgba(48,43,36,0.3)'; ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.ellipse(b.x, b.y, rx, ry, 0, 0, Math.PI);
+  ctx.stroke();
   return { x: b.x, y: b.y - hpx };
 }
 

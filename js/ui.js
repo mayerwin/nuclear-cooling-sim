@@ -44,6 +44,7 @@ export class UI {
     const labels = SPEED_LABELS;
     SPEEDS.forEach((v, i) => {
       const b = el('button', i === this.sim.speedIdx ? 'on' : '', labels[i]);
+      if (v < 0) b.classList.add('auto');
       b.onclick = () => {
         this.sim.speedIdx = i; this.sim.cine = null;
         sp.querySelectorAll('button').forEach((x, j) => x.classList.toggle('on', j === i));
