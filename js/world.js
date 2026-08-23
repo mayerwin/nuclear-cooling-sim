@@ -194,7 +194,9 @@ export class World {
       const i = this.idx(x, y);
       const t = this.type[i];
       if (t === T.OCEAN || t === T.RIVER || t === T.ROAD || t === T.ROCK) continue;
-      if ((x + y) % 3 === 0) { this.type[i] = T.ROAD; continue; }
+      // one road in four, not one in three, and the rest gets gardens
+      if ((x + y) % 4 === 0) { this.type[i] = T.ROAD; continue; }
+      if ((x * 3 + y) % 7 === 0) { this.type[i] = T.PARK; continue; }
       if (R() < 0.62) {
         this.type[i] = T.PARK;
         this.props.push({
@@ -389,10 +391,19 @@ export class World {
       }
       g.globalAlpha = 1;
     } else if (t === T.RIVER) {
-      const gr = g.createLinearGradient(a[0], a[1], c2[0], c2[1]);
-      gr.addColorStop(0, 'rgba(70,140,170,0.55)');
-      gr.addColorStop(1, 'rgba(24,70,100,0.55)');
-      g.fillStyle = gr; g.fillRect(cx - TW, cy - TH, TW * 2, TH * 2);
+      // continuous ripples that ignore the tile grid, so the water reads as
+      // one moving body rather than a row of diamonds
+      g.globalAlpha = 0.5;
+      for (let k = 0; k < 5; k++) {
+        const ph = fbm(x * 0.6 + k * 3.1, y * 0.6 - k * 1.7, 2);
+        g.strokeStyle = k % 2 ? 'rgba(150,206,228,0.5)' : 'rgba(18,58,88,0.45)';
+        g.lineWidth = 1.2;
+        g.beginPath();
+        g.moveTo(a[0] + 3, a[1] + (k + 0.5) * (TH * 2 / 5) + ph * 3);
+        g.lineTo(c2[0] - 3, c2[1] - (4.5 - k) * (TH * 2 / 5) + ph * 3);
+        g.stroke();
+      }
+      g.globalAlpha = 1;
     } else if (t === T.ROCK) {
       g.globalAlpha = 0.35;
       for (let k = 0; k < 8; k++) {

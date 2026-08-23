@@ -220,18 +220,32 @@ export class Renderer {
     ctx.fillStyle = g;
     ctx.fillRect(x0, this.shoreY - 2600, x1 - x0, 2640);
     ctx.strokeStyle = '#d5f0ff';
-    for (let i = 0; i < 60; i++) {
-      const k = i / 60;
-      const yy = this.shoreY - 1000 + Math.pow(k, 1.6) * 1010 + Math.sin(t * 0.7 + i * 0.9) * 2.5;
+    for (let i = 0; i < 64; i++) {
+      const k = i / 64;
+      // irregular spacing and length: evenly spaced parallel lines read as
+      // corduroy, not water
+      const jig = Math.sin(i * 2.399) * 0.5 + Math.sin(i * 5.71) * 0.3;
+      const yy = this.shoreY - 1000 + Math.pow(k, 1.6) * 1010 + jig * 9
+        + Math.sin(t * 0.7 + i * 0.9) * 2.5;
       if (yy < view.minY - 20 || yy > view.maxY + 20) continue;
-      ctx.globalAlpha = 0.05 + 0.11 * k;
-      ctx.lineWidth = 0.8 + 1.5 * k;
+      ctx.globalAlpha = (0.04 + 0.10 * k) * (0.55 + 0.45 * Math.abs(Math.sin(i * 1.31)));
+      ctx.lineWidth = 0.8 + 1.4 * k;
+      const seg = 260 + 520 * Math.abs(Math.sin(i * 0.77));
+      const start = x0 + ((i * 317) % Math.max(1, x1 - x0));
       ctx.beginPath();
-      for (let x = x0, first = true; x < x1; x += 36, first = false) {
+      for (let x = start, first = true; x < Math.min(x1, start + seg); x += 34, first = false) {
         const off = Math.sin(x * 0.010 + t * 1.3 + i * 0.6) * (1.5 + 4 * k);
         if (first) ctx.moveTo(x, yy + off); else ctx.lineTo(x, yy + off);
       }
       ctx.stroke();
+      if (start + seg > x1) {
+        ctx.beginPath();
+        for (let x = x0, first = true; x < x0 + (start + seg - x1); x += 34, first = false) {
+          const off = Math.sin(x * 0.010 + t * 1.3 + i * 0.6) * (1.5 + 4 * k);
+          if (first) ctx.moveTo(x, yy + off); else ctx.lineTo(x, yy + off);
+        }
+        ctx.stroke();
+      }
     }
     ctx.globalAlpha = 1;
     ctx.restore();
