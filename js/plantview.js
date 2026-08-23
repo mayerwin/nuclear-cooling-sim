@@ -547,12 +547,12 @@ export class PlantView {
 
     if (p.powerFrac > 0.05 && !p.scrammed) {
       for (const t of this.parts.towers)
-        fx.steam(S.x + t.x, S.y + t.y, z + 10.8, 9, dt,
-          { r: 0.34, grow: 0.30, max: 4.4, rise: 2.1, spread: 0.8, a: 0.13, turb: 0.5 });
+        fx.steam(S.x + t.x, S.y + t.y, z + 10.4, 5, dt,
+          { r: 0.6, grow: 0.36, max: 5.2, rise: 2.4, spread: 1.35, a: 0.10, turb: 0.7 });
     } else if (p.powerFrac > 0.002) {
       for (const t of this.parts.towers)
-        fx.steam(S.x + t.x, S.y + t.y, z + 10.6, 3, dt,
-          { r: 0.24, grow: 0.22, max: 3.0, rise: 1.4, spread: 0.6, a: 0.09, turb: 0.4 });
+        fx.steam(S.x + t.x, S.y + t.y, z + 10.2, 2, dt,
+          { r: 0.45, grow: 0.26, max: 3.4, rise: 1.5, spread: 1.0, a: 0.07, turb: 0.5 });
     }
     if (!p.grid && p.dieselsOk && p.diesels > 0 && p.acPower) {
       const e = this.parts.edg;
