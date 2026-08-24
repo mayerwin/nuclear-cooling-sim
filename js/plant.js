@@ -99,6 +99,7 @@ export class Plant {
     this.prhr = P;
     this.prhrOk = true;
     this.irwstCracked = false;
+    this.ctmtSump = P ? 0 : 0;        // kg of water on the containment floor
     this.prhrRunning = false;
     this.cmtLevel = P ? 1 : 0;
     this.accumLevel = 1;
@@ -260,7 +261,11 @@ export class Plant {
       this.prhrOk = false;
       this.log('PRHR heat-exchanger line fails on the shaking - no passive heat path', 'crit');
     }
-    if (P && this.irwstCracked) this.irwst = Math.max(0, this.irwst - 26 * dt);
+    if (P && this.irwstCracked) {
+      const spill = Math.min(this.irwst, 26 * dt);
+      this.irwst -= spill;
+      this.ctmtSump += spill;        // onto the floor, still inside the boundary
+    }
 
     if (P && !this.sabotaged) {
       // PRHR heat exchanger: natural circulation to the in-containment tank.
@@ -302,13 +307,32 @@ export class Plant {
         this.accumLevel = Math.max(0, this.accumLevel - dt / 900);
         this.paths.push('Nitrogen accumulators');
       }
-      if (this.pRPV < 0.9 && this.irwst > 1e5) {
-        this.gravityInj = true;
-        inject += 90;
-        sys.gravity = 1;
-        this.irwst = Math.max(0, this.irwst - 90 * dt * 0.25);   // sump recirculation
-        this.paths.push('IRWST gravity injection + sump recirculation');
+      // Gravity injection, then gravity recirculation. Once the reactor is
+      // depressurised the pool drains into it; what boils off condenses on the
+      // containment shell and runs back to the floor, and the same nozzles
+      // draw it up again. It only stops when the containment stops holding.
+      if (this.pRPV < 0.9) {
+        const fromPool = this.irwst > 1e5;
+        const fromSump = this.ctmtIntact && this.ctmtSump > 1e5;
+        if (fromPool || fromSump) {
+          this.gravityInj = true;
+          inject += 90;
+          sys.gravity = 1;
+          if (fromPool) {
+            const used = Math.min(this.irwst, 90 * dt);
+            this.irwst -= used;
+            this.ctmtSump += used * 0.75;      // most of it comes back down
+          } else {
+            this.ctmtSump = Math.max(0, this.ctmtSump - 90 * dt * 0.12);
+          }
+          this.paths.push(fromPool
+            ? 'Gravity injection from the pool'
+            : 'Gravity recirculation from the containment floor');
+        }
       }
+      // A breached containment vents the steam instead of condensing it, so
+      // the water that used to come back simply leaves.
+      if (!this.ctmtIntact) this.ctmtSump = Math.max(0, this.ctmtSump - 55 * dt);
     } else if (P && this.sabotaged) {
       this.paths.push('PASSIVE SYSTEMS DISABLED (what-if)');
     }

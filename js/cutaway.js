@@ -319,19 +319,28 @@ Circuit.prototype.update = function (t) {
   // ---- the spare water ----------------------------------------------------
   // Weighted by what these actually hold: two 70 t makeup tanks against a
   // 2,000 t pool. Showing the larger of the two hid a pool that was draining.
+  const poolFrac = p.irwst / 2.1e6;
+  const floorFrac = (p.ctmtSump || 0) / 2.1e6;
   const store = P
-    ? clamp(0.07 * p.cmtLevel + 0.93 * (p.irwst / 2.1e6), 0, 1)
+    ? clamp(0.07 * p.cmtLevel + 0.93 * Math.max(poolFrac, floorFrac * 0.85), 0, 1)
     : 1;
+  const onFloor = P && poolFrac < 0.02 && floorFrac > 0.05;
   const us = this.supply.size(), ui = us.height - 68, uh = ui * store;
   const injecting = P ? !!(s.cmt || s.gravity || s.accum) : !!s.aux;
   const reachable = P || (live && p.pumpsOk);
   const cracked = P && p.irwstCracked;
-  box(this.supply, uh, 36 + ui - uh, cracked ? '#7d5a3a' : C.water,
-    cracked || !reachable ? C.bad : C.edge,
-    P ? (cracked ? 'CRACKED — LEAKING'
-      : injecting ? 'falling into the core' : 'ready — no pump needed')
+  const lost = P && onFloor && !p.ctmtIntact;
+  box(this.supply, uh, 36 + ui - uh,
+    lost ? '#5c4436' : onFloor ? '#3f7fa8' : cracked ? '#7d5a3a' : C.water,
+    lost ? C.bad : cracked && !onFloor ? C.warn : C.edge,
+    P ? (lost ? 'ESCAPING as steam'
+      : onFloor ? 'still gets back in'
+        : cracked ? 'CRACKED — draining'
+          : injecting ? 'falling into the core' : 'ready — no pump needed')
       : (injecting ? 'being pumped in' : (live ? 'idle' : 'CANNOT REACH THE CORE')),
-    cracked ? C.bad : P ? C.ok : (live ? C.dim : C.bad));
+    lost ? C.bad : onFloor ? C.ok : cracked ? C.warn : P ? C.ok : (live ? C.dim : C.bad));
+  if (P) this.supply.attr('name/text',
+    onFloor ? 'WATER ON THE FLOOR' : 'POOL ABOVE THE CORE');
   setFlow(this.inject, injecting, 1);
   if (this.inject2) setFlow(this.inject2, injecting, 1);
   if (this.eccs) this.eccs.attr({ tri: { fill: injecting ? '#7fc6f0' : '#49535d' },
@@ -341,12 +350,14 @@ Circuit.prototype.update = function (t) {
 
   // The steps, worst first, so the headline always names the furthest thing
   // that has happened rather than the first one that matched.
+  const lostWater = P && p.irwstCracked && !p.ctmtIntact;
   this.headline =
     p.vesselBreach || /DESTROYED/.test(p.state) ? 'MELTDOWN'
       : uncovered ? 'FUEL IS UNCOVERED'
         : p.coreDamage > 0.01 ? 'FUEL IS DAMAGED'
           : lvl < 0.97 ? 'LOSING WATER'
-            : (P && !p.prhrOk && sink === 'none') ? 'PASSIVE HEAT PATH BROKEN'
+            : (P && lostWater) ? 'THE WATER IS ESCAPING'
+              : (P && !p.prhrOk && sink === 'none') ? 'PASSIVE HEAT PATH BROKEN'
               : sink === 'none' ? 'HEAT IS NOT GETTING OUT'
                 : s.rcic ? 'ON THE LAST-RESORT PUMP'
                   : sink === 'pool' ? 'THE POOL IS TAKING THE HEAT'
@@ -354,7 +365,7 @@ Circuit.prototype.update = function (t) {
                       : !s.grid && !s.diesel ? 'RUNNING ON BATTERIES'
                         : P ? 'SAFE' : 'NORMAL';
   this.good = !(p.vesselBreach || uncovered || p.coreDamage > 0.01
-    || sink === 'none' || lvl < 0.97 || (P && p.irwstCracked));
+    || sink === 'none' || lvl < 0.97 || lostWater);
 };
 
 // ===========================================================================
