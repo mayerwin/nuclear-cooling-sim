@@ -83,27 +83,27 @@ export class Renderer {
     const cw = CW / dpr, ch = CH / dpr;
     const narrow = cw < 861;
     const items = narrow ? [
-      ['#2b86cf', 'water'], ['#e8702a', 'fuel heating up'],
+      ['#2b86cf', 'water'], ['#e07a3c', 'hot water'],
       ['#f52d10', 'fuel failing'], ['#ffd35c', 'electricity']
     ] : [
-      ['#2b86cf', 'water'], ['#e8702a', 'fuel heating up'], ['#f52d10', 'fuel failing'],
-      ['#e07a3c', 'hot water leaving the core'], ['#3fc0d8', 'cooled water coming back'],
-      ['#b7c6d2', 'heat leaving'], ['#ffd35c', 'electricity']
+      ['#2b86cf', 'water'], ['#e07a3c', 'hot water'], ['#3fc0d8', 'water that has been cooled'],
+      ['#e8702a', 'fuel heating up'], ['#f52d10', 'fuel failing'],
+      ['#b7c6d2', 'steam leaving'], ['#ffd35c', 'electricity']
     ];
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
+    ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
     const left = narrow ? 10 : 322;
     const right = cw - (narrow ? 10 : 344);
     const rows = [[]];
     let x = left;
     for (const it of items) {
-      const w = ctx.measureText(it[1]).width + 24;
+      const w = ctx.measureText(it[1]).width + 26;
       if (x + w > right && rows[rows.length - 1].length) { rows.push([]); x = left; }
       rows[rows.length - 1].push([it, x]);
       x += w;
     }
-    const h = rows.length * 17 + 8;
+    const h = rows.length * 18 + 9;
     const baseY = ch - (narrow ? 186 : 78) - h;
     ctx.fillStyle = 'rgba(8,13,19,0.72)';
     roundRect(ctx, left - 8, baseY, right - left + 16, h, 7);
@@ -112,12 +112,12 @@ export class Renderer {
     roundRect(ctx, left - 8, baseY, right - left + 16, h, 7);
     ctx.stroke();
     rows.forEach((row, ri) => {
-      const y = baseY + 16 + ri * 17;
+      const y = baseY + 17 + ri * 18;
       for (const [it, px] of row) {
         ctx.fillStyle = it[0];
-        ctx.fillRect(px, y - 8, 10, 10);
+        ctx.fillRect(px, y - 9, 11, 11);
         ctx.fillStyle = 'rgba(208,224,238,0.9)';
-        ctx.fillText(it[1], px + 15, y + 1);
+        ctx.fillText(it[1], px + 16, y + 1);
       }
     });
     ctx.restore();

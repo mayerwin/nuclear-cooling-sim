@@ -75,35 +75,47 @@ function defineShapes() {
       liquid: { x: 8, y: 38, width: 'calc(w-16)', height: 0, fill: C.rcs, opacity: .8 },
       surf: { x1: 8, x2: 'calc(w-8)', y1: 0, y2: 0, stroke: 'rgba(220,240,255,.5)',
         strokeWidth: 2, opacity: 0 },
-      fuel: { x: 0, y: 0, width: 0, height: 0, fill: '#8e9aa6', rx: 3, opacity: 0 },
-      rods: { x: 0, y: 0, width: 0, height: 0, fill: 'url(#cutRods)', opacity: 0 },
-      chanA: { d: 'M 0 0', stroke: C.cold, strokeWidth: 15, fill: 'none',
+      fuel1: { x: 0, y: 0, width: 0, height: 0, fill: '#8e9aa6', rx: 3, opacity: 0 },
+      rod1: { x: 0, y: 0, width: 0, height: 0, fill: 'url(#cutRods)', opacity: 0 },
+      fuel2: { x: 0, y: 0, width: 0, height: 0, fill: '#8e9aa6', rx: 3, opacity: 0 },
+      rod2: { x: 0, y: 0, width: 0, height: 0, fill: 'url(#cutRods)', opacity: 0 },
+      fuel3: { x: 0, y: 0, width: 0, height: 0, fill: '#8e9aa6', rx: 3, opacity: 0 },
+      rod3: { x: 0, y: 0, width: 0, height: 0, fill: 'url(#cutRods)', opacity: 0 },
+      chanA: { d: 'M 0 0', stroke: C.cold, strokeWidth: 16, fill: 'none',
         strokeLinejoin: 'round', strokeLinecap: 'butt' },
-      chanB: { d: 'M 0 0', stroke: C.hot, strokeWidth: 15, fill: 'none',
+      chanB: { d: 'M 0 0', stroke: C.hot, strokeWidth: 16, fill: 'none',
         strokeLinejoin: 'round', strokeLinecap: 'butt' },
       dashA: { d: 'M 0 0', stroke: 'rgba(255,255,255,.95)', strokeWidth: 5, fill: 'none',
         strokeDasharray: '9 30', strokeLinecap: 'butt', opacity: 0 },
       dashB: { d: 'M 0 0', stroke: 'rgba(255,255,255,.95)', strokeWidth: 5, fill: 'none',
         strokeDasharray: '9 30', strokeLinecap: 'butt', opacity: 0 },
-      fuelTx: { x: 0, y: 0, textAnchor: 'middle', fill: '#0d151d',
-        fontSize: 12, fontWeight: 800, fontFamily: 'ui-sans-serif,system-ui', opacity: 0 },
+      fuelTx: { x: 0, y: 0, textAnchor: 'middle', fill: '#9fb2c2',
+        fontSize: 11.5, fontWeight: 800, fontFamily: 'ui-sans-serif,system-ui',
+        letterSpacing: '.04em', opacity: 0 },
       head: { x: 2, y: 2, width: 'calc(w-4)', height: 32, rx: 11, fill: 'rgba(6,11,16,.96)' },
       name: { x: 'calc(w/2)', y: 24, textAnchor: 'middle', fill: C.ink,
         fontSize: 16, fontWeight: 800, fontFamily: 'ui-sans-serif,system-ui' },
       foot: { x: 2, y: 'calc(h-30)', width: 'calc(w-4)', height: 28, rx: 11,
         fill: 'rgba(6,11,16,.94)' },
       value: { x: 'calc(w/2)', y: 'calc(h-10)', textAnchor: 'middle', fill: C.dim,
-        fontSize: 15, fontWeight: 700, fontFamily: 'ui-sans-serif,system-ui' }
+        fontSize: 15, fontWeight: 700, fontFamily: 'ui-sans-serif,system-ui' },
+      // second footer line, used by the reactor to say the one thing a
+      // newcomer does not know: a shut-down core is still making heat.
+      value2: { x: 'calc(w/2)', y: 'calc(h-10)', textAnchor: 'middle', fill: C.dim,
+        fontSize: 13, fontWeight: 700, fontFamily: 'ui-sans-serif,system-ui', opacity: 0 }
     }
   }, { markup: [
     { tagName: 'rect', selector: 'body' }, { tagName: 'rect', selector: 'cav' },
     { tagName: 'rect', selector: 'liquid' }, { tagName: 'line', selector: 'surf' },
-    { tagName: 'rect', selector: 'fuel' }, { tagName: 'rect', selector: 'rods' },
+    { tagName: 'rect', selector: 'fuel1' }, { tagName: 'rect', selector: 'rod1' },
+    { tagName: 'rect', selector: 'fuel2' }, { tagName: 'rect', selector: 'rod2' },
+    { tagName: 'rect', selector: 'fuel3' }, { tagName: 'rect', selector: 'rod3' },
     { tagName: 'path', selector: 'chanA' }, { tagName: 'path', selector: 'chanB' },
     { tagName: 'path', selector: 'dashA' }, { tagName: 'path', selector: 'dashB' },
     { tagName: 'text', selector: 'fuelTx' },
     { tagName: 'rect', selector: 'head' }, { tagName: 'text', selector: 'name' },
-    { tagName: 'rect', selector: 'foot' }, { tagName: 'text', selector: 'value' }] });
+    { tagName: 'rect', selector: 'foot' }, { tagName: 'text', selector: 'value' },
+    { tagName: 'text', selector: 'value2' }] });
 
   // A plain store of water: no insides worth drawing, just how much is left.
   const Tank = j.dia.Element.define('n.Tank', {
@@ -131,23 +143,28 @@ function defineShapes() {
     { tagName: 'rect', selector: 'foot' }, { tagName: 'text', selector: 'value' }] });
 
   // A pump, drawn the way a process drawing draws one.
+  // Two caption lines, because one was never enough: what the pump is doing,
+  // and what that means for the cooling. "not safety kit" meant nothing.
   const Pump = j.dia.Element.define('n.Pump', {
-    size: { width: 190, height: 190 },
+    size: { width: 230, height: 214 },
     z: 6,
     attrs: {
-      body: { cx: 95, cy: 68, r: 60, fill: '#16222d', stroke: '#8497a6', strokeWidth: 3 },
-      tri: { d: 'M 78 40 L 132 68 L 78 96 Z', fill: '#7fc6f0' },
-      name: { x: 95, y: 160, textAnchor: 'middle', fill: C.ink,
+      body: { cx: 115, cy: 68, r: 60, fill: '#16222d', stroke: '#8497a6', strokeWidth: 3 },
+      tri: { d: 'M 98 40 L 152 68 L 98 96 Z', fill: '#7fc6f0' },
+      name: { x: 115, y: 156, textAnchor: 'middle', fill: C.ink,
         fontSize: 15, fontWeight: 800, fontFamily: 'ui-sans-serif,system-ui' },
-      value: { x: 95, y: 181, textAnchor: 'middle', fill: C.dim,
-        fontSize: 13.5, fontWeight: 700, fontFamily: 'ui-sans-serif,system-ui' }
+      value: { x: 115, y: 177, textAnchor: 'middle', fill: C.dim,
+        fontSize: 13.5, fontWeight: 700, fontFamily: 'ui-sans-serif,system-ui' },
+      value2: { x: 115, y: 196, textAnchor: 'middle', fill: C.dim,
+        fontSize: 12.5, fontWeight: 600, fontFamily: 'ui-sans-serif,system-ui' }
     }
   }, { markup: [{ tagName: 'circle', selector: 'body' }, { tagName: 'path', selector: 'tri' },
-    { tagName: 'text', selector: 'name' }, { tagName: 'text', selector: 'value' }] });
+    { tagName: 'text', selector: 'name' }, { tagName: 'text', selector: 'value' },
+    { tagName: 'text', selector: 'value2' }] });
 
   // Where a line leaves the picture.
   const Flag = j.dia.Element.define('n.Flag', {
-    size: { width: 180, height: 54 },
+    size: { width: 215, height: 54 },
     z: 6,
     attrs: {
       body: { refD: 'M 0 0 L 0.86 0 L 1 0.5 L 0.86 1 L 0 1 Z', fill: 'rgba(14,22,30,.96)',
@@ -213,15 +230,21 @@ function defineShapes() {
 // keeps circling with the pump off, and the spare water is above the core on
 // one design and in the basement on the other.
 // ===========================================================================
-const W = 770, H = 1110;
+const W = 790, H = 1120;
 
 // Where the water goes inside the reactor vessel, in the vessel's own
 // coordinates: in at the top right, down the gap between the core and the wall,
 // across the bottom, then up through the middle of the fuel and out.
-const CORE_IN = 118, CORE_OUT = 70;
-const CORE_COLD = `M ${CORE_W} ${CORE_IN} H 250 V 240 H 150`;
-const CORE_HOT = `M 150 240 V ${CORE_OUT} H ${CORE_W}`;
-const FUEL = { x: 95, y: 112, w: 110, h: 116 };
+// The fuel is three stacks of rods with water rising in the gaps between them,
+// because that is the point: the water does not flow past a block of fuel, it
+// flows between the rods and takes the heat out of them on the way up.
+const CORE_IN = 110, CORE_OUT = 64, CORE_BOT = 232;
+const CH1 = 128, CH2 = 172;                     // the two coolant channels
+const CORE_COLD = `M ${CORE_W} ${CORE_IN} H 250 V ${CORE_BOT} H ${CH1}`;
+const CORE_HOT = `M ${CH1} ${CORE_BOT} V ${CORE_OUT} H ${CORE_W} M ${CH2} ${CORE_BOT} V ${CORE_OUT - 8}`;
+const FUEL = { y: 98, h: 120 };
+const RODS = [[88, 32], [136, 28], [180, 32]];  // x, width
+const CORE_TOP = 38, CORE_SPAN = 208;      // the cavity, above the two-line foot
 // And inside the boiler: up one leg of a tube, over, down the other, giving the
 // heat to the water outside the tubes on the way.
 const SG_IN = 232, SG_OUT_X = 175;
@@ -259,20 +282,28 @@ class Circuit {
     const A = (name, dx, dy) => ({ name, args: { dx: dx || 0, dy: dy || 0 } });
     // the pump's box is taller than its circle so the caption fits inside it;
     // pipes have to land on the circle, not on the empty box corner
-    const PA = (n) => n === 'left' ? A('left', 35, -27) : n === 'right' ? A('right', -35, -27)
-      : n === 'top' ? A('top', 0, 8) : A('bottom', 0, -62);
+    const PA = (n) => n === 'left' ? A('left', 55, -39) : n === 'right' ? A('right', -55, -39)
+      : n === 'top' ? A('top', 0, 8) : A('bottom', 0, -86);
 
     this.zone = this.add(new S.Zone({ position: P ? this.at(18, 20) : this.at(18, 170),
-      size: { width: 740, height: P ? 840 : 690 } }));
+      size: { width: 750, height: P ? 840 : 690 } }));
 
     this.core = this.add(new S.Vessel({ position: this.at(60, 330),
       size: { width: CORE_W, height: CORE_H } }));
     this.core.attr({ name: { text: 'REACTOR' },
       chanA: { d: CORE_COLD }, chanB: { d: CORE_HOT },
       dashA: { d: CORE_COLD }, dashB: { d: CORE_HOT },
-      fuel: { x: FUEL.x, y: FUEL.y, width: FUEL.w, height: FUEL.h, opacity: 1 },
-      rods: { x: FUEL.x, y: FUEL.y, width: FUEL.w, height: FUEL.h, opacity: 1 },
-      fuelTx: { x: FUEL.x + 26, y: FUEL.y + FUEL.h / 2 + 4, text: 'FUEL', opacity: 1 } });
+      cav: { height: CORE_SPAN },
+      foot: { y: CORE_H - 54, height: 52 },
+      value: { y: CORE_H - 33 }, value2: { y: CORE_H - 13, opacity: 1 },
+      fuel1: { x: RODS[0][0], y: FUEL.y, width: RODS[0][1], height: FUEL.h, opacity: 1 },
+      rod1: { x: RODS[0][0], y: FUEL.y, width: RODS[0][1], height: FUEL.h, opacity: 1 },
+      fuel2: { x: RODS[1][0], y: FUEL.y, width: RODS[1][1], height: FUEL.h, opacity: 1 },
+      rod2: { x: RODS[1][0], y: FUEL.y, width: RODS[1][1], height: FUEL.h, opacity: 1 },
+      fuel3: { x: RODS[2][0], y: FUEL.y, width: RODS[2][1], height: FUEL.h, opacity: 1 },
+      rod3: { x: RODS[2][0], y: FUEL.y, width: RODS[2][1], height: FUEL.h, opacity: 1 },
+      fuelTx: { x: RODS[0][0] / 2 + 4, y: FUEL.y + FUEL.h / 2 + 4, text: 'FUEL RODS',
+        opacity: 1 } });
 
     this.sg = this.add(new S.Vessel({ position: this.at(470, 200),
       size: { width: SG_W, height: SG_H } }));
@@ -280,16 +311,16 @@ class Circuit {
       chanA: { d: SG_COLD }, chanB: { d: SG_HOT },
       dashA: { d: SG_COLD }, dashB: { d: SG_HOT } });
 
-    this.pump = this.add(new S.Pump({ position: this.at(550, 640) }));
+    this.pump = this.add(new S.Pump({ position: this.at(530, 640) }));
     this.pump.attr({ name: { text: 'PUMP' } });
 
     this.flag = this.add(new S.Flag({ position: this.at(520, -50) }));
-    this.flag.attr({ name: { text: 'heat out' } });
+    this.flag.attr({ name: { text: 'heat out, to the sea' } });
 
     this.supply = this.add(new S.Tank({ position: P ? this.at(60, 40) : this.at(60, 900) }));
     this.supply.attr({ name: { text: P ? 'POOL ABOVE THE REACTOR' : 'WATER IN THE BASEMENT' } });
 
-    this.power = this.add(new S.Tank({ position: this.at(560, 880), size: { width: 180, height: 80 } }));
+    this.power = this.add(new S.Tank({ position: this.at(575, 880), size: { width: 180, height: 80 } }));
     this.power.attr({ name: { text: 'POWER' } });
 
     // the loop: reactor -> boiler -> pump -> reactor
@@ -298,7 +329,7 @@ class Circuit {
     this.cold1 = pipe(this.sg, this.pump, A('bottom', SG_OUT_X - SG_W / 2), PA('top'), C.cold);
     this.cold2 = pipe(this.pump, this.core, PA('left'), A('right', 0, CORE_IN - CORE_H / 2),
       C.cold, [this.at(420, 702)]);
-    this.out = pipe(this.sg, this.flag, A('top', -70), A('bottom', -80), C.steam);
+    this.out = pipe(this.sg, this.flag, A('top', -70), A('bottom', -97), C.steam);
 
     if (P) {
       // The pool does two jobs, both real: it holds the water that falls in,
@@ -311,17 +342,18 @@ class Circuit {
     } else {
       // the same inlet, reached the long way: up out of the basement, past the
       // whole height of the reactor, behind a pump that needs electricity
-      this.eccs = this.add(new S.Pump({ position: this.at(360, 880) }));
+      this.eccs = this.add(new S.Pump({ position: this.at(330, 880) }));
       this.eccs.attr({ name: { text: 'BACKUP PUMP' } });
       this.inject = pipe(this.supply, this.eccs, A('right', 0, 8), PA('left'), C.water);
       this.inject2 = pipe(this.eccs, this.core, PA('top'), A('top', -100), C.water,
-        [this.at(455, 806), this.at(30, 806), this.at(30, 268), this.at(110, 268)]);
-      this.tagPipe(this.inject2, 'pumped all the way up', C.water, 0.513, 100, 0);
+        [this.at(445, 806), this.at(30, 806), this.at(30, 268), this.at(110, 268)]);
+      this.tagPipe(this.inject2, 'the long way round, uphill', C.water, 0.273, 0, -19);
     }
 
     this.wires = [this.add(new S.Wire({
       source: { id: this.power.id, anchor: A('right') },
-      target: { id: this.pump.id, anchor: PA('right') } }))];
+      target: { id: this.pump.id, anchor: PA('bottom') },
+      vertices: [this.at(760, 768)] }))];
     if (!P) this.wires.push(this.add(new S.Wire({
       source: { id: this.power.id, anchor: A('left', 0, 8) },
       target: { id: this.eccs.id, anchor: PA('right') } })));
@@ -344,53 +376,77 @@ Circuit.prototype.update = function (t) {
       surf: { y1: top + span - h, y2: top + span - h, opacity: h > 2 ? 1 : 0 } });
   };
 
+  // Is the heat actually leaving the plant? Everything downstream hangs on
+  // this: if it is not, the water coming back is not cool, whatever colour a
+  // legend says it should be.
+  const sink = s.sink || 'none';
+  const viaSG = sink === 'turbine';
+  const carried = sink !== 'none';
+
   // ---- the reactor: level, temperature, and whether the fuel is covered ----
   const lvl = clamp(p.level, 0, 1);
-  const top = 38, span = CORE_H - 70;
-  const covered = top + span - span * lvl <= FUEL.y;   // surface above the bundle
+  const covered = CORE_TOP + CORE_SPAN * (1 - lvl) <= FUEL.y;   // surface above the rods
   const T = p.Tclad - 273;
-  level(this.core, lvl, top, span, C.rcs);
+  level(this.core, lvl, CORE_TOP, CORE_SPAN, C.rcs);
   const glow = T > 400 ? tempColor(Math.min(p.Tclad, 3200)) : '#8e9aa6';
+  const MW = (p.qDecay || 0) / 1e6;
   this.core.attr({
     body: { stroke: covered ? '#8497a6' : C.bad },
-    fuel: { fill: glow, stroke: covered ? '#c8d3dc' : '#ffd9c6' },
-    fuelTx: { fill: T > 700 ? '#2a0d05' : '#0d151d' },
-    value: { text: `${Math.round(lvl * 100)}% full  ·  ${T.toFixed(0)} °C`,
-      fill: T > 800 ? C.bad : T > 360 ? C.warn : C.dim } });
+    fuel1: { fill: glow, stroke: covered ? '#c8d3dc' : '#ffd9c6' },
+    fuel2: { fill: glow, stroke: covered ? '#c8d3dc' : '#ffd9c6' },
+    fuel3: { fill: glow, stroke: covered ? '#c8d3dc' : '#ffd9c6' },
+    fuelTx: { fill: covered ? '#9fb2c2' : '#ffb59c' },
+    value: { text: `water ${Math.round(lvl * 100)}%   ·   ${T.toFixed(0)} °C`,
+      fill: T > 800 ? C.bad : T > 360 ? C.warn : C.dim },
+    // The one fact a newcomer does not have: shutting a reactor down stops the
+    // chain reaction, not the heat. Everything else here follows from it.
+    value2: { text: p.scrammed
+      ? `shut down — still making ${MW < 10 ? MW.toFixed(1) : Math.round(MW)} MW of heat`
+      : `running — making ${Math.round(MW).toLocaleString('en-US')} MW of heat`,
+      fill: '#a2bacd' } });
   const uncovered = !covered;
 
   // the route through the fuel: it only moves while something is driving it
   const hotC = tempColor(Math.min(3200, p.Tcore + 40));
   const moving = flow > 0 && !uncovered;
   const off = -(t * 26 * Math.min(1.5, flow || 1)) % 39;
+  const backC = carried ? C.cold : hotC;      // "cooled water" only if it was cooled
   this.core.attr({
-    chanA: { stroke: moving ? C.cold : '#3a4650' },
+    chanA: { stroke: moving ? backC : '#3a4650' },
     chanB: { stroke: moving ? hotC : '#4a3b34' },
     dashA: { opacity: moving ? 0.95 : 0, strokeDashoffset: off },
     dashB: { opacity: moving ? 0.95 : 0, strokeDashoffset: off } });
 
   // ---- the boiler ---------------------------------------------------------
-  const sink = s.sink || 'none';
-  const viaSG = sink === 'turbine';
   level(this.sg, viaSG ? 0.86 : 0.2, 38, SG_H - 70, C.water);
   this.sg.attr({
-    body: { stroke: viaSG || sink !== 'none' ? '#8497a6' : C.bad },
-    chanA: { stroke: moving ? C.cold : '#3a4650' },
+    body: { stroke: carried ? '#8497a6' : C.bad },
+    chanA: { stroke: moving ? backC : '#3a4650' },
     chanB: { stroke: moving ? hotC : '#4a3b34' },
     dashA: { opacity: moving ? 0.95 : 0, strokeDashoffset: off },
     dashB: { opacity: moving ? 0.95 : 0, strokeDashoffset: off },
-    value: { text: viaSG ? 'boiling off the heat'
+    value: { text: viaSG ? 'taking the heat away'
       : sink === 'pool' ? 'not needed — the pool has it'
-        : sink === 'shell' ? 'not needed — the shell has it' : 'not taking heat',
-      fill: viaSG ? C.dim : sink !== 'none' ? C.ok : C.bad } });
+        : sink === 'shell' ? 'not needed — the shell has it' : 'not taking any heat',
+      fill: viaSG ? C.dim : carried ? C.ok : C.bad } });
 
   // ---- pumps and power ----------------------------------------------------
   const live = !!(s.grid || s.diesel);
+  // Two lines: what the pump is doing, and what the cooling depends on.
+  // Careful with the second line - this pump is a normal-running machine on
+  // both plants, and when it stops the loop keeps creeping round on both by
+  // natural circulation. The honest difference is not this pump, it is whether
+  // the cooling behind it is built out of pumps at all.
+  const pumpTx = s.rcp
+    ? (P ? ['spinning', 'the cooling needs no pump at all']
+      : ['spinning', 'the cooling needs pumps like this'])
+    : (P ? ['stopped', 'and the cooling carries on anyway']
+      : ['STOPPED', live ? 'and the backups must take over'
+        : 'and the backup pumps have no power']);
   this.pump.attr({ tri: { fill: s.rcp ? '#7fc6f0' : '#49535d' },
-    body: { stroke: s.rcp ? '#8497a6' : '#39424c' },
-    value: { text: s.rcp ? (P ? 'needed only for power' : 'must keep running')
-      : (P ? 'off — cooling carries on' : 'STOPPED — no cooling'),
-      fill: s.rcp ? C.dim : (P ? C.ok : C.bad) } });
+    body: { stroke: s.rcp ? '#8497a6' : (P ? C.ok : C.bad) },
+    value: { text: pumpTx[0], fill: s.rcp ? C.ink : (P ? C.ok : C.bad) },
+    value2: { text: pumpTx[1], fill: s.rcp ? C.dim : (P ? C.ok : C.bad) } });
   const src = s.grid ? 'grid' : s.diesel ? 'diesels'
     : s.battery > 0 ? `batteries ${(s.battery * p.batteryHours).toFixed(0)} h` : 'NONE';
   this.power.attr({ body: { stroke: live ? C.power : (s.battery > 0 ? C.warn : C.bad) },
@@ -403,6 +459,11 @@ Circuit.prototype.update = function (t) {
 
   // ---- the loop -----------------------------------------------------------
   this.hot.attr('bore/stroke', flow > 0 ? hotC : '#39424c');
+  // When nothing is taking the heat away the return leg is not "cooled water"
+  // coming back - it is the same hot water going round again. Colouring it
+  // blue anyway was the picture telling a comfortable lie.
+  this.cold1.attr('bore/stroke', flow > 0 ? backC : '#39424c');
+  this.cold2.attr('bore/stroke', flow > 0 ? backC : '#39424c');
   setFlow(this.hot, flow > 0, flow);
   setFlow(this.cold1, flow > 0, flow);
   setFlow(this.cold2, flow > 0, flow);
@@ -435,8 +496,8 @@ Circuit.prototype.update = function (t) {
         : cracked ? 'CRACKED — draining'
           : injecting ? 'falling into the reactor' : 'ready — no pump needed')
       : (injecting ? 'being pumped up'
-        : !live ? 'NO POWER — CANNOT REACH THE REACTOR'
-          : !p.pumpsOk ? 'THE PUMPS HAVE FAILED' : 'idle'),
+        : !live ? 'CANNOT REACH THE REACTOR'
+          : !p.pumpsOk ? 'THE PUMPS HAVE FAILED' : 'waiting down here'),
       fill: lost ? C.bad : onFloor ? C.ok : cracked ? C.warn : P ? C.ok
         : (live && p.pumpsOk ? C.dim : C.bad) } });
   if (P) this.supply.attr('name/text',
@@ -444,9 +505,13 @@ Circuit.prototype.update = function (t) {
   setFlow(this.inject, injecting, 1);
   if (this.inject2) setFlow(this.inject2, injecting, 1);
   if (this.eccs) this.eccs.attr({ tri: { fill: injecting ? '#7fc6f0' : '#49535d' },
-    body: { stroke: injecting ? '#8497a6' : '#39424c' },
-    value: { text: injecting ? 'injecting'
-      : !live ? 'NO POWER' : !p.pumpsOk ? 'FAILED' : 'idle',
+    body: { stroke: injecting ? '#8497a6' : (live && p.pumpsOk ? '#39424c' : C.bad) },
+    value: { text: injecting ? 'pumping'
+      : !live ? 'NO POWER' : !p.pumpsOk ? 'BROKEN' : 'waiting',
+      fill: injecting ? C.ink : (live && p.pumpsOk) ? C.dim : C.bad },
+    value2: { text: injecting ? 'lifting water up to the reactor'
+      : !live ? 'without electricity it cannot run'
+        : !p.pumpsOk ? 'the water cannot be lifted' : 'starts if the level falls',
       fill: injecting || (live && p.pumpsOk) ? C.dim : C.bad } });
 
   // ---- the wall ------------------------------------------------------------

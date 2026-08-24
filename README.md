@@ -26,12 +26,23 @@ farmland downwind. This is where the hazard arrives and where the consequences l
 
 **🔬 Cutaway** — the circuit itself, drawn as a schematic, both plants side by side. This is
 the one that answers *why*. Each side shows the containment line, the reactor with its fuel
-bundle, the boiler above it, the pump, and the spare water — above the reactor on the passive
+rods, the boiler above it, the pump, and the spare water — above the reactor on the passive
 unit, in the basement behind a pump on the active one. The water is drawn *inside* the
 reactor on the route it really takes: back down the outside of the core, across the bottom,
-and up through the fuel, which is where it turns from blue to orange. When the level drops
-below the top of the bundle the fuel goes grey → orange → red, and the headline under each
+and **up between the fuel rods**, which is where it turns from blue to orange. When the level
+drops below the top of the rods they go grey → orange → red, and the headline under each
 title names the step that plant has reached.
+
+One caution the drawing is careful about: the big pump is a normal-running machine on *both*
+plants, and when it stops both loops keep creeping round on their own by natural circulation.
+The difference is not that pump — it is whether what happens next needs pumps at all. The
+captions under each one say so.
+
+Two readings are worth knowing. If the loop is orange **all the way round**, nothing is taking
+the heat away and the return leg is carrying the same heat straight back into the fuel — the
+picture only draws returning water as cool water if something actually cooled it. And under
+each reactor is the number that makes the whole subject make sense: **how much heat the fuel
+is still making**, because shutting a reactor down stops the chain reaction, not the heat.
 
 Only one thing differs between the two drawings, and it is the whole argument: where the
 spare water sits and what has to work to get it into the reactor. On the passive side it is
