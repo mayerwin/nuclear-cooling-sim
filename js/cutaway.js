@@ -25,8 +25,10 @@ const C = {
   ok: '#63e08a', warn: '#ffc44d', bad: '#ff5c48',
   ink: '#dbe8f2', dim: '#93a6b6', panel: '#111a23', edge: '#6f7d8a'
 };
-const RAMP = [[560, '#cf8038'], [700, '#e09a34'], [900, '#e2702c'],
-  [1200, '#e8391f'], [1800, '#ff6a2a'], [2600, '#ffb96a'], [3200, '#ffe6bd']];
+// Physically, hotter is whiter. Visually, pale reads as harmless, and a core at
+// 2900 C is not. The ramp stays in the red once the fuel is failing.
+const RAMP = [[560, '#d9853a'], [720, '#e59a2e'], [900, '#e8702a'],
+  [1100, '#e8481c'], [1500, '#f52d10'], [2200, '#ff3a18'], [3200, '#ff6a33']];
 function hx(c) { const h = c.slice(1); const n = parseInt(h, 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
 export function tempColor(K) {
@@ -108,6 +110,7 @@ function defineShapes() {
     },
     router: { name: 'orthogonal', args: { padding: 20 } },
     connector: { name: 'rounded', args: { radius: 22 } },
+    connectionPoint: { name: 'anchor' },
     z: 1
   }, { markup: [{ tagName: 'path', selector: 'casing' }, { tagName: 'path', selector: 'bore' },
     { tagName: 'path', selector: 'flow' }] });
@@ -122,6 +125,7 @@ function defineShapes() {
     },
     router: { name: 'orthogonal', args: { padding: 16 } },
     connector: { name: 'rounded', args: { radius: 14 } },
+    connectionPoint: { name: 'anchor' },
     z: 0
   }, { markup: [{ tagName: 'path', selector: 'casing' }, { tagName: 'path', selector: 'bore' }] });
 
@@ -132,7 +136,7 @@ function defineShapes() {
 // ===========================================================================
 // One circuit. Same five boxes on both sides; only the water supply moves.
 // ===========================================================================
-const W = 640, H = 1060;
+const W = 730, H = 1060;
 
 class Circuit {
   constructor(plant, graph, ox) {
@@ -144,6 +148,14 @@ class Circuit {
     this.build();
   }
   add(c) { this.g.addCell(c); this.cells.push(c); return c; }
+  // a caption riding on a pipe: no leader, no lookup
+  tagPipe(link, text, col, pos, dx, dy) {
+    link.labels([{ position: { distance: pos, offset: { x: dx || 0, y: dy || 0 } },
+      attrs: { labelText: { text, fill: col, fontSize: 14, fontWeight: 700,
+        fontFamily: 'ui-sans-serif,system-ui', textAnchor: 'middle',
+        textVerticalAnchor: 'middle' } },
+      markup: [{ tagName: 'text', selector: 'labelText' }] }]);
+  }
   at(x, y) { return { x: this.ox + x, y }; }
 
   // The loop runs down the page: core on top, steam generator below it, the
@@ -164,48 +176,51 @@ class Circuit {
     const PA = (name) => name === 'bottom' ? A('bottom', 0, -58)
       : name === 'right' ? A('right', 0, -29) : name === 'left' ? A('left', 0, -29) : A(name);
 
-    this.core = this.add(new S.Tank({ position: this.at(165, 200), size: { width: 275, height: 250 } }));
+    this.core = this.add(new S.Tank({ position: this.at(165, 175), size: { width: 275, height: 250 } }));
     this.core.attr({ name: { text: 'REACTOR CORE' }, mark: { opacity: 1 },
       markTx: { opacity: 1, text: 'top of fuel' } });
 
-    this.sg = this.add(new S.Tank({ position: this.at(165, 580), size: { width: 275, height: 240 } }));
+    this.sg = this.add(new S.Tank({ position: this.at(165, 640), size: { width: 275, height: 220 } }));
     this.sg.attr({ name: { text: 'STEAM GENERATOR' } });
 
-    this.pump = this.add(new S.Pump({ position: this.at(500, 430), size: { width: 118, height: 176 } }));
-    this.pump.attr({ name: { text: 'COOLANT PUMP' } });
+    this.pump = this.add(new S.Pump({ position: this.at(510, 420), size: { width: 118, height: 176 } }));
+    this.pump.attr({ name: { text: 'PUMP' } });
 
-    this.flag = this.add(new S.Flag({ position: this.at(492, 720), size: { width: 148, height: 52 } }));
+    this.flag = this.add(new S.Flag({ position: this.at(524, 764), size: { width: 150, height: 52 } }));
     this.flag.attr({ name: { text: 'heat out' } });
 
     this.supply = this.add(new S.Tank({
-      position: P ? this.at(165, 0) : this.at(165, 930), size: { width: 275, height: 130 } }));
+      position: P ? this.at(165, 0) : this.at(165, 900), size: { width: 275, height: 118 } }));
     this.supply.attr({ name: { text: P ? 'WATER ABOVE THE CORE' : 'WATER OUTSIDE, BELOW' } });
 
-    this.power = this.add(new S.Tank({ position: this.at(492, 880), size: { width: 148, height: 130 } }));
+    this.power = this.add(new S.Tank({ position: this.at(500, 900), size: { width: 152, height: 78 } }));
     this.power.attr({ name: { text: 'POWER' } });
 
     // the loop
-    this.hot = pipe(this.core, this.sg, A('bottom', -92), A('top', -92), C.hot);
+    this.hot = pipe(this.core, this.sg, A('bottom'), A('top'), C.hot);
+    this.tagPipe(this.hot, 'hot water out', C.hot, 0.5, 82);
     this.cold1 = pipe(this.sg, this.pump, A('right', 0, -64), PA('left'), C.cold);
     this.cold2 = pipe(this.pump, this.core, PA('top'), A('right', 0, 62), C.cold);
-    this.out = pipe(this.sg, this.flag, A('right', 0, 74), A('left'), C.steam);
+    this.tagPipe(this.cold2, 'cooled water in', C.cold, 0.5, 0, -22);
+    this.out = pipe(this.sg, this.flag, A('right', 0, 40), A('left'), C.steam);
 
     if (P) {
       // nothing in the way, nothing to switch on
-      this.inject = pipe(this.supply, this.core, A('bottom', 92), A('top', 92), C.water);
+      this.inject = pipe(this.supply, this.core, A('bottom'), A('top'), C.water);
     } else {
       // a long way round, uphill, behind a pump
-      this.eccs = this.add(new S.Pump({ position: this.at(15, 860), size: { width: 118, height: 176 } }));
-      this.eccs.attr({ name: { text: 'ECCS PUMP' } });
-      this.inject = pipe(this.supply, this.eccs, A('left'), PA('bottom'), C.water);
+      this.eccs = this.add(new S.Pump({ position: this.at(30, 880), size: { width: 118, height: 176 } }));
+      this.eccs.attr({ name: { text: 'BACKUP PUMP' } });
+      this.inject = pipe(this.supply, this.eccs, A('left', 0, -20), PA('right'), C.water);
         this.inject2 = pipe(this.eccs, this.core, PA('top'), A('left', 0, 62), C.water);
     }
 
-    const wire = (b) => this.add(new S.Wire({
-      source: { id: this.power.id, anchor: A('left', 0, 20) },
-      target: { id: b.id, anchor: PA('bottom') } }));
-    this.wires = [wire(this.pump)];
-    if (!P) this.wires.push(wire(this.eccs));
+    this.wires = [this.add(new S.Wire({
+      source: { id: this.power.id, anchor: A('right') },
+      target: { id: this.pump.id, anchor: PA('right') } }))];
+    if (!P) this.wires.push(this.add(new S.Wire({
+      source: { id: this.power.id, anchor: A('bottom') },
+      target: { id: this.eccs.id, anchor: PA('bottom') } })));
   }
 }
 
@@ -214,7 +229,10 @@ Circuit.prototype.update = function (t) {
   const flow = Math.max(s.rcp || 0, s.natCirc || 0);
   const setFlow = (link, on, rate) => {
     link.attr('flow/opacity', on ? 0.95 : 0);
-    link.attr('bore/opacity', on ? 1 : 0.42);
+    link.attr('bore/opacity', on ? 1 : 0.22);
+    link.attr('casing/opacity', on ? 1 : 0.45);
+    // a caption on a dead pipe should fade with it
+    if (link.label(0)) link.prop('labels/0/attrs/labelText/opacity', on ? 1 : 0.3);
     if (on) link.attr('flow/strokeDashoffset', -(t * 26 * Math.min(1.5, rate || 1)) % 42);
   };
   const box = (el, h, y, fill, stroke, value, valueCol) => {
@@ -248,7 +266,7 @@ Circuit.prototype.update = function (t) {
   const live = !!(s.grid || s.diesel);
   this.pump.attr({ tri: { fill: s.rcp ? '#7fc6f0' : '#49535d' },
     body: { stroke: s.rcp ? C.edge : '#39424c' },
-    value: { text: s.rcp ? 'running' : (P ? 'off — not needed' : 'STOPPED'),
+    value: { text: s.rcp ? 'running' : (P ? 'not needed' : 'STOPPED'),
       fill: s.rcp ? C.dim : (P ? C.ok : C.bad) } });
   const src = s.grid ? 'grid' : s.diesel ? 'diesels'
     : s.battery > 0 ? `batteries ${(s.battery * p.batteryHours).toFixed(0)} h` : 'NONE';
@@ -267,6 +285,8 @@ Circuit.prototype.update = function (t) {
   setFlow(this.cold1, flow > 0, flow);
   setFlow(this.cold2, flow > 0, flow);
   setFlow(this.out, fed, 1);
+  this.flag.attr({ body: { stroke: fed ? C.edge : '#39424c', opacity: fed ? 1 : 0.55 },
+    name: { fill: fed ? C.ink : '#5d6975' } });
 
   // ---- the spare water ----------------------------------------------------
   const store = P ? clamp(Math.max(p.cmtLevel, p.irwst / 2.1e6), 0, 1) : 1;
@@ -285,9 +305,14 @@ Circuit.prototype.update = function (t) {
     value: { text: injecting ? 'injecting' : (live ? 'idle' : 'NO POWER'),
       fill: injecting ? C.dim : (live ? C.dim : C.bad) } });
 
-  // one badge, and only when it is saying something
-  this.badge = (flow > 0 && !s.rcp) ? 'moving by itself — no pump'
-    : (uncovered ? 'the fuel is uncovered' : '');
+  this.headline = p.vesselBreach || /DESTROYED/.test(p.state) ? 'MELTDOWN'
+    : uncovered ? 'FUEL UNCOVERED'
+      : p.coreDamage > 0.01 ? 'FUEL DAMAGED'
+        : !fed ? 'HEAT IS NOT GETTING OUT'
+          : (flow > 0 && !s.rcp) ? 'COOLING ITSELF'
+            : lvl < 0.995 ? 'LOSING WATER'
+              : P ? 'SAFE' : 'NORMAL';
+  this.good = !(p.vesselBreach || uncovered || p.coreDamage > 0.01 || !fed || lvl < 0.995);
 };
 
 // ===========================================================================
@@ -304,8 +329,7 @@ export class CutStage {
     this.paper = new j.dia.Paper({
       el: this.host, model: this.graph, width: 800, height: 600,
       gridSize: 1, interactive: false, cellViewNamespace: j.shapes,
-      background: { color: 'transparent' }, sorting: j.dia.Paper.sorting.APPROX,
-      defaultConnectionPoint: { name: 'boundary' }
+      background: { color: 'transparent' }, sorting: j.dia.Paper.sorting.APPROX
     });
     this.circuits = plants.map((p, i) => new Circuit(p, this.graph, i * (W + 90)));
     this.head = plants.map((p, i) => {
@@ -350,11 +374,20 @@ export class CutStage {
     const bb = this.graph.getCellsBBox(shown);
     if (!bb) return false;
     this.paper.transformToFitContent({
-      padding: { top: 72, bottom: 14, left: 14, right: 14 },
+      padding: { top: (this._reserved = this.headH()), bottom: 14, left: 14, right: 14 },
       contentArea: bb, verticalAlign: 'middle', horizontalAlign: 'middle'
     });
     this.placeHeads();
+    const need = this.headH();
+    if (!this._refit && Math.abs(need - this._reserved) > 2) {
+      this._refit = true; this._reserved = need; this.fit(); this._refit = false;
+    }
     return true;
+  }
+
+  headH() {
+    const h = this.head && this.head[0] ? this.head[0].offsetHeight : 0;
+    return Math.max(52, h + 12);
   }
 
   // headings live in the DOM above each circuit, so they stay crisp and short
@@ -363,31 +396,33 @@ export class CutStage {
     for (let i = 0; i < 2; i++) {
       const el = this.head[i];
       el.style.left = (tr.tx + (i * (W + 90) + 10) * sc) + 'px';
-      el.style.top = Math.max(0, tr.ty - 78 * sc) + 'px';
+      el.style.top = Math.max(0, tr.ty - el.offsetHeight - 8) + 'px';
       el.style.width = ((W - 20) * sc) + 'px';
-      el.style.fontSize = Math.max(11, 15 * sc) + 'px';
+      el.style.fontSize = Math.max(12, Math.min(16, 15 * sc)) + 'px';
     }
   }
 
   update(t) {
     if (!this.built) return;
+    let changed = false;
     // re-fit when the view first becomes visible, or the window changes shape
     const box = this.host.parentNode;
     if (box.clientWidth !== this.fitW || box.clientHeight !== this.fitH
       || !this.paper.scale().sx) this.fit();
+    else if (Math.abs(this.headH() - this._reserved) > 2) this.fit();
     for (let i = 0; i < 2; i++) {
       const c = this.circuits[i];
       if (this.focus === 'active' && c.passive) continue;
       if (this.focus === 'passive' && !c.passive) continue;
       c.update(t);
-      const p = c.p, good = /SAFE|NORMAL|STABLE/.test(p.state);
       const el = this.head[i];
-      const b = el.firstChild, s = el.lastChild;
+      const b = el.firstChild, sub = el.lastChild;
       const title = c.passive ? 'PASSIVE' : 'ACTIVE';
       if (b.textContent !== title) b.textContent = title;
-      const sub = p.state.replace(/ - /g, ' \u00b7 ') + (c.badge ? '  \u00b7  ' + c.badge : '');
-      if (s.textContent !== sub) s.textContent = sub;
-      el.dataset.tone = good ? 'ok' : 'bad';
+      if (sub.textContent !== c.headline) sub.textContent = c.headline;
+      el.dataset.tone = c.good ? 'ok' : 'bad';
+      changed = true;
     }
+    if (changed) this.placeHeads();
   }
 }

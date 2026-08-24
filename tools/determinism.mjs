@@ -63,11 +63,21 @@ await check('site view, fully frozen', () => {
 });
 await page.click('#viewSite');
 await page.click('#viewCut');
-await check('cutaway view, fully frozen', () => {
-  const s = window.__sim;
-  s.speedIdx = 0; s.fitCut();
-  setTimeout(() => { s.update = () => { }; }, 400);
-}, true);
+// The circuit diagram is SVG, not canvas, so compare the markup it produces:
+// a pixel diff of the canvas would only be testing the backdrop behind it.
+{
+  await page.evaluate(() => { window.__sim.speedIdx = 0; window.__sim.fitCut(); });
+  await page.waitForTimeout(700);
+  const dump = () => page.evaluate(() =>
+    document.querySelector('#cutstage svg').outerHTML.replace(/stroke-dashoffset="[^"]*"/g, ''));
+  const a1 = await dump();
+  await page.waitForTimeout(700);
+  const a2 = await dump();
+  const ok = a1 === a2 && a1.length > 4000;
+  if (!ok) bad++;
+  console.log(`${ok ? 'PASS' : 'FAIL'}  cutaway diagram, frozen: ${
+    ok ? 'markup identical' : 'markup differs between frames'} (${a1.length} chars)`);
+}
 
 await browser.close();
 if (bad) { console.log(`\n${bad} check(s) failed`); process.exitCode = 1; }
