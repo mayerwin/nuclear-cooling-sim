@@ -11,6 +11,8 @@
 </head>
 <body>
 <canvas id="stage"></canvas>
+<div id="cutwrap"><svg id="cutstage" aria-hidden="true"
+     preserveAspectRatio="xMidYMid meet"></svg></div>
 
 <!-- ======================= TOP BAR ======================= -->
 <header id="topbar">
@@ -124,13 +126,16 @@
     <ul class="fine howto">
       <li><b>Quiet means normal.</b> Colour is spent on things that have gone wrong, so a section
         that stays grey and blue is a section that is fine.</li>
-      <li><b>Numbers 1–8 mean the same item in both plants.</b> Anything from 9 up is what the two
-        designs do <em>not</em> share — which is the comparison.</li>
-      <li><b>⚡ marks kit that stops when the electrical row below it stops.</b> The key counts
-        them: five of twelve on the Gen-II unit, and they are the cooling; two of fourteen on the
-        Gen-III+ unit, and neither one cools the core.</li>
-      <li><b>Line weight is flow, chevrons are direction.</b> A thin grey line is a line with
-        nothing moving in it.</li>
+      <li><b>Both sections are the same drawing.</b> Anything present on one and absent on the
+        other is the comparison: the Gen-III+ unit's pool, heat exchanger, gravity tanks and roof
+        tank have no counterpart on the left.</li>
+      <li><b>Warm means the reactor's own water</b> (320&nbsp;°C, going red as the fuel
+        overheats); <b>blue means water going in</b> — injection, the secondary side, the pools.
+        That is the convention every PWR diagram uses, not a single temperature scale.</li>
+      <li><b>Drawn to scale, with people on the operating deck for it.</b> The steam generator
+        really is 21&nbsp;m tall and half as tall again as the reactor vessel.</li>
+      <li><b>Dashes moving along a pipe mean flow</b>, and which way. A dark, still pipe has
+        nothing in it.</li>
       <li><b>The scale beside the reactor is the water level</b>, with the bottom and top of the
         fuel marked. It turns red the moment the water drops past the fuel.</li>
     </ul>
@@ -145,7 +150,10 @@
         <b>Every flow animated in the cutaway</b> — if a loop is moving there, the model is
         moving it.</td></tr>
       <tr><th>Scaled</th><td>Time: the AUTO clock compresses quiet hours up to 1800× and drops
-        to near real time when a core is coming apart. Distance: one map tile is about 25&nbsp;m,
+        to near real time when a core is coming apart. The cutaway is drawn to real relative
+        dimensions — vessel, steam generator, pressuriser, fuel, containment diameter — except
+        that the empty upper third of the containment is compressed, because a true 65&nbsp;m
+        section spends half the frame on air. Distance: one map tile is about 25&nbsp;m,
         so the contamination footprint is a schematic of the plume, not a dispersion
         calculation. The site is staged for the camera rather than laid out to a real plant plan.</td></tr>
       <tr><th>Assumed</th><td>Both units are 3,400&nbsp;MW thermal so the comparison is

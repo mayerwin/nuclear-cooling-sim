@@ -1,1231 +1,908 @@
 // ---------------------------------------------------------------------------
-// cutaway.js - the inside of both stations, drawn as a process mimic.
+// cutaway.js - the inside of both reactor buildings, drawn as a true cutaway
+// section in SVG.
 //
-// Design rules, taken from the standards this kind of display actually has:
+// Why SVG and not the canvas the rest of the app uses: this view is a drawing,
+// not a scene. It needs crisp text at any pixel ratio, exact clipping for
+// liquid levels, and component outlines authored as real paths. All of that is
+// one attribute on an SVG node and a fight on a canvas.
 //
-//   ISA-101 (high-performance HMI). Normal operation is drawn quiet and
-//   desaturated; saturated colour is reserved for deviation from normal. That
-//   is not just convention here, it is the lesson: the passive unit stays grey
-//   and blue for the whole scenario while the active unit lights up.
+// Everything is authored in METRES at true relative scale, y measured up from
+// the containment basemat, and Y() flips into SVG's y-down space. The only
+// deliberate distortion is that the free volume above the operating deck is
+// compressed - a real large-dry containment is 65 m tall and the top 30 m of it
+// is air. That is declared in the fidelity ledger.
 //
-//   ISA-5.1 (instrumentation symbols). A centrifugal pump is a circle with a
-//   triangle, a valve is a bow-tie, a heat exchanger is a coil in its shell,
-//   a vessel carries a level scale beside it with marked trip points. Readers
-//   who know P&IDs read this for free; readers who do not still get shapes
-//   that stay distinct from each other.
+// Real dimensions used (Westinghouse 4-loop / AP1000 class):
+//   reactor vessel      13.4 m tall, 4.4 m inside diameter
+//   active fuel          3.66 m tall
+//   steam generator     20.6 m tall - narrow evaporator shell, conical
+//                       transition, fat separator shell. Nothing else in the
+//                       building has that silhouette, which is the point.
+//   pressuriser         12.8 m tall, 2.4 m diameter
+//   containment         40 m inside diameter, 1.15 m of concrete
 //
-//   Level is shown the way a control room shows it: a scale with BAF and TAF
-//   (bottom / top of active fuel) marked, an indicator that tracks the real
-//   number, and a colour change the moment the water drops past the fuel.
-//
-//   Flow is encoded twice - line weight proportional to flow, plus a moving
-//   chevron - because a static dashed line does not say which way anything is
-//   going, and direction is half the story in a natural-circulation loop.
-//
-//   Equipment that needs electricity is marked. That marker is the difference
-//   between the two plants, made visible without reading a word.
-//
-// The section maps u (across) and z (up) to grid (ox + u/2, oy - u/2) at
-// height z*ZS. x + y is then constant along the section, and a constant x + y
-// projects to a constant screen row, so the cut reads as a true elevation
-// while everything standing in it is still drawn with the isometric
-// primitives used by the site view.
-//
-// Every animated quantity is read from plant.sys, which the model fills in on
-// the step it computes the heat balance.
+// The fluids are the subject, so they carry the saturated colour and the
+// structure stays grey. Every level, colour and flow is read from plant.sys
+// and plant state on the frame the model computes it.
 // ---------------------------------------------------------------------------
-import { project, shade, rgba, mix, hash2, poly, polyLine, TW, TH, TZ } from './iso.js';
 import { MODE } from './plant.js';
 
-const ZS = 1.5;
-const ERX = TW * 1.41421, ERY = TH * 1.41421;
+const NS = 'http://www.w3.org/2000/svg';
 
-// ---- palette: quiet by default ---------------------------------------------
+// ---- geometry, metres ------------------------------------------------------
+export const GEO = {
+  gnd: 52,              // svg-y of elevation zero
+  cx: 50,               // section centre
+  rin: 19.5, wall: 1.15,
+  floor: 2.0, spring: 28.5, domeRy: 12.5,
+  deck: 17.4,
+  rpv:  { dx: -12.5, r: 2.2, base: 5.0, cyl: 7.2, head: 1.9 },
+  core: { up: 2.4, h: 3.66 },
+  sg:   { dx: 2.0, base: 9.0, rl: 1.75, ru: 2.35, hLow: 8.4, hCone: 2.3, hUp: 5.8 },
+  przr: { dx: 13.5, base: 13.5, r: 1.2, h: 10.2 },
+  hotZ: 11.6, coldZ: 8.2
+};
+GEO.rpv.cylTop = GEO.rpv.base + GEO.rpv.r + GEO.rpv.cyl;
+GEO.rpv.top    = GEO.rpv.cylTop + GEO.rpv.head;
+GEO.core.z0    = GEO.rpv.base + GEO.core.up;
+GEO.core.z1    = GEO.core.z0 + GEO.core.h;
+GEO.sg.yCone   = GEO.sg.base + GEO.sg.rl + GEO.sg.hLow;
+GEO.sg.yUp     = GEO.sg.yCone + GEO.sg.hCone;
+GEO.sg.yTop    = GEO.sg.yUp + GEO.sg.hUp;
+
+const Y = m => GEO.gnd - m;
+
+// ---- palette: the water is the subject -------------------------------------
 const C = {
-  wall: '#79838d',          // equipment outline
-  wallDim: '#4d565f',       // de-energised / not in service
-  fill: '#1b232c',          // inside of a vessel, empty
-  steel: '#8b959e',
-  conc: '#8a857a',
-  floor: '#3b4148',
-  text: '#c4d2dd',
-  textDim: '#7c8a95',
-  ok: '#63e08a',
-  warn: '#ffc44d',
-  bad: '#ff5c48',
-  h2: '#d9e04a',
-  air: '#7fd0e4',
-  power: '#ffd35c',
-  cold: '#4a6b82'           // water at rest: deliberately undramatic
+  conc: '#4f4d47', concLine: '#6a675f',
+  steel: '#aab5bf', steelDim: '#5d666f',
+  dark: '#111922',
+  liner: '#c0ae7d',
+  text: '#d5e2ec', dim: '#8496a4',
+  ok: '#63e08a', warn: '#ffc44d', bad: '#ff5c48',
+  h2: '#d9e04a', air: '#7fd0e4', power: '#ffd35c',
+  cold: '#2f7fd0'
 };
 
-// Temperature ramp. Normal operating temperature is a calm steel blue - it has
-// to be, or the display is shouting before anything has gone wrong.
+// Temperature ramp. Confident blue when normal, then yellow, orange, red.
+// Primary side. Amber at operating temperature - it is 320 C, and drawing it
+// cool is what made the first version unreadable - then red as the fuel goes.
 const RAMP = [
-  [290, '#3f6d8c'], [560, '#4a7f96'], [620, '#5a8a92'],
-  [700, '#9b9a63'], [900, '#d0a03e'], [1200, '#dd6a2b'],
-  [1600, '#e83b22'], [2200, '#ff8a4a'], [3000, '#ffe3b0']
+  [400, '#a8663a'], [600, '#cf8038'], [680, '#e09a34'], [780, '#e2702c'],
+  [1000, '#e24822'], [1400, '#e8391f'], [2000, '#ff6a2a'],
+  [2600, '#ffb96a'], [3200, '#ffe6bd']
 ];
-export function tempColor(K) {
-  if (K <= RAMP[0][0]) return RAMP[0][1];
-  for (let i = 1; i < RAMP.length; i++) {
-    if (K <= RAMP[i][0]) {
-      return mix(RAMP[i - 1][1], RAMP[i][1],
-        (K - RAMP[i - 1][0]) / (RAMP[i][0] - RAMP[i - 1][0]));
+// Everything cold: injection water, the secondary side, the pools.
+const COOL = [
+  [290, '#2668b8'], [420, '#2f8ed6'], [500, '#3aa6e0'], [560, '#43bcd8'],
+  [610, '#63d2cf'], [700, '#c9b141'], [900, '#e09330']
+];
+function hex(c) {
+  let h = c.replace('#', '');
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  const n = parseInt(h, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function ramp(tab, K) {
+  if (K <= tab[0][0]) return tab[0][1];
+  for (let i = 1; i < tab.length; i++) {
+    if (K <= tab[i][0]) {
+      const t = (K - tab[i - 1][0]) / (tab[i][0] - tab[i - 1][0]);
+      const a = hex(tab[i - 1][1]), b = hex(tab[i][1]);
+      return `rgb(${(a[0] + (b[0] - a[0]) * t) | 0},${(a[1] + (b[1] - a[1]) * t) | 0},${(a[2] + (b[2] - a[2]) * t) | 0})`;
     }
   }
-  return RAMP[RAMP.length - 1][1];
+  return tab[tab.length - 1][1];
+}
+export function tempColor(K) { return ramp(RAMP, K); }
+export function coolColor(K) { return ramp(COOL, K); }
+function shade(c, f) {
+  const a = hex(c);
+  return `rgb(${Math.min(255, a[0] * f) | 0},${Math.min(255, a[1] * f) | 0},${Math.min(255, a[2] * f) | 0})`;
 }
 
-function rr(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
+// ---- tiny DOM helpers ------------------------------------------------------
+export function el(parent, name, attrs, text) {
+  const e = document.createElementNS(NS, name);
+  if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  if (parent) parent.appendChild(e);
+  return e;
 }
+const P = pts => 'M' + pts.map(p => `${p[0]},${Y(p[1])}`).join(' L ');
 
-export class CutawayView {
-  constructor(plant, ox, oy) {
-    this.plant = plant;
-    this.ox = ox; this.oy = oy;
+// ===========================================================================
+// One section: one reactor building, cut open.
+// ===========================================================================
+export class Section {
+  constructor(plant, ox) {
+    this.p = plant;
+    this.ox = ox;                                   // metres, section offset
     this.passive = plant.mode === MODE.PASSIVE;
-    this.labels = true;
-    this.caps = [];
-    this.tagQ = [];
-    // Annotation is screen furniture, not part of the drawing: `ts` converts a
-    // CSS pixel into the world units the camera transform is currently using,
-    // so a caption is the same size to read whether one section is on screen
-    // or two.
-    this.ts = 1;
-    // the top of this section's own geometry: the title sits just above it, so
-    // the active unit does not get a hole where the shield building would be
-    this.topZ = 14.6;
+    this.key = this.passive ? 'p' : 'a';
+    this.r = {};                                    // live element references
   }
+  x(m) { return this.ox + m; }                      // section-local -> world
 
-  // Anything drawn at a screen size has to be declared, or the camera fits the
-  // geometry and clips the captions.
-  mark(cx, w) {
-    if (w === undefined) { this.extL = Math.min(this.extL, cx); this.extR = Math.max(this.extR, cx); return; }
-    this.extL = Math.min(this.extL, cx - w / 2);
-    this.extR = Math.max(this.extR, cx + w / 2);
+  // -- primitives ----------------------------------------------------------
+  // A cut-open vessel: dark interior, thick wall, and a clip for its contents.
+  vessel(layerShell, layerWall, id, d) {
+    el(layerShell, 'path', { d, fill: C.dark });
+    const cp = el(this.defs, 'clipPath', { id });
+    el(cp, 'path', { d });
+    el(layerWall, 'path', {
+      d, fill: 'none', stroke: 'url(#cutWall)', 'stroke-width': 0.68,
+      'stroke-linejoin': 'round'
+    });
+    el(layerWall, 'path', {
+      d, fill: 'none', stroke: C.steel, 'stroke-width': 0.1, 'stroke-linejoin': 'round'
+    });
   }
-
-  // font at a true CSS pixel size, under the camera transform
-  f(px, weight) {
-    return `${weight || 500} ${(px * this.ts).toFixed(2)}px ui-sans-serif, system-ui, sans-serif`;
+  // A body of liquid inside a clip. Returns handles the update pass moves.
+  liquid(id, x0, w, name) {
+    const g = el(this.L.fluid, 'g', { 'clip-path': `url(#${id})` });
+    const body = el(g, 'rect', { x: x0, y: Y(0), width: w, height: 0, fill: C.cold });
+    const surf = el(g, 'rect', { x: x0, y: Y(0), width: w, height: 0.3, fill: '#a8e6ff' });
+    this.r[name] = { body, surf, x0, w };
+    return g;
   }
-
-  gx(u) { return this.ox + u * 0.5; }
-  gy(u) { return this.oy - u * 0.5; }
-  P(u, z) { return project(this.gx(u), this.gy(u), z * ZS); }
-
-  // =====================================================================
-  // primitives
-  // =====================================================================
-
-  // A vessel: outline, contents, and - if asked - a proper level scale beside
-  // it with the fuel trip points marked.
-  vessel(ctx, o) {
-    const { u, r, z0, z1 } = o;
-    const top = this.P(u, z1), bot = this.P(u, z0);
-    const rx = r * ERX, ry = r * ERY;
-
-    // The silhouette closes over the FAR side of the top rim, so the inside of
-    // the far wall is part of the vessel. Closing it over the near rim instead
-    // leaves a lens-shaped hole above the water that reads as a hole in the
-    // drawing the moment a vessel is anywhere near full.
-    const capH = rx * 0.44;
-    ctx.beginPath();
-    ctx.moveTo(bot.x - rx, bot.y);
-    ctx.lineTo(top.x - rx, top.y);
-    if (o.head) {
-      ctx.bezierCurveTo(top.x - rx, top.y - capH, top.x + rx, top.y - capH,
-        top.x + rx, top.y);
-    } else {
-      ctx.ellipse(top.x, top.y, rx, ry, 0, Math.PI, 0, false);
+  setLevel(name, top, bottom, colour) {
+    const h = this.r[name];
+    if (!h) return;
+    const lvl = Math.max(bottom, top);
+    h.body.setAttribute('y', Y(lvl));
+    h.body.setAttribute('height', Math.max(0, lvl - bottom));
+    h.body.setAttribute('fill', colour);
+    const show = lvl > bottom + 0.05;
+    h.surf.setAttribute('y', Y(lvl));
+    h.surf.setAttribute('opacity', show ? 1 : 0);
+    h.surf.setAttribute('fill', shade(colour, 1.7));
+  }
+  // A pipe: dark casing, coloured bore, and a dashed overlay that carries flow.
+  pipe(pts, w, name) {
+    const LY = this.L[this._into || 'pipe'];
+    const d = P(pts.map(q => [this.x(q[0]), q[1]]));
+    el(LY, 'path', {
+      d, fill: 'none', stroke: '#4d565f', 'stroke-width': w + 0.42,
+      'stroke-linejoin': 'round', 'stroke-linecap': 'round'
+    });
+    const bore = el(LY, 'path', {
+      d, fill: 'none', stroke: C.cold, 'stroke-width': w,
+      'stroke-linejoin': 'round', 'stroke-linecap': 'round'
+    });
+    const flow = el(LY, 'path', {
+      d, fill: 'none', stroke: 'rgba(255,255,255,.75)', 'stroke-width': w * 0.32,
+      'stroke-linecap': 'butt', 'stroke-dasharray': `${w * 0.9} ${w * 2.6}`,
+      'stroke-dashoffset': 0, opacity: 0
+    });
+    if (name) this.r[name] = { bore, flow, len: (w * 0.9 + w * 2.6) };
+    return { bore, flow };
+  }
+  setFlow(name, colour, rate, t, reverse) {
+    const h = this.r[name];
+    if (!h) return;
+    h.bore.setAttribute('stroke', rate > 0 ? colour : '#333c45');
+    h.flow.setAttribute('opacity', rate > 0 ? 0.9 : 0);
+    if (rate > 0) h.flow.setAttribute('stroke-dashoffset',
+      ((reverse ? 1 : -1) * t * 5.5 * Math.min(1.6, rate)) % h.len);
+  }
+  pump(x, y, name) {
+    const g = el(this.L[this._into || 'pipe'], 'g', {});
+    const body = el(g, 'circle', { cx: this.x(x), cy: Y(y), r: 1.5, fill: '#243441',
+      stroke: C.steel, 'stroke-width': 0.16 });
+    const tri = el(g, 'path', {
+      d: `M${this.x(x) - 0.7},${Y(y + 0.8)} L${this.x(x) + 1.0},${Y(y)} L${this.x(x) - 0.7},${Y(y - 0.8)} Z`,
+      fill: '#7fc6f0' });
+    const bolt = el(g, 'text', { x: this.x(x) + 1.9, y: Y(y) + 1.5,
+      class: 'cutBolt', 'text-anchor': 'middle' }, '⚡');
+    this.r[name] = { body, tri, bolt };
+    return g;
+  }
+  setPump(name, running) {
+    const h = this.r[name]; if (!h) return;
+    h.tri.setAttribute('fill', running ? '#7fc6f0' : '#48525b');
+    h.body.setAttribute('stroke', running ? C.steel : C.steelDim);
+    h.bolt.setAttribute('fill', running ? C.power : '#4d565f');
+  }
+  valve(x, y, name) {
+    const s = 0.95, X = this.x(x);
+    const g = el(this.L[this._into || 'pipe'], 'path', {
+      d: `M${X - s},${Y(y + s)} L${X},${Y(y)} L${X - s},${Y(y - s)} Z
+          M${X + s},${Y(y + s)} L${X},${Y(y)} L${X + s},${Y(y - s)} Z`,
+      fill: '#2b2f34', stroke: C.steel, 'stroke-width': 0.16 });
+    this.r[name] = g;
+    return g;
+  }
+  setValve(name, open, alarm) {
+    const g = this.r[name]; if (!g) return;
+    g.setAttribute('fill', alarm ? '#5a1a12' : open ? '#16351f' : '#2b2f34');
+    g.setAttribute('stroke', alarm ? C.bad : open ? C.ok : C.steel);
+  }
+  // Direct label with a leader into a side gutter. No numbered key: the whole
+  // point of a cutaway is that you read it without looking away.
+  label(ax, ay, gx, gy, text, side) {
+    const AX = this.x(ax), GX = this.x(gx);
+    el(this.L.anno, 'path', { d: `M${AX},${Y(ay)} L${GX},${Y(gy)}`,
+      stroke: 'rgba(150,190,215,.42)', 'stroke-width': 0.08 });
+    el(this.L.anno, 'circle', { cx: AX, cy: Y(ay), r: 0.22, fill: '#9ec8e2' });
+    return el(this.L.anno, 'text', {
+      x: GX + (side === 'end' ? -0.7 : 0.7), y: Y(gy) + 0.52,
+      class: 'cutLab', 'text-anchor': side || 'start' }, text);
+  }
+  // A pill that only appears when it has something to say.
+  tag(x, y, name, tone) {
+    const g = el(this.L.anno, 'g', { opacity: 0 });
+    const rect = el(g, 'rect', { x: this.x(x) - 5, y: Y(y) - 1.1, width: 10, height: 2.2,
+      rx: 0.6, fill: 'rgba(12,20,28,.92)', stroke: C.ok, 'stroke-width': 0.12 });
+    const txt = el(g, 'text', { x: this.x(x), y: Y(y) + 0.55, class: 'cutTag',
+      'text-anchor': 'middle' }, '');
+    const h = { g, rect, txt, x: this.x(x), y: Y(y), w: 10, on: false };
+    this.r[name] = h;
+    (this.tags || (this.tags = [])).push(h);
+    return g;
+  }
+  setTag(name, text, tone) {
+    const h = this.r[name]; if (!h) return;
+    h.on = !!text;
+    if (!text) { h.g.setAttribute('opacity', 0); return; }
+    h.g.setAttribute('opacity', 1);
+    if (h.txt.textContent !== text) {
+      h.txt.textContent = text;
+      h.w = Math.max(6, text.length * 0.86 + 2.2);
+      h.rect.setAttribute('width', h.w);
     }
-    ctx.lineTo(bot.x + rx, bot.y);
-    ctx.ellipse(bot.x, bot.y, rx, ry, 0, 0, Math.PI, false);
-    ctx.closePath();
-    ctx.fillStyle = C.fill;
-    ctx.fill();
-
-    ctx.save();
-    ctx.clip();
-    const lv = o.level === undefined ? z0 : Math.max(z0, Math.min(z1, o.level));
-    if (lv > z0 + 0.001) {
-      const surf = this.P(u, lv);
-      ctx.fillStyle = o.liquid || C.cold;
-      ctx.fillRect(top.x - rx - 1, surf.y, rx * 2 + 2, (bot.y + ry) - surf.y + 2);
-      ctx.beginPath();
-      ctx.ellipse(surf.x, surf.y, rx, ry, 0, Math.PI, 0, false);
-      ctx.fillStyle = shade(o.liquid || C.cold, 1.22);
-      ctx.fill();
-    }
-    if (o.inner) o.inner(ctx);
-    ctx.restore();
-
-    // waterline, drawn bright: this is the number the reader is tracking
-    if (o.level !== undefined && lv < z1 - 0.02 && lv > z0 + 0.02) {
-      const surf = this.P(u, lv);
-      ctx.strokeStyle = shade(o.liquid || C.cold, 1.6);
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.ellipse(surf.x, surf.y, rx, ry, 0, Math.PI, 0, false);
-      ctx.stroke();
-    }
-
-    const wall = o.dead ? C.wallDim : (o.wall || C.wall);
-    ctx.strokeStyle = wall;
-    ctx.lineWidth = o.wallW || 2.6;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(bot.x - rx, bot.y); ctx.lineTo(top.x - rx, top.y);
-    ctx.moveTo(bot.x + rx, bot.y); ctx.lineTo(top.x + rx, top.y);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.ellipse(bot.x, bot.y, rx, ry, 0, 0, Math.PI);
-    ctx.stroke();
-    if (o.head) {
-      ctx.beginPath();
-      ctx.moveTo(top.x - rx, top.y);
-      ctx.bezierCurveTo(top.x - rx, top.y - capH, top.x + rx, top.y - capH,
-        top.x + rx, top.y);
-      ctx.stroke();
-    } else {
-      ctx.beginPath();
-      ctx.ellipse(top.x, top.y, rx, ry, 0, Math.PI, 0, true);
-      ctx.stroke();
-    }
-    return { top, bot, rx, ry };
+    const col = tone === 'bad' ? C.bad : tone === 'warn' ? C.warn : C.ok;
+    const bg = tone === 'bad' ? 'rgba(60,14,10,.94)' : tone === 'warn'
+      ? 'rgba(56,40,8,.94)' : 'rgba(10,40,26,.94)';
+    h.rect.setAttribute('stroke', col); h.rect.setAttribute('fill', bg);
+    h.txt.setAttribute('fill', col);
   }
 
-  // The level scale. Ticks every unit, BAF and TAF called out, an indicator
-  // that moves with the real level, and a red state the moment it drops below
-  // the top of the fuel.
-  levelScale(ctx, o) {
-    const { u, z0, z1, level, baf, taf } = o;
-    const a = this.P(u, z0), b = this.P(u, z1);
-    const below = level < taf;
-    ctx.strokeStyle = C.wallDim; ctx.lineWidth = 1.4;
-    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-    for (let z = z0; z <= z1 + 0.001; z += (z1 - z0) / 8) {
-      const q = this.P(u, z);
-      ctx.beginPath(); ctx.moveTo(q.x - 3, q.y); ctx.lineTo(q.x + 3, q.y); ctx.stroke();
-    }
-    for (const [z, name] of [[baf, 'BAF'], [taf, 'TAF']]) {
-      const q = this.P(u, z);
-      const hot = name === 'TAF' && below;
-      ctx.strokeStyle = hot ? C.bad : C.textDim;
-      ctx.lineWidth = hot ? 2 : 1.4;
-      ctx.beginPath(); ctx.moveTo(q.x - 8, q.y); ctx.lineTo(q.x + 5, q.y); ctx.stroke();
-      const t = this.ts;
-      ctx.font = this.f(8, '600');
-      const tw = ctx.measureText(name).width;
-      ctx.fillStyle = 'rgba(12,18,24,0.82)';
-      ctx.fillRect(q.x - 12 * t - tw - 2 * t, q.y - 5 * t, tw + 4 * t, 10 * t);
-      ctx.fillStyle = hot ? C.bad : C.textDim;
-      ctx.textAlign = 'right';
-      ctx.fillText(name, q.x - 12 * t, q.y + 3 * t);
-      ctx.textAlign = 'left';
-    }
-    const q = this.P(u, Math.max(z0, Math.min(z1, level)));
-    ctx.fillStyle = below ? C.bad : C.ok;
-    ctx.beginPath();
-    ctx.moveTo(q.x + 12, q.y); ctx.lineTo(q.x + 3, q.y - 5); ctx.lineTo(q.x + 3, q.y + 5);
-    ctx.closePath(); ctx.fill();
-  }
-
-  pool(ctx, o) {
-    const { u0, u1, z0, z1, level } = o;
-    const A = this.P(u0, z1), B = this.P(u1, z1);
-    const D = this.P(u1, z0), E = this.P(u0, z0);
-    ctx.fillStyle = C.fill;
-    poly(ctx, [A, B, D, E]);
-    const lv = Math.max(z0, Math.min(z1, level));
-    if (lv > z0 + 0.001) {
-      const a = this.P(u0, lv), b = this.P(u1, lv);
-      ctx.fillStyle = o.liquid || C.cold;
-      poly(ctx, [a, b, D, E]);
-      ctx.strokeStyle = shade(o.liquid || C.cold, 1.5);
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-    }
-    ctx.strokeStyle = o.wall || C.wall;
-    ctx.lineWidth = 2.4; ctx.lineJoin = 'round';
-    ctx.beginPath();
-    ctx.moveTo(A.x, A.y); ctx.lineTo(E.x, E.y); ctx.lineTo(D.x, D.y); ctx.lineTo(B.x, B.y);
-    ctx.stroke();
-  }
-
-  // A pipe. Weight carries the flow, a chevron carries the direction, and a
-  // dead line is thin and grey so "nothing is moving here" needs no caption.
-  pipe(ctx, uz, o) {
-    const p = uz.map(q => this.P(q[0], q[1]));
-    const flow = o.flow || 0;
-    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    const base = o.w || 6;
-    const w = flow > 0 ? base * (0.72 + 0.45 * Math.min(1, flow)) : base * 0.5;
-    ctx.strokeStyle = flow > 0 ? C.wall : C.wallDim;
-    ctx.lineWidth = w + 2.6;
-    polyLine(ctx, p, false);
-    const col = o.color || C.cold;
-    ctx.strokeStyle = flow > 0 ? col : '#2a3138';
-    ctx.lineWidth = w;
-    polyLine(ctx, p, false);
-    if (flow > 0) this.chevrons(ctx, p, o, shade(col, 1.55), w);
-  }
-
-  chevrons(ctx, p, o, col, w) {
-    const segs = []; let total = 0;
-    for (let i = 0; i < p.length - 1; i++) {
-      const L = Math.hypot(p[i + 1].x - p[i].x, p[i + 1].y - p[i].y);
-      segs.push(L); total += L;
-    }
-    if (total < 26) return;
-    const n = Math.max(1, Math.round(total / 78));
-    for (let k = 0; k < n; k++) {
-      let t = ((((o.phase || 0) * o.flow * 0.20 + k / n) % 1) + 1) % 1;
-      if (o.reverse) t = 1 - t;
-      t *= total;
-      let i = 0;
-      while (i < segs.length && t > segs[i]) { t -= segs[i]; i++; }
-      if (i >= segs.length) continue;
-      const a = p[i], b = p[i + 1], L = segs[i] || 1;
-      const cx = a.x + (b.x - a.x) * (t / L), cy = a.y + (b.y - a.y) * (t / L);
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(Math.atan2((b.y - a.y) / L, (b.x - a.x) / L) + (o.reverse ? Math.PI : 0));
-      ctx.fillStyle = col;
-      const s = Math.max(3, w * 0.62);
-      ctx.beginPath();
-      ctx.moveTo(s, 0); ctx.lineTo(-s * 0.85, s * 0.9); ctx.lineTo(-s * 0.85, -s * 0.9);
-      ctx.closePath(); ctx.fill();
-      ctx.restore();
-    }
-  }
-
-  // ---- ISA-5.1 style symbols -------------------------------------------
-  // Centrifugal pump: a circle with a triangle. `powered` draws the marker
-  // that says this thing stops when the bus does.
-  pump(ctx, u, z, running, powered) {
-    const p = this.P(u, z);
-    ctx.beginPath(); ctx.arc(p.x, p.y, 9, 0, Math.PI * 2);
-    ctx.fillStyle = running ? '#2c3f52' : '#20262c';
-    ctx.fill();
-    ctx.strokeStyle = running ? C.wall : C.wallDim;
-    ctx.lineWidth = 2; ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(p.x - 4.5, p.y - 5); ctx.lineTo(p.x + 6, p.y); ctx.lineTo(p.x - 4.5, p.y + 5);
-    ctx.closePath();
-    ctx.fillStyle = running ? '#8fc4ee' : '#495159';
-    ctx.fill();
-    if (powered) this.powerMark(ctx, p.x + 10, p.y - 9, running);
-  }
-
-  // Bow-tie valve. Filled = shut, open = open, red = it should not be.
-  valve(ctx, u, z, open, powered, alarm) {
-    const p = this.P(u, z);
-    const s = 6;
-    ctx.beginPath();
-    ctx.moveTo(p.x - s, p.y - s); ctx.lineTo(p.x, p.y); ctx.lineTo(p.x - s, p.y + s);
-    ctx.closePath();
-    ctx.moveTo(p.x + s, p.y - s); ctx.lineTo(p.x, p.y); ctx.lineTo(p.x + s, p.y + s);
-    ctx.closePath();
-    ctx.fillStyle = alarm ? C.bad : open ? '#1d3a2a' : '#2b2f34';
-    ctx.fill();
-    ctx.strokeStyle = alarm ? C.bad : open ? C.ok : C.wall;
-    ctx.lineWidth = 1.6;
-    ctx.stroke();
-    if (powered) this.powerMark(ctx, p.x + 9, p.y - 9, open);
-  }
-
-  // The marker that carries the whole argument: this item needs a live bus.
-  powerMark(ctx, x, y, live) {
-    ctx.fillStyle = live ? C.power : '#4a5058';
-    ctx.font = this.f(9, '700');
-    ctx.fillText('⚡', x, y + 4);
-  }
-
-  // Heat exchanger: a coil inside its shell.
-  coilHX(ctx, u, z0, z1, hot, wide) {
-    const w = wide || 0.5;
-    ctx.strokeStyle = hot ? C.wall : C.wallDim;
-    ctx.lineWidth = 4.6;
-    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    ctx.beginPath();
-    for (let i = 0; i <= 12; i++) {
-      const q = this.P(u + (i % 2 ? w : -w), z0 + (z1 - z0) * (i / 12));
-      if (i === 0) ctx.moveTo(q.x, q.y); else ctx.lineTo(q.x, q.y);
-    }
-    ctx.stroke();
-    if (hot) {
-      ctx.strokeStyle = hot;
-      ctx.lineWidth = 2.6;
-      ctx.stroke();
-    }
-  }
-
-  bubbles(ctx, u, z0, z1, r, rate, time, seed) {
-    if (rate <= 0 || z1 <= z0) return;
-    const n = Math.min(18, Math.round(3 + rate * 15));
-    for (let i = 0; i < n; i++) {
-      const t = ((time * (0.5 + hash2(i, seed, 2) * 0.9) + hash2(i, seed, 1)) % 1);
-      const p = this.P(u + (hash2(i, seed, 3) - 0.5) * r * 1.5, z0 + (z1 - z0) * t);
-      ctx.fillStyle = `rgba(226,240,250,${0.5 * (1 - t)})`;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 1.3 + hash2(i, seed, 4) * 1.7, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  // ---- annotation -------------------------------------------------------
-  // Numbered callouts with a key, the way a technical cutaway is labelled.
-  // Captions painted next to the equipment is what makes a mimic unreadable
-  // the moment the plant gets busy: there are a dozen of them and they all
-  // land on top of the thing they describe. A numbered disc costs the reader
-  // one lookup and costs the drawing nothing.
-  //
-  // Numbers 1-7 mean the same item in both sections, so the two drawings
-  // difference cleanly. Everything from 8 up is what the two plants do not
-  // share, which is exactly the comparison.
-  callout(ctx, u, z, n, text, opts) {
-    if (!this.labels) return;
-    const o = opts || {};
-    let e = this.caps.find(c => c.n === n);
-    if (!e) { e = { n, text, power: !!o.power, aux: !!o.aux, pts: [] }; this.caps.push(e); }
-    e.pts.push(this.P(u, z));
-  }
-
-  // A caption placed directly, for the two or three things that sit in empty
-  // space where a number would be more work than a word.
-  note(ctx, u, z, text, align) {
-    if (!this.labels) return;
-    const q = this.P(u, z), t = this.ts;
-    ctx.font = this.f(9.5, '500');
-    ctx.fillStyle = 'rgba(160,182,197,0.92)';
-    ctx.textAlign = align || 'center';
-    ctx.fillText(text, q.x, q.y);
-    ctx.textAlign = 'left';
-  }
-
-  // The off-page connector: where a line leaves the section it gets the
-  // standard flag rather than simply stopping in mid-air.
-  offPage(ctx, u, z, text, live) {
-    const q = this.P(u, z), t = this.ts;
-    ctx.font = this.f(8.5, '600');
-    const w = ctx.measureText(text).width + 15 * t, h = 15 * t;
-    this.mark(q.x); this.mark(q.x + w + 4 * t);
-    ctx.beginPath();
-    ctx.moveTo(q.x, q.y - h / 2);
-    ctx.lineTo(q.x + w - 7 * t, q.y - h / 2);
-    ctx.lineTo(q.x + w, q.y);
-    ctx.lineTo(q.x + w - 7 * t, q.y + h / 2);
-    ctx.lineTo(q.x, q.y + h / 2);
-    ctx.closePath();
-    ctx.fillStyle = 'rgba(20,28,36,0.92)';
-    ctx.fill();
-    ctx.strokeStyle = live ? 'rgba(150,190,215,0.5)' : C.wallDim;
-    ctx.lineWidth = 1.2 * t;
-    ctx.stroke();
-    ctx.fillStyle = live ? C.text : C.textDim;
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, q.x + 6 * t, q.y + 0.5 * t);
-    ctx.textBaseline = 'alphabetic';
-  }
-
-  tag(ctx, u, z, text, tone) {
-    const p = this.P(u, z);
-    this.tagQ.push({ x: p.x, y: p.y, text, tone });
-  }
-
-  // the discs, on the drawing
-  flushCallouts(ctx) {
-    const t = this.ts, r = 7.5 * t;
-    ctx.font = this.f(9, '700');
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    for (const c of this.caps) {
-      for (const q of c.pts) {
-        ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(13,19,25,0.9)'; ctx.fill();
-        ctx.strokeStyle = c.power ? 'rgba(255,211,92,0.75)' : 'rgba(150,178,199,0.6)';
-        ctx.lineWidth = 1.3 * t; ctx.stroke();
-        ctx.fillStyle = c.power ? '#f4dfa6' : C.text;
-        ctx.fillText(String(c.n), q.x, q.y + 0.5 * t);
-      }
-    }
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  }
-
-  // the key, under the electrical row, in three columns
-  keyPanel(ctx, topY) {
-    if (!this.labels || !this.caps.length) return topY;
-    const t = this.ts;
-    const list = this.caps.slice().sort((a, b) => a.n - b.n);
-    this.mark(this.P(-0.6, 0).x); this.mark(this.P(13.6, 0).x);
-    const x0 = this.P(-0.6, 0).x, x1 = this.P(13.6, 0).x;
-    // three columns only if a column is actually wide enough to hold a caption
-    const cols = ((x1 - x0) / 3) / t >= 126 ? 3 : 2;
-    const colW = (x1 - x0) / cols;
-    const rows = Math.ceil(list.length / cols);
-    const rowH = 13.5 * t, r = 5.6 * t;
-    for (let i = 0; i < list.length; i++) {
-      const c = list[i];
-      const cx = x0 + (i % cols) * colW;
-      const cy = topY + Math.floor(i / cols) * rowH;
-      ctx.beginPath(); ctx.arc(cx + r, cy, r, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(13,19,25,0.9)'; ctx.fill();
-      ctx.strokeStyle = c.power ? 'rgba(255,211,92,0.75)' : 'rgba(150,178,199,0.55)';
-      ctx.lineWidth = 1.2 * t; ctx.stroke();
-      ctx.font = this.f(8, '700');
-      ctx.fillStyle = c.power ? '#f4dfa6' : C.text;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(String(c.n), cx + r, cy + 0.4 * t);
-      ctx.textAlign = 'left';
-      ctx.font = this.f(9.5, '500');
-      ctx.fillStyle = c.power ? '#e9d6a4' : 'rgba(196,210,221,0.88)';
-      const tx = cx + r * 2 + 4 * t, room = colW - (r * 2 + 4 * t) - 10 * t;
-      let label = (c.power ? '\u26a1 ' : '') + c.text;
-      while (label.length > 2 && ctx.measureText(label).width > room) {
-        label = label.slice(0, -2) + '\u2026';
-      }
-      ctx.fillText(label, tx, cy + 0.4 * t);
-      ctx.textBaseline = 'alphabetic';
-    }
-    const need = list.filter(c => c.power).length;
-    const safety = list.filter(c => c.power && !c.aux).length;
-    const cy = topY + rows * rowH + 4 * t;
-    ctx.font = this.f(10, '700');
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = safety ? C.warn : C.ok;
-    const sum = safety
-      ? `\u26a1 ${safety} of these ${list.length} need the row above \u2014 and they are the cooling`
-      : `\u26a1 only ${need} of these ${list.length} need the row above \u2014 neither one cools the core`;
-    ctx.fillText(sum, (x0 + x1) / 2, cy + 6 * t);
-    this.mark((x0 + x1) / 2, ctx.measureText(sum).width);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    this.caps.length = 0;
-    return cy + 16 * t;
-  }
-
-  flushTags(ctx) {
-    const t = this.ts;
-    ctx.font = this.f(10, '700');
+  // Pills appear and vanish with the plant's state, so wherever two of them
+  // want the same patch of drawing, push the later one clear.
+  layoutTags() {
+    const on = (this.tags || []).filter(h => h.on);
     const placed = [];
-    for (const q of this.tagQ) {
-      const w = ctx.measureText(q.text).width + 13 * t;
-      for (let k = 0; k < 12; k++) {
+    for (const h of on) {
+      let y = h.y;
+      for (let k = 0; k < 14; k++) {
         let hit = false;
-        for (const o of placed) {
-          if (Math.abs(o.x - q.x) < (o.w + w) / 2 + 5 * t && Math.abs(o.y - q.y) < 19 * t) { hit = true; break; }
-        }
+        for (const q of placed)
+          if (Math.abs(q.x - h.x) < (q.w + h.w) / 2 + 0.6 && Math.abs(q.y - y) < 2.7) { hit = true; break; }
         if (!hit) break;
-        q.y -= 19 * t;
+        y -= 2.8;
       }
-      placed.push({ x: q.x, y: q.y, w });
-      this.mark(q.x, w);
-      const tone = q.tone;
-      ctx.fillStyle = tone === 'bad' ? 'rgba(76,18,12,0.94)'
-        : tone === 'warn' ? 'rgba(70,50,10,0.94)'
-          : tone === 'ok' ? 'rgba(10,44,28,0.92)' : 'rgba(14,20,26,0.9)';
-      rr(ctx, q.x - w / 2, q.y - 8 * t, w, 17 * t, 4 * t); ctx.fill();
-      ctx.strokeStyle = tone === 'bad' ? C.bad : tone === 'warn' ? C.warn
-        : tone === 'ok' ? C.ok : 'rgba(150,190,215,0.32)';
-      ctx.lineWidth = 1.2 * t;
-      rr(ctx, q.x - w / 2, q.y - 8 * t, w, 17 * t, 4 * t); ctx.stroke();
-      ctx.fillStyle = tone === 'bad' ? '#ffd2c6' : tone === 'warn' ? '#ffe3ab'
-        : tone === 'ok' ? '#c6f6d6' : C.text;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(q.text, q.x, q.y + 0.5 * t);
-      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    }
-    this.tagQ.length = 0;
-  }
-
-  // =====================================================================
-  // the scene
-  // =====================================================================
-  draw(ctx, time) {
-    const p = this.plant, s = p.sys || {};
-    this.extL = this.P(-0.9, 0).x - 10 * this.ts;
-    this.extR = this.P(13.8, 0).x;
-    // shared geometry: both sections are the same drawing wherever they can
-    // be, so the eye can difference them
-    const G = this.geom = {
-      wallU0: 0.7, wallU1: 12.3, floorZ: 0.9, springZ: 9.5, apexZ: 12.7,
-      rpv: { u: 3.5, r: 0.95, z0: 1.9, z1: 6.5 },
-      core: { z0: 2.7, z1: 4.7 },
-      sg: { u: 7.4, r: 0.95, z0: 2.1, z1: 8.6 },
-      hotZ: 5.35, coldZ: 4.45,
-      przr: { u: 5.6, r: 0.44, z0: 6.3, z1: 9.0 }
-    };
-    const surf = G.rpv.z0 + Math.max(0, Math.min(1, p.level)) * (G.rpv.z1 - 0.08 - G.rpv.z0);
-    this.surf = surf;
-
-    this.shell(ctx);
-    this.atmosphere(ctx);
-    this.sump(ctx);
-
-    if (this.passive) this.passiveScene(ctx, time);
-    else this.activeScene(ctx, time);
-
-    this.primaryLoop(ctx, time);
-    this.reactor(ctx, time);
-    this.breach(ctx, time);
-    const rowY = this.powerRow(ctx, time);
-    this.flushCallouts(ctx);
-    const keyBottom = this.keyPanel(ctx, rowY);
-    this.annunciators(ctx);
-    this.flushTags(ctx);
-    // What the camera has to fit. Measured, not assumed: the annotation is
-    // screen-sized, so how much room it takes in world units depends on the
-    // zoom the camera is about to pick.
-    const t = this.ts;
-    this.bounds = {
-      top: this.P(6.5, this.topZ + 1.55).y - 14 * t,
-      bottom: keyBottom,
-      left: this.extL - 10 * t,
-      right: this.extR + 10 * t
-    };
-  }
-
-  // ---- the building -----------------------------------------------------
-  shellPath(ctx, u0, u1, zTop, apexZ, zBot) {
-    const A = this.P(u0, zTop), B = this.P(u1, zTop);
-    const Cc = this.P(u1, zBot), D = this.P(u0, zBot);
-    const apexY = this.P((u0 + u1) / 2, apexZ).y;
-    ctx.beginPath();
-    ctx.moveTo(D.x, D.y);
-    ctx.lineTo(A.x, A.y);
-    ctx.bezierCurveTo(A.x, apexY, B.x, apexY, B.x, B.y);
-    ctx.lineTo(Cc.x, Cc.y);
-    return { A, B, C: Cc, D };
-  }
-
-  shell(ctx) {
-    const G = this.geom, P_ = this.passive;
-    this.shellPath(ctx, G.wallU0, G.wallU1, G.springZ, G.apexZ, G.floorZ);
-    ctx.closePath();
-    ctx.fillStyle = '#131a21';
-    ctx.fill();
-
-    // basemat
-    const f0 = this.P(G.wallU0 - 0.5, G.floorZ), f1 = this.P(G.wallU1 + 0.5, G.floorZ);
-    const g0 = this.P(G.wallU0 - 0.5, 0), g1 = this.P(G.wallU1 + 0.5, 0);
-    ctx.fillStyle = C.floor;
-    poly(ctx, [f0, f1, g1, g0]);
-
-    this.shellPath(ctx, G.wallU0, G.wallU1, G.springZ, G.apexZ, G.floorZ);
-    ctx.strokeStyle = P_ ? C.steel : C.conc;
-    ctx.lineWidth = P_ ? 4.5 : 7;
-    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    ctx.stroke();
-    this.callout(ctx, G.wallU0, G.springZ - 5.9, 6,
-      P_ ? 'steel containment' : 'containment');
-
-    if (P_) {
-      // the shield building, and the annulus the draught runs up
-      this.shellPath(ctx, -0.35, 13.35, G.springZ + 1.0, G.apexZ + 1.5, 0);
-      ctx.strokeStyle = C.conc; ctx.lineWidth = 6;
-      ctx.stroke();
+      placed.push({ x: h.x, y, w: h.w });
+      h.g.setAttribute('transform', `translate(0,${(y - h.y).toFixed(2)})`);
+      h.rect.setAttribute('x', h.x - h.w / 2);
     }
   }
+}
 
-  sump(ctx) {
-    const G = this.geom, p = this.plant, s = p.sys || {};
-    const lvl = G.floorZ + (this.passive
-      ? (s.gravity ? 0.95 : 0.4)
-      : (p.vesselBreach ? 0.35 : 0.75));
-    this.pool(ctx, {
-      u0: G.wallU0 + 0.15, u1: G.wallU1 - 0.15, z0: G.floorZ, z1: G.floorZ + 1.1,
-      level: lvl, liquid: tempColor(p.Tctmt)
-    });
-    this.callout(ctx, G.wallU1 - 0.75, G.floorZ + 0.45, 7,
-      this.passive ? 'containment sump' : 'suppression pool');
+// ---------------------------------------------------------------------------
+// static geometry
+// ---------------------------------------------------------------------------
+Section.prototype.build = function (root, defs) {
+  this.defs = defs;
+  this.L = {};
+  for (const k of ['back', 'atmo', 'shell', 'fluid', 'intern', 'wall', 'pipe', 'ext', 'front', 'anno'])
+    this.L[k] = el(root, 'g', { class: 'cl-' + k });
+  const G = GEO, X = m => this.x(m), P_ = this.passive;
+  const cx = G.cx, rin = G.rin, ro = rin + G.wall;
+
+  // ---- the building ------------------------------------------------------
+  if (P_) {
+    // AP1000: steel containment vessel inside a concrete shield building, with
+    // the annulus the cooling draught climbs between them.
+    const sr = rin + 3.4, shRy = G.domeRy + 7.5;
+    el(this.L.back, 'path', { d: `M${X(cx - sr - 1.1)},${Y(-1.4)} L${X(cx - sr - 1.1)},${Y(G.spring + 1)}
+      A${sr + 1.1},${shRy + 1.1} 0 0 1 ${X(cx + sr + 1.1)},${Y(G.spring + 1)} L${X(cx + sr + 1.1)},${Y(-1.4)} Z`,
+      fill: 'url(#cutConc)' });
+    el(this.L.back, 'path', { d: `M${X(cx - sr)},${Y(G.floor)} L${X(cx - sr)},${Y(G.spring + 1)}
+      A${sr},${shRy} 0 0 1 ${X(cx + sr)},${Y(G.spring + 1)} L${X(cx + sr)},${Y(G.floor)} Z`,
+      fill: '#0a1017' });
+    this.r.baffle = el(this.L.front, 'path', { d: `M${X(cx - sr + 0.3)},${Y(G.floor)} L${X(cx - sr + 0.3)},${Y(G.spring)}
+      M${X(cx + sr - 0.3)},${Y(G.floor)} L${X(cx + sr - 0.3)},${Y(G.spring)}`,
+      fill: 'none', stroke: '#4a5259', 'stroke-width': 0.2 });
   }
+  el(this.L.back, 'path', { d: `M${X(cx - ro)},${Y(-1.4)} L${X(cx - ro)},${Y(G.spring)}
+    A${ro},${G.domeRy + G.wall} 0 0 1 ${X(cx + ro)},${Y(G.spring)} L${X(cx + ro)},${Y(-1.4)} Z`,
+    fill: P_ ? 'url(#cutSteelB)' : 'url(#cutConc)' });
+  this.r.void = el(this.L.back, 'path', { d: `M${X(cx - rin)},${Y(G.floor)} L${X(cx - rin)},${Y(G.spring)}
+    A${rin},${G.domeRy} 0 0 1 ${X(cx + rin)},${Y(G.spring)} L${X(cx + rin)},${Y(G.floor)} Z`,
+    fill: '#0c131b' });
+  const inner = `M${X(cx - rin)},${Y(G.floor)} L${X(cx - rin)},${Y(G.spring)}
+    A${rin},${G.domeRy} 0 0 1 ${X(cx + rin)},${Y(G.spring)} L${X(cx + rin)},${Y(G.floor)} Z`;
+  const acp = el(defs, 'clipPath', { id: 'atmo' + this.key }); el(acp, 'path', { d: inner });
+  this.r.liner = el(this.L.front, 'path', { d: inner, fill: 'none',
+    stroke: P_ ? '#9fb3c2' : C.liner, 'stroke-width': P_ ? 0.34 : 0.24 });
+  el(this.L.back, 'rect', { x: X(cx - ro), y: Y(G.floor), width: ro * 2, height: G.floor + 1.4,
+    fill: '#3b3936' });
 
-  // ---- reactor vessel, core, and the level readout ----------------------
-  reactor(ctx, time) {
-    const p = this.plant, s = p.sys || {}, G = this.geom, r = G.rpv;
-    const wt = Math.min(640, p.Tclad);
+  // containment atmosphere: steam haze, then hydrogen stratifying under the dome
+  const ag = el(this.L.atmo, 'g', { 'clip-path': `url(#atmo${this.key})` });
+  this.r.haze = el(ag, 'rect', { x: X(cx - rin), y: Y(G.spring + G.domeRy), width: rin * 2,
+    height: G.spring + G.domeRy, fill: 'rgba(214,228,238,0)' });
+  this.r.h2 = el(ag, 'rect', { x: X(cx - rin), y: Y(G.spring + G.domeRy), width: rin * 2,
+    height: 0, fill: 'rgba(217,224,74,.22)' });
+  this.r.h2line = el(ag, 'rect', { x: X(cx - rin), y: Y(0), width: rin * 2, height: 0.22,
+    fill: C.h2, opacity: 0 });
 
-    this.vessel(ctx, {
-      u: r.u, r: r.r, z0: r.z0, z1: r.z1, level: this.surf,
-      liquid: tempColor(wt), wall: C.steel, head: true,
-      inner: (c) => this.core(c, time)
-    });
-    this.bubbles(ctx, r.u, r.z0 + 0.2, this.surf, r.r, s.boil || 0, time, 11);
+  // ---- reactor vessel, in its cavity --------------------------------------
+  const R = G.rpv, rx = cx + R.dx;
+  el(this.L.back, 'path', { d: `M${X(rx - R.r - 2.2)},${Y(R.cylTop + 0.4)} L${X(rx - R.r - 2.2)},${Y(G.floor - 1)}
+    L${X(rx + R.r + 2.2)},${Y(G.floor - 1)} L${X(rx + R.r + 2.2)},${Y(R.cylTop + 0.4)}
+    L${X(rx + R.r + 0.35)},${Y(R.cylTop + 0.4)} L${X(rx + R.r + 0.35)},${Y(G.floor + 0.6)}
+    L${X(rx - R.r - 0.35)},${Y(G.floor + 0.6)} L${X(rx - R.r - 0.35)},${Y(R.cylTop + 0.4)} Z`,
+    fill: '#403e39', stroke: C.concLine, 'stroke-width': 0.12 });
+  const rd = `M${X(rx - R.r)},${Y(R.base + R.r)} A${R.r},${R.r} 0 0 0 ${X(rx + R.r)},${Y(R.base + R.r)}
+    L${X(rx + R.r)},${Y(R.cylTop)} Q${X(rx + R.r)},${Y(R.top)} ${X(rx)},${Y(R.top)}
+    Q${X(rx - R.r)},${Y(R.top)} ${X(rx - R.r)},${Y(R.cylTop)} Z`;
+  this.vessel(this.L.shell, this.L.wall, 'cR' + this.key, rd);
+  this.liquid('cR' + this.key, X(rx - R.r), R.r * 2, 'rpv');
+  // the fuel: the single most important object in the drawing
+  const fg = el(this.L.intern, 'g', { 'clip-path': `url(#cR${this.key})` });
+  el(fg, 'rect', { x: X(rx - 2.0), y: Y(G.core.z1), width: 4.0, height: G.core.h, fill: '#1b2732' });
+  this.r.rods = [];
+  for (let i = -4; i <= 4; i++)
+    this.r.rods.push(el(fg, 'rect', { x: X(rx + i * 0.44 - 0.17), y: Y(G.core.z1),
+      width: 0.34, height: G.core.h, fill: '#cfd9e1', stroke: '#20303e', 'stroke-width': 0.06 }));
+  for (const zz of [G.core.z0, G.core.z1])
+    el(fg, 'rect', { x: X(rx - 2.05), y: Y(zz) - 0.19, width: 4.1, height: 0.38,
+      fill: '#8f9ba5', stroke: '#dde6ee', 'stroke-width': 0.06 });
+  this.r.glow = el(fg, 'rect', { x: X(rx - 2.05), y: Y(G.core.z1), width: 4.1, height: G.core.h,
+    fill: 'url(#cutGlow)', opacity: 0 });
+  this.r.corium = el(this.L.intern, 'ellipse', { cx: X(rx), cy: Y(G.floor + 0.3), rx: 3, ry: 0.9,
+    fill: '#e2621f', opacity: 0 });
+  this.r.breach = el(this.L.wall, 'path', { d: `M${X(rx - 1.1)},${Y(R.base)} L${X(rx + 1.1)},${Y(R.base)}`,
+    stroke: '#0c1015', 'stroke-width': 1.1, opacity: 0 });
+  // control rod drives
+  this.r.crdm = el(this.L.wall, 'g', {});
+  for (let i = -3; i <= 3; i++)
+    el(this.r.crdm, 'rect', { x: X(rx + i * 0.52 - 0.11), y: Y(R.top + 2.9), width: 0.22,
+      height: 2.9, fill: '#79838d', stroke: '#a3aeb8', 'stroke-width': 0.06 });
+  // nozzles
+  for (const z of [G.hotZ, G.coldZ])
+    el(this.L.wall, 'rect', { x: X(rx + R.r - 0.5), y: Y(z + 0.45), width: 1.1, height: 0.9,
+      fill: '#8b96a0', stroke: '#c2ccd5', 'stroke-width': 0.08 });
+  this.rx = rx;
 
-    if (p.scrammed) {
-      ctx.strokeStyle = C.wall; ctx.lineWidth = 2;
-      for (let i = -2; i <= 2; i++) {
-        const a = this.P(r.u + i * 0.3, G.core.z1);
-        const b = this.P(r.u + i * 0.3, r.z1 + 0.55);
-        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-      }
-    }
-    this.levelScale(ctx, {
-      u: r.u - 1.28, z0: r.z0, z1: r.z1, level: this.surf,
-      baf: G.core.z0, taf: G.core.z1
-    });
-    this.callout(ctx, r.u - r.r * 0.62, r.z1 - 0.35, 1, 'reactor vessel');
-    this.callout(ctx, r.u + r.r * 0.62, (G.core.z0 + G.core.z1) / 2, 2, 'fuel in the core');
-
-    const T = p.Tclad - 273;
-    this.tag(ctx, r.u, r.z0 - 0.85, `core ${T.toFixed(0)} °C`,
-      T > 800 ? 'bad' : T > 360 ? 'warn' : 'ok');
-    this.tag(ctx, r.u - 2.45, this.surf, `${(p.level * 100).toFixed(0)}%`,
-      p.level > 0.995 ? 'ok' : p.level > 0.75 ? 'warn' : 'bad');
+  // ---- steam generator ----------------------------------------------------
+  const S = G.sg, sx = cx + S.dx;
+  const sd = `M${X(sx - S.rl)},${Y(S.base + S.rl)} A${S.rl},${S.rl} 0 0 0 ${X(sx + S.rl)},${Y(S.base + S.rl)}
+    L${X(sx + S.rl)},${Y(S.yCone)} L${X(sx + S.ru)},${Y(S.yUp)} L${X(sx + S.ru)},${Y(S.yTop)}
+    A${S.ru},${S.ru} 0 0 0 ${X(sx - S.ru)},${Y(S.yTop)} L${X(sx - S.ru)},${Y(S.yUp)}
+    L${X(sx - S.rl)},${Y(S.yCone)} Z`;
+  this.vessel(this.L.shell, this.L.wall, 'cG' + this.key, sd);
+  this.liquid('cG' + this.key, X(sx - S.ru), S.ru * 2, 'sg');
+  const sgi = el(this.L.intern, 'g', { 'clip-path': `url(#cG${this.key})` });
+  this.r.tubes = [];
+  for (let i = 1; i <= 5; i++) {
+    const o = i * 0.28;
+    this.r.tubes.push(el(sgi, 'path', {
+      d: `M${X(sx - o)},${Y(S.base + 1.4)} L${X(sx - o)},${Y(S.yCone - 0.8)}
+          A${o},${o * 0.8} 0 0 1 ${X(sx + o)},${Y(S.yCone - 0.8)} L${X(sx + o)},${Y(S.base + 1.4)}`,
+      fill: 'none', stroke: '#e07a3c', 'stroke-width': 0.14 }));
   }
+  el(sgi, 'rect', { x: X(sx - S.ru + 0.5), y: Y(S.yTop - 1.2), width: S.ru * 2 - 1, height: 1.6,
+    fill: 'none', stroke: 'rgba(190,205,218,.42)', 'stroke-width': 0.14 });
+  el(sgi, 'path', { d: `M${X(sx)},${Y(S.base + 0.4)} L${X(sx)},${Y(S.yCone - 1.6)}`,
+    stroke: 'rgba(190,205,218,.4)', 'stroke-width': 0.16 });   // divider plate
+  this.sx = sx;
 
-  core(ctx, time) {
-    const p = this.plant, G = this.geom, r = G.rpv;
-    const z0 = G.core.z0, z1 = G.core.z1;
-    const n = 9;
-    // the shroud, so the fuel reads as being inside something
-    const a = this.P(r.u - r.r * 0.8, z1 + 0.15), b = this.P(r.u + r.r * 0.8, z1 + 0.15);
-    const c = this.P(r.u + r.r * 0.8, z0 - 0.15), d = this.P(r.u - r.r * 0.8, z0 - 0.15);
-    ctx.strokeStyle = 'rgba(150,162,172,0.5)'; ctx.lineWidth = 1.4;
-    polyLine(ctx, [a, b, c, d], true);
-    for (let i = 0; i < n; i++) {
-      const u = r.u - r.r * 0.66 + (i / (n - 1)) * r.r * 1.32;
-      const p0 = this.P(u, z1), p1 = this.P(u, z0);
-      const T = this.surf >= z1 ? Math.min(p.Tclad, 700) : p.Tclad;
-      ctx.strokeStyle = T < 700 ? '#96a3ad' : tempColor(T);
-      ctx.lineWidth = 4.4;
-      ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
-      ctx.strokeStyle = 'rgba(10,14,18,0.5)'; ctx.lineWidth = 1.1;
-      ctx.stroke();
-    }
-    if (this.surf < z1 && p.Tclad > 680) {
-      const top = this.P(r.u, z1), bot = this.P(r.u, Math.max(z0, this.surf));
-      const g = ctx.createLinearGradient(0, top.y, 0, bot.y);
-      const al = Math.min(0.75, (p.Tclad - 680) / 1300);
-      g.addColorStop(0, `rgba(255,150,60,${al})`);
-      g.addColorStop(1, 'rgba(255,90,30,0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(top.x - r.r * ERX, top.y, r.r * ERX * 2, bot.y - top.y);
-    }
-    if (p.meltFrac > 0.02) {
-      const q = this.P(r.u, r.z0 + 0.12);
-      ctx.fillStyle = `rgba(255,${(150 - 100 * p.meltFrac) | 0},44,${0.6 + 0.35 * p.meltFrac})`;
-      ctx.beginPath();
-      ctx.ellipse(q.x, q.y, r.r * ERX * 0.9, r.r * ERY * 0.9 + 7 * p.meltFrac, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
+  // ---- pressuriser --------------------------------------------------------
+  const Z = G.przr, zx = cx + Z.dx;
+  const zd = `M${X(zx - Z.r)},${Y(Z.base + Z.r)} A${Z.r},${Z.r} 0 0 0 ${X(zx + Z.r)},${Y(Z.base + Z.r)}
+    L${X(zx + Z.r)},${Y(Z.base + Z.r + Z.h)} A${Z.r},${Z.r} 0 0 0 ${X(zx - Z.r)},${Y(Z.base + Z.r + Z.h)} Z`;
+  this.vessel(this.L.shell, this.L.wall, 'cP' + this.key, zd);
+  this.liquid('cP' + this.key, X(zx - Z.r), Z.r * 2, 'przr');
+  this.zx = zx; this.przrTop = Z.base + Z.r + Z.h + Z.r;
+};
+
+// ---------------------------------------------------------------------------
+// the primary loop, the power cycle, and the floor everyone stands on
+// ---------------------------------------------------------------------------
+Section.prototype.buildLoop = function () {
+  const G = GEO, R = G.rpv, S = G.sg, Z = G.przr, cx = G.cx;
+  const rx = this.rx, sx = this.sx, zx = this.zx, X = m => this.x(m);
+  // hot leg: vessel outlet nozzle to the steam generator channel head
+  this.pipe([[R.dx + cx + R.r - 0.2, G.hotZ], [sx - S.rl + 0.3, G.hotZ],
+    [sx - S.rl + 0.3, S.base + 1.4]], 1.0, 'hot');
+  // cold leg: channel head, through the pump, back into the vessel
+  this.pumpX = rx + R.r + 4.4;
+  this.pipe([[sx + S.rl - 0.3, S.base + 1.4], [sx + S.rl - 0.3, G.coldZ],
+    [rx + R.r - 0.2, G.coldZ]], 1.0, 'cold');
+  this.pump(this.pumpX, G.coldZ, 'rcp');
+  // surge line
+  this.pipe([[zx, Z.base + 0.5], [zx, G.hotZ], [sx + 3.4, G.hotZ]], 0.42, 'surge');
+  // power cycle: steam out, feedwater back. Same on both plants - the
+  // difference between the two designs is not here.
+  this._into = 'ext';
+  this.pipe([[sx, S.yTop + 0.2], [sx, S.yTop + 2.6], [cx + G.rin + 3.4, S.yTop + 2.6]], 0.85, 'steam');
+  this.pipe([[cx + G.rin + 3.4, 27.6], [sx + S.ru + 1.5, 27.6],
+    [sx + S.ru + 1.5, S.yCone + 1.4], [sx + S.ru - 0.3, S.yCone + 1.4]], 0.7, 'feed');
+  this.offPage(cx + G.rin + 3.6, S.yTop + 2.6, 'to turbine', 'steamFlag');
+  this.offPage(cx + G.rin + 3.6, 27.6, 'condensate', 'feedFlag');
+  this._into = null;
+
+  // operating deck, cut open around the reactor cavity
+  el(this.L.front, 'path', {
+    d: `M${X(cx - G.rin)},${Y(G.deck)} L${X(rx - R.r - 2.2)},${Y(G.deck)}
+        M${X(rx + R.r + 2.2)},${Y(G.deck)} L${X(cx + G.rin)},${Y(G.deck)}`,
+    stroke: '#75716a', 'stroke-width': 0.85 });
+  // polar crane - it is what tells you this is a building
+  el(this.L.front, 'path', { d: `M${X(cx - G.rin + 1)},${Y(29)} L${X(cx + G.rin - 1)},${Y(29)}`,
+    stroke: '#5b646d', 'stroke-width': 0.5 });
+  el(this.L.front, 'path', { d: `M${X(cx - 4)},${Y(29)} L${X(cx - 4)},${Y(27.4)}
+    L${X(cx + 4)},${Y(27.4)} L${X(cx + 4)},${Y(29)}`, fill: 'none', stroke: '#5b646d',
+    'stroke-width': 0.36 });
+  // people, so the reader knows how big all of this is
+  for (const px of [cx - 6.4, cx + 16.4]) this.human(px, G.deck + 0.45);
+  el(this.L.anno, 'text', { x: X(cx + 16.4), y: Y(G.deck + 2.9), class: 'cutDim',
+    'text-anchor': 'middle' }, '1.8 m');
+};
+Section.prototype.human = function (x, b) {
+  const X = this.x(x);
+  el(this.L.front, 'circle', { cx: X, cy: Y(b + 1.63), r: 0.17, fill: '#f0f6fa' });
+  el(this.L.front, 'path', {
+    d: `M${X},${Y(b + 1.46)} L${X},${Y(b + 0.78)} M${X},${Y(b + 0.78)} L${X - 0.22},${Y(b)}
+        M${X},${Y(b + 0.78)} L${X + 0.22},${Y(b)} M${X - 0.3},${Y(b + 1.26)} L${X + 0.3},${Y(b + 1.26)}`,
+    stroke: '#f0f6fa', 'stroke-width': 0.13, fill: 'none', 'stroke-linecap': 'round' });
+};
+Section.prototype.offPage = function (x, y, text, name) {
+  const X = this.x(x), w = text.length * 0.78 + 1.8, h = 2.1;
+  const g = el(this.L.ext, 'g', {});
+  el(g, 'path', { d: `M${X},${Y(y) - h / 2} L${X + w - 0.9},${Y(y) - h / 2}
+    L${X + w},${Y(y)} L${X + w - 0.9},${Y(y) + h / 2} L${X},${Y(y) + h / 2} Z`,
+    fill: 'rgba(18,26,34,.94)', stroke: 'rgba(150,190,215,.45)', 'stroke-width': 0.12 });
+  const t = el(g, 'text', { x: X + 0.7, y: Y(y) + 0.5, class: 'cutFlag' }, text);
+  this.r[name] = t;
+};
+
+// ---------------------------------------------------------------------------
+// what the two designs do NOT share - the whole comparison
+// ---------------------------------------------------------------------------
+Section.prototype.buildKit = function () {
+  const G = GEO, cx = G.cx, X = m => this.x(m), rx = this.rx, R = G.rpv, S = G.sg, Z = G.przr;
+  // accumulators: passive kit a Gen-II plant already has, good for about a
+  // minute. Both plants carry them.
+  this.r.accum = [];
+  for (let i = 0; i < 2; i++) {
+    const ax = cx + 8.2 + i * 3.6, ar = 1.7, ab = 4.4, ah = 5.4;
+    const d = `M${X(ax - ar)},${Y(ab + ar)} A${ar},${ar} 0 0 0 ${X(ax + ar)},${Y(ab + ar)}
+      L${X(ax + ar)},${Y(ab + ar + ah)} A${ar},${ar} 0 0 0 ${X(ax - ar)},${Y(ab + ar + ah)} Z`;
+    this.vessel(this.L.shell, this.L.wall, `cA${i}${this.key}`, d);
+    this.liquid(`cA${i}${this.key}`, X(ax - ar), ar * 2, 'acc' + i);
+    this.r.accum.push({ base: ab, top: ab + ar * 2 + ah });
+    this.pipe([[ax, ab], [ax, G.coldZ - 2.2], [rx + 4.6, G.coldZ - 2.2],
+      [rx + 4.6, G.coldZ - 0.5]], 0.5, 'accP' + i);
   }
+  this.accTop = 4.4 + 1.7 * 2 + 5.4;
 
-  // ---- the primary loop, identical in both plants ------------------------
-  primaryLoop(ctx, time) {
-    const p = this.plant, s = p.sys || {}, G = this.geom;
-    const r = G.rpv, sg = G.sg;
-    const flow = Math.max(s.rcp, s.natCirc);
-    const hot = tempColor(Math.min(645, p.Tcore));
-    const cold = tempColor(Math.min(600, p.Tcore - 30));
-
-    // steam generator: secondary side, with its own level
-    const fed = s.feed || s.aux || s.rcic;
-    this.vessel(ctx, {
-      u: sg.u, r: sg.r, z0: sg.z0, z1: sg.z1,
-      level: sg.z0 + (fed ? 4.6 : 2.2), liquid: tempColor(555),
-      wall: C.steel, head: true,
-      inner: (c) => {
-        // U-tubes: the primary side inside the secondary
-        c.strokeStyle = flow > 0 ? shade(hot, 1.1) : C.wallDim;
-        c.lineWidth = 2.2;
-        for (let i = -2; i <= 2; i++) {
-          if (!i) continue;
-          const x0 = sg.u + i * 0.26;
-          const a = this.P(x0, sg.z0 + 0.6), b = this.P(x0, sg.z0 + 4.3);
-          c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
-        }
-      }
-    });
-    this.callout(ctx, sg.u - sg.r * 0.55, sg.z1 - 1.7, 3, 'steam generator');
-
-    // hot leg: vessel nozzle to the SG channel head
-    this.pipe(ctx, [[r.u + r.r * 0.9, G.hotZ], [6.35, G.hotZ], [6.35, 3.05], [sg.u - 0.85, 3.05]],
-      { w: 7, color: hot, flow, phase: time });
-    // cold leg: channel head, through the pump, back to the vessel
-    const rcpU = this.passive ? sg.u + 0.95 : 9.15;
-    this.pipe(ctx, [[sg.u + 0.85, 3.05], [rcpU, 3.05], [rcpU, G.coldZ], [r.u + r.r * 0.9, G.coldZ]],
-      { w: 7, color: cold, flow, phase: time, reverse: true });
-
-    // The pumps. On the Gen-II plant they sit in the cold leg; on the AP1000
-    // they are canned-motor pumps mounted on the steam generator channel head.
-    // Both plants have them - the difference is that only one plant needs them.
-    const rcpZ = this.passive ? 2.4 : 3.9;
-    this.pump(ctx, rcpU, rcpZ, s.rcp > 0, true);
-    this.callout(ctx, rcpU, rcpZ - 0.62, 5,
-      'coolant pumps', { power: true, aux: this.passive });
-    if (!s.rcp) {
-      this.tag(ctx, rcpU + 1.05, rcpZ - 0.05,
-        this.passive ? 'pumps off - not needed' : 'PUMPS STOPPED',
-        this.passive ? 'ok' : 'bad');
+  if (!this.passive) {
+    // ---- Gen-II: everything that matters needs a running pump -------------
+    this._into = 'ext';
+    this.pipe([[cx - G.rin - 6.5, 6.4], [rx - R.r - 3.4, 6.4],
+      [rx - R.r - 3.4, R.base + 1.4], [rx - R.r + 0.2, R.base + 1.4]], 0.62, 'eccs');
+    this.pump(cx - G.rin - 6.5, 6.4, 'eccsPump');
+    this.valve(cx - G.rin - 2.6, 6.4, 'eccsValve');
+    // containment sprays, on the same bus
+    this._into = null;
+    this.r.sprayHdr = el(this.L.pipe, 'path', {
+      d: `M${X(cx - 15)},${Y(27.5)} L${X(cx + 15)},${Y(27.5)}`,
+      stroke: '#48525b', 'stroke-width': 0.3 });
+    this.r.sprays = [];
+    for (let i = 0; i < 11; i++) {
+      const ux = cx - 14 + i * 2.8;
+      this.r.sprays.push(el(this.L.pipe, 'path', {
+        d: `M${X(ux)},${Y(27.5)} L${X(ux)},${Y(26.2)}`,
+        stroke: 'rgba(120,190,238,.75)', 'stroke-width': 0.22, opacity: 0.25 }));
     }
-
-    if (s.natCirc > 0 && !s.rcp) {
-      this.tag(ctx, 6.35, G.hotZ + 0.75, 'natural circulation', 'ok');
-    }
-
-    // pressuriser, hanging off the hot leg on a surge line
-    const pz = G.przr;
-    this.pipe(ctx, [[pz.u, pz.z0], [pz.u, G.hotZ]],
-      { w: 4.5, color: hot, flow: flow ? 0.25 : 0, phase: time });
-    this.vessel(ctx, {
-      u: pz.u, r: pz.r, z0: pz.z0, z1: pz.z1,
-      level: pz.z0 + 1.9 * Math.max(0.15, Math.min(1, p.level)),
-      liquid: tempColor(618), wall: C.steel, head: true
-    });
-    this.callout(ctx, pz.u - pz.r * 0.7, pz.z1 - 0.4, 4, 'pressuriser');
-    this.valve(ctx, pz.u, pz.z1 + 0.45, p.leakRate > 0, false, p.leakRate > 0 && !this.passive);
-    if (p.leakRate > 0 && !this.passive) {
-      this.tag(ctx, pz.u + 1.5, pz.z1 + 0.5, 'RELIEF VALVE STUCK OPEN', 'bad');
-    }
-
-    // the power cycle: steam out to the turbine, condensate back, heat to the
-    // sea. Present on both plants, because the difference is not here.
-    this.pipe(ctx, [[sg.u, sg.z1 + 0.25], [13.95, sg.z1 + 0.25]],
-      { w: 5.5, color: '#9fb0bc', flow: s.feed ? 1 : 0, phase: time });
-    this.pipe(ctx, [[13.95, sg.z1 - 1.15], [12.55, sg.z1 - 1.15], [12.55, 2.3], [sg.u + 0.4, 2.3]],
-      { w: 5.5, color: tempColor(330), flow: s.feed ? 1 : 0, phase: time });
-    this.pump(ctx, 12.55, 3.2, s.feed > 0, true);
-    this.callout(ctx, 12.55, 3.2 - 0.62, 8, 'feedwater pump', { power: true, aux: this.passive });
-    this.offPage(ctx, 14.05, sg.z1 + 0.25, p.uhs ? 'turbine' : 'NO SINK',
-      !!p.uhs && !!s.feed);
-    this.offPage(ctx, 14.05, sg.z1 - 1.15, 'condenser', !!p.uhs && !!s.feed);
-  }
-
-  // ---- Gen-II specific ---------------------------------------------------
-  activeScene(ctx, time) {
-    const p = this.plant, s = p.sys || {}, G = this.geom;
-    const r = G.rpv;
-
-    // emergency injection: a pump, outside, on a bus
-    const inj = s.aux > 0;
-    const needed = p.scrammed && p.coolingMargin < 1.0;
-    this.pipe(ctx, [[-0.4, 2.35], [2.05, 2.35], [2.05, r.z0 + 0.75],
-      [r.u - r.r * 0.85, r.z0 + 0.75]],
-      { w: 5, color: C.cold, flow: inj ? 1 : 0, phase: time });
-    this.pump(ctx, -0.4, 2.35, inj, true);
-    this.valve(ctx, 1.05, 2.35, inj, true, needed && !inj);
-    this.callout(ctx, -0.4, 1.72, 9, 'ECCS pumps', { power: true });
-    if (needed && !inj) this.tag(ctx, 2.7, 1.35, 'ECCS CANNOT RUN', 'bad');
-
-    // accumulators: the one passive item a Gen-II plant already has
-    for (let i = 0; i < 2; i++) {
-      const u = 10.1 + i * 0.95;
-      this.vessel(ctx, {
-        u, r: 0.34, z0: 6.2, z1: 7.9,
-        level: 6.2 + 1.7 * Math.max(0, Math.min(1, p.accumLevel)),
-        liquid: C.cold, wall: C.steel, head: true
-      });
-      this.pipe(ctx, [[u, 6.2], [u, 5.02], [r.u + 1.42, 5.02], [r.u + 1.42, G.coldZ]],
-        { w: 4, color: C.cold, flow: s.accum, phase: time });
-    }
-    this.callout(ctx, 10.1, 7.9 + 0.55, 10, 'accumulators');
-
-    // containment sprays, also on the bus
-    const spr = s.sprays > 0;
-    ctx.strokeStyle = spr ? 'rgba(120,190,238,0.8)' : 'rgba(90,100,110,0.4)';
-    ctx.lineWidth = 2;
-    const hdr0 = this.P(1.9, 9.62), hdr1 = this.P(11.1, 9.62);
-    ctx.beginPath(); ctx.moveTo(hdr0.x, hdr0.y); ctx.lineTo(hdr1.x, hdr1.y); ctx.stroke();
-    for (let i = 0; i < 8; i++) {
-      const u = 2.2 + i * 1.27;
-      const a = this.P(u, 9.62);
-      const drop = spr ? 0.55 + ((time * 2 + i * 0.27) % 1) * 0.9 : 0.25;
-      const b = this.P(u, 9.62 - drop);
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-    }
-    this.powerMark(ctx, this.P(11.1, 9.62).x + 6 * this.ts, this.P(11.1, 9.62).y - 4 * this.ts, spr);
-    this.callout(ctx, 3.15, 9.62, 11, 'containment sprays', { power: true });
-
     // hardened vent
-    this.valve(ctx, 0.05, 7.4, p.vented, true, false);
-    this.pipe(ctx, [[1.15, 7.4], [-0.4, 7.4], [-0.4, 11.5]],
-      { w: 4.5, color: '#b9c6d0', flow: p.vented ? 1 : 0, phase: time });
-    this.callout(ctx, -0.4, 10.3, 12, 'hardened vent', { power: true });
-    if (p.vented) this.tag(ctx, 0.4, 12.1, 'VENTING to atmosphere', 'bad');
-  }
-
-  // ---- AP1000 specific ---------------------------------------------------
-  passiveScene(ctx, time) {
-    const p = this.plant, s = p.sys || {}, G = this.geom;
-    const r = G.rpv;
-    const DVI = r.u + 1.42;   // the direct vessel injection riser everything tees into
-    const hot = tempColor(Math.min(645, p.Tcore));
-
-    // IRWST, above the core, inside containment
-    const irw = { u0: 0.95, u1: 2.9, z0: 6.4, z1: 9.1 };
-    const irwLvl = irw.z0 + (irw.z1 - irw.z0) * Math.max(0.08, Math.min(1, p.irwst / 2.1e6));
-    this.pool(ctx, {
-      u0: irw.u0, u1: irw.u1, z0: irw.z0, z1: irw.z1,
-      level: irwLvl, liquid: tempColor(Math.min(372, p.Tctmt)), wall: C.steel
-    });
-    this.callout(ctx, irw.u1 - 0.26, irw.z1 - 0.45, 9, 'IRWST \u00b7 2,000 t');
-
-    // PRHR: a C-tube bundle in that pool, on a thermosiphon from the hot leg
-    // back to the steam generator channel head. No pump anywhere in it.
-    const hx = { u: (irw.u0 + irw.u1) / 2, z0: irw.z0 + 0.35, z1: irw.z1 - 0.45 };
-    this.coilHX(ctx, hx.u, hx.z0, hx.z1, s.prhr > 0 ? hot : null, 0.55);
-    this.pipe(ctx, [[5.0, G.hotZ], [5.0, hx.z1 + 0.7], [hx.u, hx.z1 + 0.7], [hx.u, hx.z1]],
-      { w: 5.5, color: hot, flow: s.prhr, phase: time });
-    this.pipe(ctx, [[hx.u, hx.z0], [hx.u, 2.52], [G.sg.u - 0.85, 2.52], [G.sg.u - 0.85, 3.05]],
-      { w: 5.5, color: tempColor(420), flow: s.prhr, phase: time });
-    this.callout(ctx, hx.u, (hx.z0 + hx.z1) / 2, 10, 'PRHR HX (no pump)');
-    if (s.prhr > 0) {
-      this.bubbles(ctx, hx.u, hx.z0, irwLvl, 0.7, 0.55, time, 21);
-      this.tag(ctx, irw.u1 - 1.05, irw.z1 + 0.78, 'PRHR thermosiphon', 'ok');
-    }
-
-    // core makeup tanks: full pressure, driven by a balance line
+    this._into = 'ext';
+    this.pipe([[cx - G.rin + 1.5, 24], [cx - G.rin - 4.5, 24], [cx - G.rin - 4.5, 40]],
+      0.5, 'vent');
+    this.valve(cx - G.rin - 1.6, 24, 'ventValve');
+    this._into = null;
+  } else {
+    // ---- AP1000: water above the core, and no pump in any of it -----------
+    // IRWST: 2,000 t sitting on the operating deck, above the loops
+    const i0 = cx - 18.6, i1 = cx - 9.0, ib = 18.4, it = 26.4;
+    const idp = `M${X(i0)},${Y(ib)} L${X(i0)},${Y(it)} L${X(i1)},${Y(it)} L${X(i1)},${Y(ib)} Z`;
+    el(this.L.shell, 'path', { d: idp, fill: C.dark });
+    const cp = el(this.defs, 'clipPath', { id: 'cI' + this.key }); el(cp, 'path', { d: idp });
+    el(this.L.wall, 'path', { d: `M${X(i0)},${Y(it)} L${X(i0)},${Y(ib)} L${X(i1)},${Y(ib)} L${X(i1)},${Y(it)}`,
+      fill: 'none', stroke: C.steel, 'stroke-width': 0.34 });
+    this.liquid('cI' + this.key, X(i0), i1 - i0, 'irwst');
+    this.irw = { x0: i0, x1: i1, base: ib, top: it };
+    // PRHR: a C-tube bundle standing in that pool, on a thermosiphon. No pump.
+    const hx = i0 + 4.6;
+    this.r.prhr = el(this.L.intern, 'path', {
+      d: (() => { let p = `M${X(hx)},${Y(ib + 0.8)}`;
+        for (let i = 0; i < 11; i++)
+          p += ` L${X(hx + (i % 2 ? 2.6 : -2.6))},${Y(ib + 1.2 + i * 0.62)}`;
+        return p; })(),
+      fill: 'none', stroke: '#5d666f', 'stroke-width': 0.62, 'stroke-linejoin': 'round' });
+    this.pipe([[cx - 4.6, G.hotZ], [cx - 4.6, 27.6], [hx, 27.6], [hx, ib + 8.2]], 0.5, 'prhrIn');
+    this.pipe([[hx, ib + 0.5], [hx, 15.0], [this.sx - S.rl - 1.2, 15.0],
+      [this.sx - S.rl - 1.2, S.base + 1.4]], 0.5, 'prhrOut');
+    // core makeup tanks: full system pressure, driven by gravity and a balance line
+    this.r.cmt = [];
     for (let i = 0; i < 2; i++) {
-      const u = 3.5 + i * 0.95;
-      this.vessel(ctx, {
-        u, r: 0.34, z0: 7.2, z1: 9.2,
-        level: 7.2 + 2.0 * Math.max(0, Math.min(1, p.cmtLevel)),
-        liquid: C.cold, wall: C.steel, head: true
-      });
-      // down the shared direct-injection riser into the vessel
-      this.pipe(ctx, [[u, 7.2], [u, 6.02], [DVI, 6.02], [DVI, r.z0 + 1.1],
-        [r.u + r.r * 0.85, r.z0 + 1.1]],
-        { w: 4, color: C.cold, flow: s.cmt, phase: time });
-      // pressure balance line: the tanks sit at system pressure, so the water
-      // falls out of them the moment the level in the loop drops
-      this.pipe(ctx, [[u, 9.2], [u, 9.6], [DVI, 9.6], [DVI, G.coldZ]],
-        { w: 2.4, color: '#5c6a76', flow: 0 });
+      const ax = cx - 6.4 + i * 3.4, ar = 1.6, ah = 7.2, ab = 19.4;
+      const d = `M${X(ax - ar)},${Y(ab + ar)} A${ar},${ar} 0 0 0 ${X(ax + ar)},${Y(ab + ar)}
+        L${X(ax + ar)},${Y(ab + ar + ah)} A${ar},${ar} 0 0 0 ${X(ax - ar)},${Y(ab + ar + ah)} Z`;
+      this.vessel(this.L.shell, this.L.wall, `cC${i}${this.key}`, d);
+      this.liquid(`cC${i}${this.key}`, X(ax - ar), ar * 2, 'cmt' + i);
+      this.pipe([[ax, ab], [ax, 15.4], [rx + 4.6, 15.4], [rx + 4.6, G.coldZ + 1.2]], 0.5, 'cmtP' + i);
+      this.r.cmt.push({ base: ab, top: ab + ar * 2 + ah });
     }
-    this.callout(ctx, 3.5, 9.2 - 0.35, 11, 'core makeup tanks');
-
-    // accumulators
-    for (let i = 0; i < 2; i++) {
-      const u = 10.1 + i * 0.95;
-      this.vessel(ctx, {
-        u, r: 0.34, z0: 6.2, z1: 7.9,
-        level: 6.2 + 1.7 * Math.max(0, Math.min(1, p.accumLevel)),
-        liquid: C.cold, wall: C.steel, head: true
-      });
-      this.pipe(ctx, [[u, 6.2], [u, 5.02], [DVI, 5.02], [DVI, r.z0 + 1.1]],
-        { w: 4, color: C.cold, flow: s.accum, phase: time });
-    }
-    this.callout(ctx, 10.1, 7.9 + 0.55, 12, 'accumulators');
-
+    this.cmtTop = 19.4 + 1.6 * 2 + 7.2;
     // automatic depressurisation, venting the pressuriser into the pool
-    this.valve(ctx, G.przr.u - 0.75, G.przr.z1 + 0.45, s.ads, false, false);
-    this.pipe(ctx, [[G.przr.u - 0.75, G.przr.z1 + 0.45], [irw.u1 - 0.5, G.przr.z1 + 0.45],
-    [irw.u1 - 0.5, irwLvl + 0.2]],
-      { w: 4.5, color: '#c6d3dc', flow: s.ads ? 1 : 0, phase: time });
-    this.callout(ctx, G.przr.u - 0.75, G.przr.z1 + 1.05, 13, 'depressurisation');
-    if (s.ads) this.tag(ctx, G.przr.u + 1.4, G.przr.z1 + 1.15, 'ADS OPEN', 'ok');
-
+    this.valve(Z.dx + cx - 2.2, this.przrTop + 1.2, 'ads');
+    this.pipe([[Z.dx + cx, this.przrTop], [Z.dx + cx, this.przrTop + 1.2],
+      [i1 - 1.5, this.przrTop + 1.2], [i1 - 1.5, it - 0.6]], 0.5, 'adsP');
     // gravity injection, straight down into the vessel
-    this.pipe(ctx, [[irw.u0 + 0.4, irw.z0], [irw.u0 + 0.4, 2.32],
-      [r.u - r.r * 0.85, 2.32]],
-      { w: 5.5, color: C.cold, flow: s.gravity, phase: time });
-    this.valve(ctx, irw.u0 + 0.4, 3.6, s.gravity > 0, false, false);
-    if (s.gravity > 0) this.tag(ctx, irw.u0 + 1.7, 1.72, 'GRAVITY INJECTION', 'ok');
+    this.pipe([[i0 + 1.4, ib], [i0 + 1.4, R.base + 2.2], [rx - R.r + 0.2, R.base + 2.2]],
+      0.62, 'grav');
+    this.valve(i0 + 1.4, 12.0, 'gravValve');
+    // PCCS tank, nested in the top of the shield building
+    const t0 = cx - 7, t1 = cx + 7, tb = G.spring + G.domeRy + 0.8, tt = tb + 3.4;
+    const tdp = `M${X(t0)},${Y(tb)} L${X(t0)},${Y(tt)} L${X(t1)},${Y(tt)} L${X(t1)},${Y(tb)} Z`;
+    el(this.L.shell, 'path', { d: tdp, fill: C.dark });
+    const tcp = el(this.defs, 'clipPath', { id: 'cT' + this.key }); el(tcp, 'path', { d: tdp });
+    el(this.L.wall, 'path', { d: tdp, fill: 'none', stroke: C.steel, 'stroke-width': 0.3 });
+    this.liquid('cT' + this.key, X(t0), t1 - t0, 'pccs');
+    this.pccs = { base: tb, top: tt };
+    // the evaporating film running down the outside of the steel shell
+    this.r.film = [];
+    for (let i = 0; i < 10; i++)
+      this.r.film.push(el(this.L.front, 'path', { d: '', stroke: '#9edcff',
+        'stroke-width': 0.34, 'stroke-linecap': 'round', opacity: 0 }));
+    // the air draught climbing the annulus
+    this.r.draught = [];
+    for (let i = 0; i < 8; i++)
+      this.r.draught.push(el(this.L.front, 'path', { d: '', fill: C.air, opacity: 0 }));
+  }
+  // the sump / suppression pool everything eventually drains into
+  const s0 = cx - G.rin + 0.3, s1 = cx + G.rin - 0.3;
+  const sdp = `M${X(s0)},${Y(G.floor)} L${X(s0)},${Y(G.floor + 3.6)} L${X(s1)},${Y(G.floor + 3.6)} L${X(s1)},${Y(G.floor)} Z`;
+  const scp = el(this.defs, 'clipPath', { id: 'cS' + this.key }); el(scp, 'path', { d: sdp });
+  this.liquid('cS' + this.key, X(s0), s1 - s0, 'sump');
+};
 
-    if (p.sabotaged) {
-      ctx.save();
-      ctx.strokeStyle = C.bad; ctx.lineWidth = 3;
-      for (const [u, z] of [[hx.u, (hx.z0 + hx.z1) / 2], [5.0, 8.2], [10.6, 7.0],
-      [irw.u0 + 0.4, 3.6]]) {
-        const q = this.P(u, z);
-        ctx.beginPath();
-        ctx.moveTo(q.x - 11, q.y - 11); ctx.lineTo(q.x + 11, q.y + 11);
-        ctx.moveTo(q.x + 11, q.y - 11); ctx.lineTo(q.x - 11, q.y + 11);
-        ctx.stroke();
-      }
-      ctx.restore();
-      this.tag(ctx, 6.5, 11.4, 'PASSIVE SYSTEMS DISABLED (what-if)', 'bad');
+// ---------------------------------------------------------------------------
+// annotation. Direct labels into a gutter on the section's outer side, so that
+// with two sections up the captions sit on the outside edges and never fight.
+// ---------------------------------------------------------------------------
+Section.prototype.buildAnno = function () {
+  const G = GEO, cx = G.cx, R = G.rpv, S = G.sg, Z = G.przr;
+  this.L.labels = el(this.L.anno, 'g', {});
+  const saveAnno = this.L.anno; this.L.anno = this.L.labels;
+  const gxL = cx - G.rin - 5.5, gxR = cx + G.rin + 16.5;
+  const rows = [];
+  const add = (ax, ay, text, home) => rows.push({ ax, ay, text, home: home == null ? ax : home });
+
+  add(this.rx - R.r, G.core.z1 + 2.2, 'reactor vessel');
+  add(this.rx, (G.core.z0 + G.core.z1) / 2, 'the fuel');
+  add(this.sx - S.ru, S.yTop - 5, 'steam generator', this.sx);
+  add(this.zx + (this.passive ? Z.r : -Z.r), this.przrTop - 3, 'pressuriser');
+  add(this.pumpX, G.coldZ, this.passive ? 'coolant pumps (not safety)' : 'coolant pumps');
+  if (this.passive) {
+    add(this.irw.x1, this.irw.top - 1, 'IRWST · 2,000 t');
+    add(this.irw.x0 + 4.6, this.irw.base + 4.2, 'PRHR HX · no pump');
+    add(cx - 6.4, this.cmtTop - 2, 'core makeup tanks');
+    add(cx + 8.2, this.accTop - 2, 'accumulators');
+    add(cx, this.pccs.base + 1.7, 'PCCS tank · 3,000 t');
+    add(cx + G.rin, 26, 'steel containment vessel');
+  } else {
+    add(cx + 8.2, this.accTop - 2, 'accumulators');
+    add(cx - G.rin - 6.5, 6.4, 'ECCS pumps');
+    add(cx - 10, 27.5, 'containment sprays');
+    add(cx - G.rin - 4.5, 34, 'hardened vent');
+    add(cx + G.rin, 26, 'concrete containment');
+  }
+  // Each caption goes to whichever gutter is nearer, so a leader never has to
+  // cross the building it is pointing into. Within a gutter they keep the
+  // vertical order of their anchors.
+  const left = rows.filter(r0 => r0.home < cx).sort((a, b) => b.ay - a.ay);
+  const right = rows.filter(r0 => r0.home >= cx).sort((a, b) => b.ay - a.ay);
+  const lay = (list, gx, side) => {
+    const top = 38, step = Math.min(4.0, (top - 5) / Math.max(1, list.length - 1));
+    list.forEach((r0, i) => this.label(r0.ax, r0.ay, gx, top - i * step, r0.text, side));
+  };
+  lay(left, gxL, 'end');
+  lay(right, gxR, 'start');
+  this.L.anno = saveAnno;
+
+  // state pills, which appear only when they have something to say
+  this.tag(GEO.rpv.dx + cx, GEO.rpv.base - 1.9, 'tCore', 'ok');
+  this.tag(cx + 6, G.hotZ + 2.6, 'tCirc', 'ok');
+  this.tag(this.pumpX + 5.0, G.coldZ + 2.9, 'tPump', 'bad');
+  this.tag(cx, 36, 'tCtmt', 'bad');
+  this.tag(cx + 2.5, G.floor + 1.2, 'tCorium', 'bad');
+  this.tag(cx + 2, 24.5, 'tSafety', 'ok');
+
+  // level scale beside the vessel, the way a control room shows it
+  const lx = this.rx - R.r - 2.9, X = this.x(lx);
+  el(this.L.anno, 'path', { d: `M${X},${Y(R.base)} L${X},${Y(R.cylTop)}`,
+    stroke: C.steelDim, 'stroke-width': 0.12 });
+  for (const [z, nm] of [[G.core.z0, 'BAF'], [G.core.z1, 'TAF']]) {
+    this.r['m' + nm] = el(this.L.anno, 'path', { d: `M${X - 0.7},${Y(z)} L${X + 0.7},${Y(z)}`,
+      stroke: C.dim, 'stroke-width': 0.18 });
+    this.r['t' + nm] = el(this.L.anno, 'text', { x: X - 1.1, y: Y(z) + 0.45, class: 'cutDim',
+      'text-anchor': 'end' }, nm);
+  }
+  this.r.lvlMark = el(this.L.anno, 'path', { d: '', fill: C.ok });
+  this.r.lvlTxt = el(this.L.anno, 'text', { x: X - 1.1, y: Y(R.cylTop) + 0.5,
+    class: 'cutPct', 'text-anchor': 'end' }, '100%');
+
+  // title block
+  this.r.title = el(this.L.anno, 'text', { x: this.x(cx), y: Y(56), class: 'cutTitle',
+    'text-anchor': 'middle' }, this.passive ? 'PASSIVE · Gen III+' : 'ACTIVE · Gen II');
+  this.r.title.setAttribute('fill', this.passive ? '#57d9ff' : '#ff8b5c');
+  el(this.L.anno, 'text', { x: this.x(cx), y: Y(53.6), class: 'cutSub', 'text-anchor': 'middle' },
+    this.passive ? 'gravity · natural circulation · evaporation' : 'pumps · diesels · operators');
+  this.r.stateBg = el(this.L.anno, 'rect', { x: this.x(cx) - 9, y: Y(51.4), width: 18, height: 2.8,
+    rx: 0.7, fill: 'rgba(10,40,26,.9)', stroke: C.ok, 'stroke-width': 0.14 });
+  this.r.stateTx = el(this.L.anno, 'text', { x: this.x(cx), y: Y(51.4) + 2.0, class: 'cutState',
+    'text-anchor': 'middle' }, 'NORMAL');
+};
+
+// ---------------------------------------------------------------------------
+// the update pass: every number here is read from the model, never invented
+// ---------------------------------------------------------------------------
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+
+Section.prototype.update = function (t) {
+  const p = this.p, s = p.sys || {}, G = GEO, R = G.rpv, S = G.sg, Z = G.przr, cx = G.cx;
+  const lvl = clamp(p.level, 0, 1);
+  const surf = R.base + lvl * (R.cylTop - R.base);
+  const wet = Math.min(p.Tclad, 660);
+
+  // ---- reactor vessel -----------------------------------------------------
+  this.setLevel('rpv', surf, R.base, tempColor(wet));
+  const uncovered = surf < G.core.z1;
+  const rodCol = !uncovered ? '#cfd9e1' : tempColor(p.Tclad);
+  for (const rod of this.r.rods) rod.setAttribute('fill', rodCol);
+  this.r.glow.setAttribute('opacity',
+    uncovered && p.Tclad > 680 ? clamp((p.Tclad - 680) / 900, 0, 0.85) : 0);
+  this.r.corium.setAttribute('opacity', p.vesselBreach ? 0.55 + 0.35 * p.mcci : 0);
+  this.r.corium.setAttribute('rx', 3 + 2.6 * p.mcci);
+  this.r.breach.setAttribute('opacity', p.vesselBreach ? 1 : 0);
+  this.r.crdm.setAttribute('opacity', p.scrammed ? 1 : 0.45);
+
+  // level scale
+  const X = this.x(this.rx - R.r - 3.1);
+  this.r.lvlMark.setAttribute('d',
+    `M${X + 2.4},${Y(surf)} L${X + 0.8},${Y(surf) - 0.9} L${X + 0.8},${Y(surf) + 0.9} Z`);
+  this.r.lvlMark.setAttribute('fill', uncovered ? C.bad : lvl > 0.98 ? C.ok : C.warn);
+  this.r.lvlTxt.textContent = `${Math.round(lvl * 100)}%`;
+  this.r.lvlTxt.setAttribute('y', Y(surf) + 0.5);
+  this.r.lvlTxt.setAttribute('fill', uncovered ? C.bad : lvl > 0.98 ? C.ok : C.warn);
+  this.r.mTAF.setAttribute('stroke', uncovered ? C.bad : C.dim);
+  this.r.tTAF.setAttribute('fill', uncovered ? C.bad : C.dim);
+
+  // ---- steam generator and pressuriser ------------------------------------
+  const fed = s.feed || s.aux || s.rcic || s.prhr;
+  this.setLevel('sg', fed ? S.yCone + 1.2 : S.base + S.rl + 2.6, S.base + S.rl,
+    coolColor(Math.min(560, p.Tcore - 40)));
+  const flow = Math.max(s.rcp || 0, s.natCirc || 0);
+  for (const tu of this.r.tubes)
+    tu.setAttribute('stroke', flow > 0 ? tempColor(Math.min(645, p.Tcore)) : '#4d565f');
+  this.setLevel('przr', Z.base + Z.r + Z.h * clamp(p.level, 0.08, 1), Z.base + Z.r,
+    tempColor(Math.min(660, p.Tcore + 20)));
+
+  // ---- flows --------------------------------------------------------------
+  const hotC = tempColor(Math.min(680, p.Tcore + 40));
+  const coldC = coolColor(Math.min(620, p.Tcore - 60));
+  this.setFlow('hot', hotC, flow, t);
+  this.setFlow('cold', coldC, flow, t, true);
+  this.setFlow('surge', hotC, flow ? 0.25 : 0, t);
+  this.setFlow('steam', '#b7c6d2', s.feed ? 1 : 0, t);
+  this.setFlow('feed', coolColor(480), s.feed ? 1 : 0, t, true);
+  this.setPump('rcp', s.rcp > 0);
+  this.r.steamFlag.textContent = p.uhs ? 'to turbine' : 'HEAT SINK LOST';
+  this.r.steamFlag.setAttribute('fill', p.uhs ? C.text : C.bad);
+
+  for (let i = 0; i < 2; i++) {
+    this.setLevel('acc' + i, this.r.accum[i].base + 1.5
+      + (this.r.accum[i].top - this.r.accum[i].base - 3) * clamp(p.accumLevel, 0, 1),
+      this.r.accum[i].base + 1.5, C.cold);
+    this.setFlow('accP' + i, C.cold, s.accum || 0, t);
+  }
+  const sumpDepth = this.passive
+    ? (s.gravity ? 3.4 : s.ads ? 1.6 : 0.35)
+    : (p.vesselBreach ? 1.6 : p.leakRate > 0 ? 1.2 : 0.35);
+  this.setLevel('sump', G.floor + sumpDepth, G.floor, coolColor(Math.min(430, p.Tctmt)));
+
+  // ---- containment atmosphere --------------------------------------------
+  const hz = clamp((p.Tctmt - 320) / 170, 0, 0.42);
+  this.r.haze.setAttribute('fill', `rgba(214,228,238,${(hz * 0.34).toFixed(3)})`);
+  const h2 = p.h2 + p.h2Building, h2f = clamp(h2 / 900, 0, 1);
+  const h2Top = G.spring + G.domeRy, h2Bot = h2Top - h2f * (h2Top - G.floor - 4);
+  this.r.h2.setAttribute('height', h2f > 0.01 ? h2Top - h2Bot : 0);
+  this.r.h2.setAttribute('fill', `rgba(202,214,66,${(0.05 + 0.17 * h2f).toFixed(3)})`);
+  this.r.h2line.setAttribute('opacity', h2f > 0.01 ? 0.85 : 0);
+  this.r.h2line.setAttribute('y', Y(h2Bot));
+
+  // ---- design-specific ----------------------------------------------------
+  if (this.passive) {
+    this.setLevel('irwst', this.irw.base + (this.irw.top - this.irw.base)
+      * clamp(p.irwst / 2.1e6, 0.05, 1), this.irw.base, coolColor(Math.min(430, p.Tctmt)));
+    this.setLevel('pccs', this.pccs.base + (this.pccs.top - this.pccs.base)
+      * clamp(p.pccwst / 3.0e6, 0, 1), this.pccs.base, C.cold);
+    for (let i = 0; i < 2; i++) {
+      this.setLevel('cmt' + i, this.r.cmt[i].base + 1.5
+        + (this.r.cmt[i].top - this.r.cmt[i].base - 3) * clamp(p.cmtLevel, 0, 1),
+        this.r.cmt[i].base + 1.5, C.cold);
+      this.setFlow('cmtP' + i, C.cold, s.cmt || 0, t);
     }
-
-    this.pccs(ctx, time);
+    this.setFlow('prhrIn', hotC, s.prhr || 0, t);
+    this.setFlow('prhrOut', coolColor(520), s.prhr || 0, t);
+    this.setFlow('grav', C.cold, s.gravity || 0, t);
+    this.setFlow('adsP', '#c6d3dc', s.ads ? 1 : 0, t);
+    this.setValve('ads', !!s.ads, false);
+    this.setValve('gravValve', (s.gravity || 0) > 0, false);
+    this.r.prhr.setAttribute('stroke', s.prhr > 0 ? hotC : '#5d666f');
+    this.r.prhr.setAttribute('stroke-width', s.prhr > 0 ? 0.7 : 0.55);
+    // the film on the shell, and the draught in the annulus
+    const on = s.pccs > 0, rin = G.rin, sr = rin + 3.4;
+    for (let i = 0; i < this.r.film.length; i++) {
+      const f = this.r.film[i];
+      if (!on || !s.film) { f.setAttribute('opacity', 0); continue; }
+      const k = ((t * 0.09 + i / this.r.film.length) % 1);
+      let x, y0;
+      if (k < 0.42) {                                  // over the crown
+        const q = k / 0.42, a = Math.PI * (1 - q);
+        x = cx + Math.cos(a) * rin; y0 = G.spring + Math.sin(a) * G.domeRy;
+      } else {                                         // down a flank
+        const q = (k - 0.42) / 0.58;
+        x = cx + (i % 2 ? rin + 0.55 : -rin - 0.55);
+        y0 = G.spring - q * (G.spring - G.floor);
+      }
+      f.setAttribute('d', `M${this.x(x)},${Y(y0)} L${this.x(x)},${Y(y0 - 1.5)}`);
+      f.setAttribute('opacity', 0.8);
+    }
+    for (let i = 0; i < this.r.draught.length; i++) {
+      const a = this.r.draught[i];
+      if (!on) { a.setAttribute('opacity', 0); continue; }
+      const k = ((t * 0.16 + i / this.r.draught.length) % 1);
+      const up = i % 2 === 1;
+      const x = cx + (up ? sr - 1.7 : -sr + 1.7);
+      const y0 = G.floor + k * (G.spring - G.floor);
+      const yy = up ? y0 : G.spring - k * (G.spring - G.floor);
+      const dir = up ? 1 : -1, X0 = this.x(x);
+      a.setAttribute('d', `M${X0},${Y(yy + dir * 0.9)} L${X0 - 0.6},${Y(yy)} L${X0 + 0.6},${Y(yy)} Z`);
+      a.setAttribute('fill', up ? '#f0b070' : C.air);
+      a.setAttribute('opacity', 0.85);
+    }
+  } else {
+    const inj = s.aux > 0, need = p.scrammed && p.coolingMargin < 1.0;
+    this.setFlow('eccs', C.cold, inj ? 1 : 0, t);
+    this.setPump('eccsPump', inj);
+    this.setValve('eccsValve', inj, need && !inj);
+    const spr = s.sprays > 0;
+    this.r.sprayHdr.setAttribute('stroke', spr ? '#6d9fc4' : '#48525b');
+    for (let i = 0; i < this.r.sprays.length; i++) {
+      const d = spr ? 1.2 + ((t * 1.6 + i * 0.27) % 1) * 2.6 : 1.3;
+      this.r.sprays[i].setAttribute('d',
+        `M${this.x(cx - 14 + i * 2.8)},${Y(27.5)} L${this.x(cx - 14 + i * 2.8)},${Y(27.5 - d)}`);
+      this.r.sprays[i].setAttribute('opacity', spr ? 0.8 : 0.22);
+    }
+    this.setFlow('vent', '#b9c6d0', p.vented ? 1 : 0, t);
+    this.setValve('ventValve', !!p.vented, false);
   }
 
-  // passive containment cooling: film on the shell, draught up the annulus
-  pccs(ctx, time) {
-    const p = this.plant, s = p.sys || {}, G = this.geom;
-    const on = s.pccs > 0;
-    // the gravity tank, sitting on the shield building
-    const tank = { u0: 4.9, u1: 8.1, z0: 11.5, z1: 12.6 };
-    const lvl = tank.z0 + (tank.z1 - tank.z0) * Math.max(0, Math.min(1, p.pccwst / 3.0e6));
-    this.pool(ctx, {
-      u0: tank.u0, u1: tank.u1, z0: tank.z0, z1: tank.z1,
-      level: lvl, liquid: C.cold, wall: C.steel
+  // ---- the pills ----------------------------------------------------------
+  const T = p.Tclad - 273;
+  this.setTag('tCore', `core ${T.toFixed(0)} °C`, T > 800 ? 'bad' : T > 360 ? 'warn' : 'ok');
+  this.setTag('tCirc', flow > 0 && !s.rcp ? 'natural circulation' : '', 'ok');
+  this.setTag('tPump', s.rcp ? '' : (this.passive ? 'pumps off — not needed' : 'PUMPS STOPPED'),
+    this.passive ? 'ok' : 'bad');
+  this.setTag('tCorium', p.vesselBreach ? 'corium on the basemat' : '', 'bad');
+  this.setTag('tCtmt', p.explosions > 0 || p.rupturedByPower ? 'CONTAINMENT BLOWN OPEN'
+    : !p.ctmtIntact ? 'CONTAINMENT FAILED' : (h2 > 60 ? `hydrogen ${h2 | 0} kg` : ''), 'bad');
+  const safetyTxt = this.passive
+    ? (s.gravity ? 'GRAVITY INJECTION' : s.prhr ? 'PRHR thermosiphon'
+      : s.cmt ? 'core makeup tanks' : '')
+    : (s.aux ? 'ECCS injecting'
+      : (p.scrammed && p.coolingMargin < 1 ? 'NO COOLING PATH LEFT' : ''));
+  this.setTag('tSafety', safetyTxt, this.passive || s.aux ? 'ok' : 'bad');
+
+  // ---- title block --------------------------------------------------------
+  const good = /SAFE|NORMAL|STABLE/.test(p.state);
+  if (this.r.stateTx.textContent !== p.state) {
+    this.r.stateTx.textContent = p.state;
+    const w = Math.max(14, p.state.length * 1.02 + 3);
+    this.r.stateBg.setAttribute('x', this.x(cx) - w / 2);
+    this.r.stateBg.setAttribute('width', w);
+  }
+  this.r.stateBg.setAttribute('stroke', good ? C.ok : C.bad);
+  this.r.stateBg.setAttribute('fill', good ? 'rgba(10,40,26,.9)' : 'rgba(60,14,10,.92)');
+  this.r.stateTx.setAttribute('fill', good ? C.ok : '#ff9c88');
+  this.r.liner.setAttribute('stroke', p.ctmtIntact ? (this.passive ? '#9fb3c2' : C.liner) : C.bad);
+  this.layoutTags();
+};
+
+// ===========================================================================
+// The stage: one SVG holding both sections, fitted by its viewBox.
+// There is no camera - the viewBox is the camera, and it is exact.
+// ===========================================================================
+export class CutStage {
+  constructor(svg) {
+    this.svg = svg;
+    this.focus = 'both';
+    this.built = false;
+  }
+  build(plants) {
+    const svg = this.svg;
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    const defs = el(svg, 'defs', {});
+    defs.innerHTML = `
+      <linearGradient id="cutConc" x1="0" x2="1">
+        <stop offset="0" stop-color="#4b4943"/><stop offset=".42" stop-color="#6b6860"/>
+        <stop offset="1" stop-color="#3f3d39"/></linearGradient>
+      <linearGradient id="cutSteelB" x1="0" x2="1">
+        <stop offset="0" stop-color="#4c545c"/><stop offset=".4" stop-color="#78828c"/>
+        <stop offset="1" stop-color="#414951"/></linearGradient>
+      <linearGradient id="cutWall" x1="0" x2="1">
+        <stop offset="0" stop-color="#6b757f"/><stop offset=".3" stop-color="#a7b2bc"/>
+        <stop offset="1" stop-color="#5c656e"/></linearGradient>
+      <linearGradient id="cutGlow" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0" stop-color="rgba(255,90,30,0)"/>
+        <stop offset="1" stop-color="rgba(255,160,60,.95)"/></linearGradient>`;
+    this.sections = plants.map((p) => {
+      const sec = new Section(p, 0);
+      const g = el(svg, 'g', { class: 'cutSec' });
+      sec.build(g, defs);
+      sec.buildLoop();
+      sec.buildKit();
+      sec.buildAnno();
+      sec.root = g;
+      return sec;
     });
-    this.pccwT = (p.pccwst / 1000) | 0;
-
-    // air in at the bottom of the annulus, out over the dome
-    const arrow = (uz, col, flow) => {
-      if (!flow) return;
-      const pts = uz.map(q => this.P(q[0], q[1]));
-      let total = 0; const segs = [];
-      for (let i = 0; i < pts.length - 1; i++) {
-        const L = Math.hypot(pts[i + 1].x - pts[i].x, pts[i + 1].y - pts[i].y);
-        segs.push(L); total += L;
-      }
-      const n = Math.max(2, Math.round(total / 46));
-      for (let k = 0; k < n; k++) {
-        let t = (((time * 0.4 + k / n) % 1)) * total, i = 0;
-        while (i < segs.length && t > segs[i]) { t -= segs[i]; i++; }
-        if (i >= segs.length) continue;
-        const a = pts[i], b = pts[i + 1], L = segs[i] || 1;
-        ctx.save();
-        ctx.translate(a.x + (b.x - a.x) * (t / L), a.y + (b.y - a.y) * (t / L));
-        ctx.rotate(Math.atan2((b.y - a.y) / L, (b.x - a.x) / L));
-        ctx.fillStyle = col;
-        ctx.globalAlpha = 0.9;
-        ctx.beginPath();
-        ctx.moveTo(6, 0); ctx.lineTo(-4, 3.6); ctx.lineTo(-4, -3.6);
-        ctx.closePath(); ctx.fill();
-        ctx.restore();
-      }
-      ctx.globalAlpha = 1;
-    };
-    arrow([[0.2, 11.4], [0.2, 2.1], [0.85, 1.25]], C.air, on ? 1 : 0);
-    arrow([[12.75, 1.3], [12.75, 9.6], [11.2, 12.0], [6.5, 13.3]], '#f0b070', on ? 1 : 0);
-    this.callout(ctx, (tank.u0 + tank.u1) / 2, tank.z0 + 0.6, 14,
-      `PCCS tank \u00b7 ${this.pccwT.toLocaleString()} t`);
-    this.note(ctx, 0.4, 0.3, 'air in');
-    this.note(ctx, 10.9, 12.35, 'warm air out');
-
-    // the evaporating film, drawn ON the shell
-    if (s.film > 0 && on) {
-      ctx.strokeStyle = 'rgba(158,220,252,0.95)';
-      ctx.lineWidth = 3.2;
-      ctx.lineCap = 'round';
-      // Over the crown, on the shell itself: the film is water running on the
-      // outside of the steel, which is the whole mechanism, so it has to be
-      // drawn there and not floating in the room.
-      const A = this.P(G.wallU0, G.springZ), B = this.P(G.wallU1, G.springZ);
-      const apexY = this.P(6.5, G.apexZ).y;
-      const crown = (q) => {
-        const m = 1 - q;
-        return {
-          x: A.x * (m * m * m + 3 * m * m * q) + B.x * (3 * m * q * q + q * q * q),
-          y: m * m * m * A.y + 3 * m * m * q * apexY + 3 * m * q * q * apexY + q * q * q * B.y
-        };
-      };
-      for (let i = 0; i < 9; i++) {
-        const q = ((time * 0.10 + i / 9) % 1) * 0.94 + 0.03;
-        const p0 = crown(q), p1 = crown(Math.min(0.999, q + 0.035));
-        const dx = p1.x - p0.x, dy = p1.y - p0.y, L = Math.hypot(dx, dy) || 1;
-        const off = 4 * this.ts;
-        ctx.globalAlpha = 0.75;
-        ctx.beginPath();
-        ctx.moveTo(p0.x + (dy / L) * off, p0.y - (dx / L) * off);
-        ctx.lineTo(p1.x + (dy / L) * off, p1.y - (dx / L) * off);
-        ctx.stroke();
-      }
-      for (let i = 0; i < 8; i++) {
-        const t = ((time * 0.42 + i * 0.125) % 1);
-        const u = (i % 2 ? G.wallU1 + 0.28 : G.wallU0 - 0.28);
-        const z0 = G.springZ + 0.15 - t * (G.springZ - G.floorZ);
-        const a = this.P(u, z0), b = this.P(u, z0 - 0.55);
-        ctx.globalAlpha = 0.3 + 0.55 * (1 - t);
-        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-      this.note(ctx, 3.7, G.springZ + 1.05, 'evaporating film');
-    }
+    this.built = true;
   }
 
-  // ---- containment atmosphere -------------------------------------------
-  atmosphere(ctx) {
-    const p = this.plant, G = this.geom;
-    ctx.save();
-    this.shellPath(ctx, G.wallU0, G.wallU1, G.springZ, G.apexZ, G.floorZ);
-    ctx.closePath();
-    ctx.clip();
-    const box = () => {
-      const a = this.P(G.wallU0 - 1, G.apexZ + 1), b = this.P(G.wallU1 + 1, G.floorZ - 1);
-      return [a.x, a.y, b.x - a.x, b.y - a.y];
-    };
-    const hz = Math.max(0, Math.min(0.45, (p.Tctmt - 320) / 170));
-    if (hz > 0.01) {
-      ctx.fillStyle = `rgba(214,228,238,${hz * 0.4})`;
-      ctx.fillRect(...box());
+  // The viewBox is the camera, and SVG can measure its own content, so the fit
+  // is exact rather than a pile of guessed constants: hide what this focus does
+  // not show, ask for the bounding box, frame that.
+  setFocus(focus, showLabels) {
+    if (!this.built) return;
+    this.focus = focus;
+    const both = focus === 'both' || showLabels === false;
+    const [a, p] = this.sections;
+    a.root.style.display = (focus === 'passive') ? 'none' : '';
+    p.root.style.display = (focus === 'active') ? 'none' : '';
+    for (const s of this.sections) {
+      s.L.labels.style.display = both ? 'none' : '';
+      // with two sections up there is no room for what sits outside the
+      // building, and the comparison is about what is inside it
+      s.L.ext.style.display = both ? 'none' : '';
     }
-    const h2 = p.h2 + p.h2Building;
-    const h2f = Math.min(1, h2 / 900);
-    if (h2f > 0.01) {
-      const zBot = G.springZ - h2f * 6.6;
-      const a = this.P(G.wallU0 - 1, G.apexZ + 1), c = this.P(G.wallU1 + 1, zBot);
-      ctx.fillStyle = rgba(C.h2, 0.10 + 0.2 * h2f);
-      ctx.fillRect(a.x, a.y, c.x - a.x, c.y - a.y);
-      ctx.strokeStyle = rgba(C.h2, 0.75); ctx.lineWidth = 1.8;
-      const d0 = this.P(G.wallU0, zBot), d1 = this.P(G.wallU1, zBot);
-      ctx.beginPath(); ctx.moveTo(d0.x, d0.y); ctx.lineTo(d1.x, d1.y); ctx.stroke();
-      ctx.restore();
-      this.tag(ctx, 6.5, zBot + 0.65, `hydrogen ${h2 | 0} kg`, 'bad');
-      return;
+    // side by side: put the second section one measured width to the right
+    p.root.removeAttribute('transform');
+    if (both) {
+      let w = 0;
+      try { w = a.root.getBBox().width; } catch (e) { w = 0; }
+      p.root.setAttribute('transform', `translate(${(w || 56) + 5},0)`);
     }
-    ctx.restore();
+    let b = null;
+    try { b = this.svg.getBBox(); } catch (e) { b = null; }
+    if (!b || !b.width || !b.height) {
+      const G = GEO, half = G.rin + G.wall + 8;
+      b = { x: G.cx - half, y: Y(52), width: half * 2, height: 56 };
+    }
+    const m = Math.max(1.5, b.width * 0.02);
+    this.svg.setAttribute('viewBox',
+      `${b.x - m} ${b.y - m} ${b.width + m * 2} ${b.height + m * 2}`);
   }
 
-  // ---- the end states, drawn rather than asserted ------------------------
-  breach(ctx, time) {
-    const p = this.plant, G = this.geom, r = G.rpv;
-    if (p.vesselBreach) {
-      const a = this.P(r.u - 0.5, r.z0), b = this.P(r.u + 0.5, r.z0);
-      ctx.strokeStyle = '#0c1015'; ctx.lineWidth = 7;
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-      const c = this.P(r.u, G.floorZ + 0.2);
-      const g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, 86);
-      const f = 0.55 + 0.2 * Math.sin(time * 2);
-      g.addColorStop(0, `rgba(255,196,90,${f})`);
-      g.addColorStop(0.45, `rgba(238,104,36,${f * 0.65})`);
-      g.addColorStop(1, 'rgba(170,40,14,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.ellipse(c.x, c.y, 86, 20, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#e2621f';
-      ctx.beginPath();
-      ctx.ellipse(c.x, c.y, 42 + 13 * p.mcci, 10 + 3 * p.mcci, 0, 0, Math.PI * 2);
-      ctx.fill();
-      this.tag(ctx, r.u + 3.5, G.floorZ + 0.5, 'corium on the basemat', 'bad');
-    }
-    if (p.explosions > 0 || p.rupturedByPower) {
-      const A = this.P(G.wallU0 - 0.4, G.springZ), B = this.P(G.wallU1 + 0.4, G.springZ);
-      ctx.fillStyle = '#0f151b';
-      ctx.fillRect(A.x - 8, A.y - 300, B.x - A.x + 16, 300);
-      ctx.strokeStyle = '#8b8579'; ctx.lineWidth = 5; ctx.lineJoin = 'round';
-      ctx.beginPath();
-      for (let i = 0; i <= 26; i++) {
-        const u = G.wallU0 - 0.4 + (G.wallU1 - G.wallU0 + 0.8) * (i / 26);
-        const q = this.P(u, G.springZ + hash2(i, 3, 1) * 0.85);
-        if (i === 0) ctx.moveTo(q.x, q.y); else ctx.lineTo(q.x, q.y);
-      }
-      ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,130,70,0.5)'; ctx.lineWidth = 2;
-      ctx.stroke();
-      this.tag(ctx, 6.5, G.springZ + 1.4, 'ROOF BLOWN OFF', 'bad');
-    } else if (!p.ctmtIntact) {
-      this.tag(ctx, 6.5, G.springZ + 1.0, 'CONTAINMENT FAILED', 'bad');
-    }
-  }
-
-  // ---- the electrical chain ----------------------------------------------
-  powerRow(ctx, time) {
-    const p = this.plant, s = p.sys || {}, t = this.ts;
-    const z = -1.6;
-    const items = [
-      { u: 1.2, label: 'GRID', on: !!s.grid },
-      { u: 4.9, label: 'DIESELS', on: !!s.diesel },
-      { u: 8.6, label: 'BATTERY', on: s.battery > 0 },
-      { u: 12.3, label: 'PUMPS', on: s.rcp > 0 || s.aux > 0 || s.feed > 0 }
-    ];
-    for (let i = 0; i < items.length - 1; i++) {
-      const live = items[i].on && items[i + 1].on;
-      this.pipe(ctx, [[items[i].u + 0.5, z], [items[i + 1].u - 0.5, z]],
-        { w: 3.4, color: live ? C.power : '#394046', flow: live ? 1.5 : 0, phase: time });
-    }
-    for (const it of items) {
-      const q = this.P(it.u, z);
-      ctx.beginPath(); ctx.arc(q.x, q.y, 8.5 * t, 0, Math.PI * 2);
-      ctx.fillStyle = it.on ? C.power : '#333940';
-      ctx.fill();
-      ctx.strokeStyle = it.on ? shade(C.power, 0.7) : C.wallDim;
-      ctx.lineWidth = 1.4 * t; ctx.stroke();
-      ctx.font = this.f(8.5, '700');
-      ctx.fillStyle = it.on ? '#f6e8bf' : '#767d84';
-      ctx.textAlign = 'center';
-      ctx.fillText(it.label, q.x, q.y + 20 * t);
-      ctx.textAlign = 'left';
-    }
-    const base = this.P(6.5, z);
-    // one line of state for the chain itself; the per-item story is the key
-    const cy = base.y + 34 * t;
-    let txt = null, col = C.textDim;
-    if (this.passive) {
-      txt = 'electrical supply \u2014 nothing safety-related hangs off it';
-      col = 'rgba(150,168,182,0.8)';
-    } else if (p.coolingMargin < 0.99) {
-      txt = 'no cooling path left \u2014 the chain above is broken'; col = C.bad;
-    } else if (!s.grid && !s.diesel && s.battery > 0) {
-      txt = `running on batteries \u2014 ${(s.battery * p.batteryHours).toFixed(1)} h left`;
-      col = C.warn;
-    } else {
-      txt = 'electrical supply \u2014 every safety function below depends on it';
-      col = 'rgba(198,212,224,0.8)';
-    }
-    ctx.font = this.f(10, '600');
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = col;
-    ctx.fillText(txt, base.x, cy);
-    this.mark(base.x, ctx.measureText(txt).width);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    return cy + 18 * t;
-  }
-
-  // ---- annunciator row, the way a control room does it -------------------
-  annunciators(ctx) {
-    const p = this.plant;
-    const list = p.alarms.slice(0, 3).map(a => a.length > 19 ? a.slice(0, 18) + '\u2026' : a);
-    if (!list.length) return;
-    const t = this.ts;
-    const base = this.P(6.5, this.topZ - 0.62);
-    ctx.font = this.f(8.5, '700');
-    const pad = 9 * t, gap = 5 * t;
-    let total = 0;
-    const ws = list.map(a => { const w = ctx.measureText(a).width + pad * 2; total += w + gap; return w; });
-    const span = this.P(13.4, 0).x - this.P(-0.4, 0).x;
-    if (total - gap > span) {                 // squeeze rather than overflow
-      const k = span / (total - gap);
-      for (let i = 0; i < ws.length; i++) ws[i] *= k;
-      total = span + gap;
-    }
-    let x = base.x - (total - gap) / 2;
-    this.mark(base.x, total - gap);
-    for (let i = 0; i < list.length; i++) {
-      ctx.fillStyle = 'rgba(74,18,12,0.92)';
-      rr(ctx, x, base.y - 8 * t, ws[i], 16 * t, 3 * t); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,92,72,0.65)'; ctx.lineWidth = 1 * t;
-      rr(ctx, x, base.y - 8 * t, ws[i], 16 * t, 3 * t); ctx.stroke();
-      ctx.fillStyle = '#ffcbbf';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(list[i], x + ws[i] / 2, base.y + 0.5 * t);
-      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-      x += ws[i] + gap;
-    }
-  }
-
-  title(ctx) {
-    const p = this.plant, t = this.ts;
-    const q = this.P(6.5, this.topZ + 1.55);
-    // the title runs after draw(), so it widens the box the camera just measured
-    const grow = (w) => {
-      if (!this.bounds) return;
-      this.bounds.left = Math.min(this.bounds.left, q.x - w / 2 - 4 * t);
-      this.bounds.right = Math.max(this.bounds.right, q.x + w / 2 + 4 * t);
-    };
-    ctx.textAlign = 'center';
-    ctx.font = this.f(15, '800');
-    ctx.fillStyle = this.passive ? '#57d9ff' : '#ff8b5c';
-    ctx.fillText(this.passive ? 'PASSIVE · Gen III+' : 'ACTIVE · Gen II', q.x, q.y);
-    grow(ctx.measureText(this.passive ? 'PASSIVE \u00b7 Gen III+' : 'ACTIVE \u00b7 Gen II').width);
-    ctx.font = this.f(11, '600');
-    ctx.fillStyle = 'rgba(198,214,228,0.7)';
-    ctx.fillText(this.passive
-      ? 'gravity \u00b7 natural circulation \u00b7 evaporation'
-      : 'pumps \u00b7 diesels \u00b7 operators', q.x, q.y + 15 * t);
-    const good = /SAFE|NORMAL|STABLE/.test(p.state);
-    ctx.font = this.f(12, '800');
-    const w = ctx.measureText(p.state).width + 22 * t;
-    const by = q.y + 26 * t;
-    ctx.fillStyle = good ? 'rgba(16,58,36,0.92)' : 'rgba(74,18,12,0.92)';
-    rr(ctx, q.x - w / 2, by, w, 20 * t, 5 * t); ctx.fill();
-    ctx.strokeStyle = good ? 'rgba(99,224,138,0.6)' : 'rgba(255,110,80,0.65)';
-    ctx.lineWidth = 1.2 * t;
-    rr(ctx, q.x - w / 2, by, w, 20 * t, 5 * t); ctx.stroke();
-    ctx.fillStyle = good ? '#8ff0b4' : '#ff9c88';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(p.state, q.x, by + 10.5 * t);
-    ctx.textBaseline = 'alphabetic';
-    ctx.textAlign = 'left';
+  update(t) {
+    if (!this.built) return;
+    for (const s of this.sections)
+      if (s.root.style.display !== 'none') s.update(t);
   }
 }

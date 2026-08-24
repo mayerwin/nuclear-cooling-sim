@@ -8,7 +8,7 @@ import { PlantView } from './plantview.js';
 import { FX } from './fx.js';
 import { Camera } from './iso.js';
 import { byId } from './scenarios.js';
-import { CutawayView } from './cutaway.js';
+import { CutStage } from './cutaway.js';
 import { clamp, lerp, smoothstep } from './util.js';
 
 export const SPEEDS = [0, 1, 30, 120, 900, -1];   // -1 = AUTO (adaptive)
@@ -62,45 +62,24 @@ export class Sim {
 
   // The cutaway has its own camera: two cross-sections side by side on a wide
   // screen, one at a time on a phone.
-  fitCut(snap) {
+  // The SVG cutaway fits itself with its viewBox; this just tells it which
+  // sections to show and how wide to be.
+  fitCut() {
+    if (!this.cutStage) return;
     const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
-    const cam = this.cutCam;
-    const wide = cam.w / dpr > 860;
-    const focus = wide ? this.cutFocus : (this.cutFocus === 'both' ? 'active' : this.cutFocus);
-
-    // The band of canvas the drawing may actually use: what is left once the
-    // side panels, the header and the legend have taken their share.
-    const bx0 = (wide ? 316 : 8) * dpr;
-    const bx1 = cam.w - (wide ? 348 : 8) * dpr;
-    const by0 = (wide ? 60 : 46) * dpr;
-    const by1 = cam.h - (wide ? 132 : 182) * dpr;
-
-    // The extent the cutaway reported after its last frame. Falls back to the
-    // nominal section box before the first draw.
-    const b = (this.cuts && this.cuts[0] && this.cuts[0].bounds)
-      || { left: -60, right: 520, top: -510, bottom: 130 };
-    const PITCH = 17.5 * 32;              // grid distance between the sections
-    const wBoth = focus === 'both';
-    const cw = (b.right - b.left) + (wBoth ? PITCH : 0);
-    const ch = b.bottom - b.top;
-    const zoom = clamp(Math.min((bx1 - bx0) / cw, (by1 - by0) / ch), 0.34, 2.2);
-
-    // Centre of the content, in the active section's own world coordinates.
-    let mx = (b.left + b.right) / 2 + (wBoth ? PITCH / 2 : 0);
-    if (focus === 'passive') mx += PITCH;
-    const my = (b.top + b.bottom) / 2;
-    // A point on the section line projects to world x = (cx - cy) * TW with
-    // cx = -cy, so the camera target is one division away.
-    const cx = mx / 64, cy = -cx;
-
-    cam.ox = (bx0 + bx1) / 2 - cam.w / 2;
-    cam.oy = (by0 + by1) / 2 - cam.h / 2 - my * zoom;
-    if (snap) cam.snap(cx, cy, zoom); else cam.focus(cx, cy, zoom);
+    const wide = this.cutCam.w / dpr > 860;
+    // On a phone the gutters would shrink the drawing to a thumbnail, so the
+    // captions come off and the building gets the whole screen.
+    this.cutStage.setFocus(wide ? this.cutFocus
+      : (this.cutFocus === 'both' ? 'active' : this.cutFocus),
+      wide && this.showLabels);
   }
 
   setView(v) {
     this.view = v;
-    if (v === 'cut') this.fitCut(true); else this.overview();
+    if (typeof document !== 'undefined')
+      document.body.classList.toggle('viewcut', v === 'cut');
+    if (v === 'cut') this.fitCut(); else this.overview();
   }
 
   get activeCam() { return this.view === 'cut' ? this.cutCam : this.cam; }
@@ -111,7 +90,12 @@ export class Sim {
     this.passive = new Plant(MODE.PASSIVE, 'Unit B — Passive Cooling (Gen III+)');
     this.plants = [this.active, this.passive];
     this.views = [new PlantView(this.active, s.active), new PlantView(this.passive, s.passive)];
-    this.cuts = [new CutawayView(this.active, 0, 0), new CutawayView(this.passive, 8.75, -8.75)];
+    const svg = typeof document !== 'undefined' && document.getElementById('cutstage');
+    if (svg) {
+      this.cutStage = new CutStage(svg);
+      this.cutStage.build(this.plants);
+      this.fitCut();
+    }
     this.hook();
   }
 
@@ -250,7 +234,7 @@ export class Sim {
     // The cutaway's extent depends on the zoom (its captions are screen-sized),
     // so the fit is a fixed point rather than a one-shot calculation. Re-solving
     // it every frame converges in two or three and survives a resize for free.
-    if (this.view === 'cut') this.fitCut(false);
+    if (this.view === 'cut' && this.cutStage) this.cutStage.update(this.visTime);
 
     if (this.cine) {
       this.cine.t += rdt;

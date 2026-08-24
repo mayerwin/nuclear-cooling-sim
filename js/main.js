@@ -20,7 +20,7 @@ function resize() {
   if (!sim) return;
   sim.cam.resize(canvas.width, canvas.height);
   sim.cutCam.resize(canvas.width, canvas.height);
-  if (sim.view === 'cut') sim.fitCut(true);
+  if (sim.view === "cut") sim.fitCut();
   const wide = window.innerWidth > 860;
   if (wasWide !== wide) { wasWide = wide; sim.overview(); }
 }
@@ -98,7 +98,7 @@ let lastTap = 0;
 canvas.addEventListener('pointerup', (e) => {
   const now = performance.now();
   if (now - lastTap < 300) {
-    if (sim.view === 'cut') sim.fitCut();
+    if (sim.view === "cut") sim.fitCut();
     else sim.cam.targetZoom = sim.cam.targetZoom > sim.fitZoom() * 1.4 ? sim.fitZoom() : sim.fitZoom() * 2.1;
   }
   lastTap = now;

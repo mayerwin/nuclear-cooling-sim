@@ -62,37 +62,18 @@ export class Renderer {
 
   // The inside of both plants, cut open. Drawn back to front by hand: the
   // geometry is fixed, so a sort would only add a way to get it wrong.
+  // The cutaway is SVG now; the canvas only paints the backdrop behind it.
   drawCut(sim) {
-    const ctx = this.ctx, cam = sim.cutCam;
-    const CW = this.canvas.width, CH = this.canvas.height;
+    const ctx = this.ctx, CW = this.canvas.width, CH = this.canvas.height;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const g = ctx.createLinearGradient(0, 0, 0, CH);
-    g.addColorStop(0, '#0c141d');
-    g.addColorStop(0.5, '#121c26');
-    g.addColorStop(1, '#0a1119');
+    g.addColorStop(0, '#0c141d'); g.addColorStop(0.5, '#121c26'); g.addColorStop(1, '#0a1119');
     ctx.fillStyle = g; ctx.fillRect(0, 0, CW, CH);
-    // faint blueprint grid
-    ctx.strokeStyle = 'rgba(120,170,210,0.05)';
-    ctx.lineWidth = 1;
-    const step = 40;
+    ctx.strokeStyle = 'rgba(120,170,210,0.05)'; ctx.lineWidth = 1;
     ctx.beginPath();
-    for (let x = 0; x < CW; x += step) { ctx.moveTo(x, 0); ctx.lineTo(x, CH); }
-    for (let y = 0; y < CH; y += step) { ctx.moveTo(0, y); ctx.lineTo(CW, y); }
+    for (let x = 0; x < CW; x += 40) { ctx.moveTo(x, 0); ctx.lineTo(x, CH); }
+    for (let y = 0; y < CH; y += 40) { ctx.moveTo(0, y); ctx.lineTo(CW, y); }
     ctx.stroke();
-
-    cam.applyTransform(ctx);
-    const dpr = CW / (window.innerWidth || CW);
-    const wide = CW / dpr > 860;
-    const focus = wide ? sim.cutFocus : (sim.cutFocus === 'both' ? 'active' : sim.cutFocus);
-    for (const c of sim.cuts) {
-      if (focus === 'active' && c.passive) continue;
-      if (focus === 'passive' && !c.passive) continue;
-      c.labels = sim.showLabels;
-      c.ts = Math.min(2.4, dpr / Math.max(0.2, cam.zoom));
-      c.draw(ctx, sim.visTime);
-      c.title(ctx);
-    }
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.drawCutLegend(ctx, CW, CH);
     return undefined;
   }
@@ -101,10 +82,13 @@ export class Renderer {
     const dpr = CW / (window.innerWidth || CW);
     const cw = CW / dpr, ch = CH / dpr;
     const narrow = cw < 861;
-    const items = [
-      ['#2f7fd0', 'cold water'], ['#3fc2b4', 'normal 347 \u00b0C'], ['#e0a03c', 'hot'],
-      ['#ef3a22', 'fuel failing'], ['#d9e04a', 'hydrogen'],
-      ['#7fd0e4', 'air draught'], ['#ffd35c', 'electrical power']
+    const items = narrow ? [
+      ['#cf8038', 'reactor water'], ['#e8391f', 'overheating'],
+      ['#2f8ed6', 'water going in'], ['#cad642', 'hydrogen']
+    ] : [
+      ['#cf8038', 'reactor water 320 \u00b0C'], ['#e8391f', 'fuel overheating'],
+      ['#2f8ed6', 'cold water in'], ['#43bcd8', 'back to the reactor'],
+      ['#b7c6d2', 'steam'], ['#cad642', 'hydrogen'], ['#7fd0e4', 'air draught']
     ];
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -120,7 +104,7 @@ export class Renderer {
       x += w;
     }
     const h = rows.length * 17 + 8;
-    const baseY = ch - (narrow ? 128 : 78) - h;
+    const baseY = ch - (narrow ? 186 : 78) - h;
     ctx.fillStyle = 'rgba(8,13,19,0.72)';
     roundRect(ctx, left - 8, baseY, right - left + 16, h, 7);
     ctx.fill();

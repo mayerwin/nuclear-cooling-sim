@@ -69,7 +69,10 @@ export class UI {
     });
 
     // ---- toggles ----
-    $('#tgExplain').onchange = (e) => { this.sim.showLabels = e.target.checked; };
+    $('#tgExplain').onchange = (e) => {
+      this.sim.showLabels = e.target.checked;
+      if (this.sim.cutStage) this.sim.fitCut();
+    };
     $('#tgZones').onchange = (e) => this.sim.showZones = e.target.checked;
     $('#tgSabotage').onchange = (e) => {
       this.sim.sabotage = e.target.checked;
@@ -110,7 +113,7 @@ export class UI {
       if (v === 'cut') {
         const wide = window.innerWidth > 860;
         this.sim.cutFocus = wide ? 'both' : 'active';
-        this.sim.fitCut(true);
+        this.sim.fitCut();
         document.querySelectorAll('[data-cut]').forEach(x =>
           x.classList.toggle('on', x.dataset.cut === this.sim.cutFocus));
       }

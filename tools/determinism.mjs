@@ -28,13 +28,21 @@ const grab = () => page.evaluate(() => {
   return out;
 });
 
+const shot = async () => (await page.screenshot({ type: 'png' }));
+
 let bad = 0;
-async function check(label, setup) {
+async function check(label, setup, usePage) {
   await page.evaluate(setup);
   await page.waitForTimeout(900);
-  const a = await grab();
+  const a = usePage ? await shot() : await grab();
   await page.waitForTimeout(2600);
-  const b = await grab();
+  const b = usePage ? await shot() : await grab();
+  if (usePage) {
+    const same = a.length === b.length && a.equals(b);
+    if (!same) bad++;
+    console.log(`${same ? 'PASS' : 'FAIL'}  ${label}: frames ${same ? 'identical' : 'differ'}`);
+    return;
+  }
   let diff = 0, max = 0;
   for (let i = 0; i < a.length; i++) {
     const d = Math.abs(a[i] - b[i]);
@@ -57,9 +65,9 @@ await page.click('#viewSite');
 await page.click('#viewCut');
 await check('cutaway view, fully frozen', () => {
   const s = window.__sim;
-  s.speedIdx = 0; s.fitCut(true);
+  s.speedIdx = 0; s.fitCut();
   setTimeout(() => { s.update = () => { }; }, 400);
-});
+}, true);
 
 await browser.close();
 if (bad) { console.log(`\n${bad} check(s) failed`); process.exitCode = 1; }
