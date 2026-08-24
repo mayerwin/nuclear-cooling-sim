@@ -24,19 +24,24 @@ sits at 347 °C with a water level of 100% and nobody on site.
 **🏭 Site** — the isometric map: both stations, the coastline, the river, the town and the
 farmland downwind. This is where the hazard arrives and where the consequences land.
 
-**🔬 Cutaway** — both containments cut open, side by side, with the fluids moving. This is the
-one that answers *why*. You can watch the water level fall in the reactor vessel, the fuel
-bundles above the water line change colour as the cladding heats, bubbles rise as the core
-boils, hydrogen collect under the dome exactly where it explodes, and — under each section —
-an electrical spine (GRID → DIESEL → BATTERY → PUMPS) going dark link by link while the
-pumps that depend on it spin down.
+**🔬 Cutaway** — the circuit itself, drawn as a schematic, both plants side by side. This is
+the one that answers *why*. Each side shows the containment line, the reactor with its fuel
+bundle, the boiler above it, the pump, and the spare water — above the reactor on the passive
+unit, in the basement behind a pump on the active one. The water is drawn *inside* the
+reactor on the route it really takes: back down the outside of the core, across the bottom,
+and up through the fuel, which is where it turns from blue to orange. When the level drops
+below the top of the bundle the fuel goes grey → orange → red, and the headline under each
+title names the step that plant has reached.
 
-On the passive side the same clock runs and nothing stops: the PRHR heat exchanger keeps
-thermosiphoning into a 2,000-tonne tank sitting above the core, the core makeup tanks feed by
-gravity, and an evaporating water film and an air draught carry the heat out through the steel
-shell. **Every animated flow is read from the model on the step it computed the heat balance** —
-if a loop is moving on screen it is moving in the physics, and if it has stopped, the physics
-stopped it.
+Only one thing differs between the two drawings, and it is the whole argument: where the
+spare water sits and what has to work to get it into the reactor. On the passive side it is
+already above the core and falls in; on the active side it is in the basement and has to be
+pumped the full height of the building.
+
+The boiler is drawn above the reactor because that is where it is: hot water rises, cool water
+sinks, so the loop keeps turning after the pump stops. **Every animated flow is read from the
+model on the step it computed the heat balance** — if a loop is moving on screen it is moving
+in the physics, and if it has stopped, the physics stopped it.
 
 ---
 
@@ -97,6 +102,36 @@ about a minute of water, and then you need a running pump again.
 and run the same scenario. Unit B melts down too — faster than Unit A, since it has no
 steam-driven pump to fall back on. That toggle is in the UI precisely so the comparison can be
 falsified.
+
+## So when does passive cooling *not* work?
+
+Worth asking, and the simulator is built so you can check rather than take anyone's word.
+Run the scenarios and read the numbers off the clock:
+
+| What breaks | Passive unit | Active unit |
+|---|---|---|
+| Fukushima tsunami | still full at 80 h | fuel uncovered 9.6 h, vessel breached 11.0 h |
+| Station blackout, no operators | still full at 80 h | fuel uncovered 13.1 h, breached 14.6 h |
+| Beyond-design quake — **the pool above the reactor cracks and drains** | still full at 80 h | fuel uncovered 13.3 h, breached 14.8 h |
+| Everything at once — pool cracked **and** the passive heat exchanger broken | still full at 80 h | fuel uncovered 3.3 h, breached 4.5 h |
+| Everything at once, **and the containment breached** at 6 h | fuel uncovered 10.8 h, breached 12.3 h | already gone |
+| Everything at once, with *disable passive systems* on | fuel uncovered 2.8 h, breached 3.9 h | already gone |
+
+The cracked-tank case is the interesting one, and the answer is not the obvious one: it does
+not melt the reactor down. The water in that tank never leaves the building. It runs onto the
+containment floor, and the same gravity that would have drained the tank into the vessel now
+drains the floor into the vessel. What the core boils off condenses on the inside of the cold
+steel shell and runs back down. It is a closed loop, and the earthquake broke a component
+inside it, not the loop.
+
+So the honest failure list for the passive unit is short, and it is about the *loop*, not the
+kit: **lose the containment** and the water leaves as steam; **turn the passive systems off**
+and there is nothing driving it. Both are in the UI, both melt it down, and both are in the
+table above. Everything else on that list it rides out.
+
+The fractions of water assumed to come back each pass are a guess, stated as one in the
+fidelity ledger inside the app. They are what decides whether the passive unit rides out a
+total blackout for days or for weeks — not whether it rides it out at all.
 
 ## Controls
 

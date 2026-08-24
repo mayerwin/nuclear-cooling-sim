@@ -277,7 +277,14 @@ export class Plant {
         q += qp; qInside += qp;
         this.prhrRunning = qp > 0;
         sys.prhr = qp > 0 ? Math.max(0.35, Math.min(1, qp / (P0 * 0.02))) : 0;
-        this.irwst = Math.max(0, this.irwst - (qp / H_FG) * dt * 0.55);
+        // What the heat exchanger boils out of the pool does not leave the
+        // building. It condenses on the inside of the cold steel shell and the
+        // gutters take it back to the pool. That closed loop is the whole
+        // reason the passive plant is quoted in days rather than hours - and
+        // it is exactly what a breached containment takes away.
+        const boiled = (qp / H_FG) * dt * 0.55;
+        const back = this.ctmtIntact && this.pccs && !this.sabotaged ? boiled * 0.94 : 0;
+        this.irwst = Math.max(0, this.irwst - boiled + back);
         if (qp > 0) this.paths.push('PRHR HX - natural circulation');
       }
       // Core makeup tanks. Their discharge valves are fail-open air-operated
@@ -323,7 +330,11 @@ export class Plant {
             this.irwst -= used;
             this.ctmtSump += used * 0.75;      // most of it comes back down
           } else {
-            this.ctmtSump = Math.max(0, this.ctmtSump - 90 * dt * 0.12);
+            // same closed loop, one storey lower: injected water boils in the
+            // vessel, goes out of the depressurisation valves as steam,
+            // condenses on the shell and runs back to the floor. What is
+            // missing at any instant is the steam in flight, not water lost.
+            this.ctmtSump = Math.max(0, this.ctmtSump - 90 * dt * 0.02);
           }
           this.paths.push(fromPool
             ? 'Gravity injection from the pool'
@@ -341,6 +352,8 @@ export class Plant {
     // case: a Gen-III+ plant in a blackout is not using its steam generator at
     // all, it is dumping into the pool inside containment.
     sys.sink = sys.prhr > 0 ? 'pool' : (sys.feed || sys.aux || sys.rcic) ? 'turbine' : 'none';
+    // sys.pccs is not known until the containment balance further down; the
+    // shell can be the sink on its own, so the answer is finished there.
     this.qRemoved = q;
     this.coolingMargin = Pth > 0 ? clamp(q / Pth, 0, 2) : 2;
 
@@ -433,6 +446,10 @@ export class Plant {
       if (this.pccwst > 0) this.pccwst = Math.max(0, this.pccwst - dt * (ctmtRemoval / 2.3e6) * 0.6);
       this.paths.push(this.pccwst > 0
         ? 'PCCS - air draught + gravity water film' : 'PCCS - air-cooled only');
+      // With the pool gone the core still boils, the shell still condenses and
+      // the water still comes back. Calling that "no heat sink" was wrong: the
+      // sink is the outside air, through the steel.
+      if (sys.sink === 'none' && this.ctmtIntact && this.level > 0.45) sys.sink = 'shell';
     } else if (acPower && this.uhs) {
       ctmtRemoval = 34e6 * clamp((this.Tctmt - 315) / 40, 0, 1.4);
       sys.sprays = clamp((this.Tctmt - 315) / 40, 0.15, 1.4);
@@ -550,8 +567,12 @@ export class Plant {
     else if (this.level < 0.97) st = 'CORE UNCOVERING';
     else if (this.Tclad > 700) st = 'CORE HEATING UP';
     else if (!acPower) {
-      st = (P && this.coolingMargin >= 0.99 && !this.sabotaged)
-        ? 'SAFE - PASSIVE COOLING' : 'STATION BLACKOUT';
+      // Boiling water off and replacing it by gravity is cooling. The margin
+      // only measures heat taken out of the loop, so on its own it called a
+      // stable, full, covered core a blackout emergency.
+      const holding = this.coolingMargin >= 0.99
+        || (this.ctmtIntact && this.level > 0.97 && (sys.gravity || sys.cmt));
+      st = (P && holding && !this.sabotaged) ? 'SAFE - PASSIVE COOLING' : 'STATION BLACKOUT';
     } else if (!this.uhs && !P) st = 'ULTIMATE HEAT SINK LOST';
     else if (this.coolingMargin < 0.98) st = 'DEGRADED COOLING';
     else if (this.scrammed) {

@@ -119,16 +119,30 @@
         </ul>
       </div>
     </div>
+    <p class="fine"><b>And when is passive <i>not</i> enough?</b> Fair question, and it is
+      built in rather than argued away. Shake the plant hard enough and the pool above the
+      reactor cracks and drains — try <i>Beyond-Design Quake</i>. The reactor rides it out,
+      because the water lands on the containment floor and the same gravity feeds it straight
+      back in; what the core boils off condenses on the cold steel shell and runs back down.
+      It is a closed loop. So the two things that <i>do</i> finish it are the two that break
+      the loop: <b>losing the containment</b>, and <b>turning the passive systems off</b>.
+      Both are in the UI, both melt it down, and the numbers are on the clock.</p>
     <h3 class="ledgerHead">How to read the diagram</h3>
     <ul class="fine howto">
-      <li>Both plants are drawn as the <b>same five boxes</b>. Only one thing moves: where the
-        spare water sits.</li>
-      <li><b>Blue is water.</b> The grey block inside the reactor is <b>the fuel</b> — it turns
-        orange and then red as it overheats, and you can see when the water stops covering it.</li>
+      <li>Both plants are drawn <b>the same way</b>. Only one thing moves: where the spare
+        water sits — above the reactor on the right, in the basement on the left.</li>
+      <li>You can follow the water <b>inside</b> the reactor: it comes back cool down the side,
+        crosses the bottom, and goes <b>up through the fuel</b>, which is where it picks up the
+        heat and turns orange. That is the whole loop, drawn end to end.</li>
+      <li><b>Blue is water.</b> The grey block in the middle of the reactor is <b>the fuel</b> —
+        it turns orange and then red as it overheats, and you can see when the water stops
+        covering it.</li>
       <li><b>Moving dashes mean flow.</b> A dark, still pipe has nothing in it.</li>
-      <li>Watch what happens when the power goes: on the left everything stops, and the spare
-        water is at the bottom behind a pump. On the right the loop keeps moving, the pool takes
-        the heat, and the water is already above the core.</li>
+      <li>The boiler stands <b>above</b> the reactor on purpose. Hot water rises, cool water
+        sinks, so the loop keeps turning on its own once the pump stops.</li>
+      <li>Watch what happens when the power goes: on the left everything stops and the spare
+        water is in the basement behind a pump. On the right the loop keeps moving, the pool
+        takes the heat, and the water is already above the reactor.</li>
       <li>The line under each name is <b>the step it has reached</b> — heat is not getting out,
         losing water, fuel is uncovered, meltdown. Watch them separate.</li>
       <li>The Gen-III+ plant still has a pump. It runs the turbine and makes the electricity;
@@ -146,9 +160,11 @@
         that water.</td></tr>
       <tr><th>Scaled</th><td>Time: the AUTO clock compresses quiet hours up to 1800× and drops
         to near real time when a core is coming apart. The diagram is a <b>schematic, not a
-        scale drawing</b>: five boxes and the pipes between them. It shows what is connected to
-        what and what is moving, not how big anything is or where it sits in the building — the
-        site view is where the plant has a shape. Distance: one map tile is about 25&nbsp;m,
+        scale drawing</b>: a handful of boxes, the containment line around them, and the
+        pipes between. It shows what is connected to what and what is moving, not how big
+        anything is or where it sits in the building — the site view is where the plant has a
+        shape. The route drawn inside the reactor is the real one (down the outside, up through
+        the fuel), not the real proportions. Distance: one map tile is about 25&nbsp;m,
         so the contamination footprint is a schematic of the plume, not a dispersion
         calculation. The site is staged for the camera rather than laid out to a real plant plan.</td></tr>
       <tr><th>Assumed</th><td>Both units are 3,400&nbsp;MW thermal so the comparison is
@@ -157,16 +173,22 @@
         steel shell cooled by air and an evaporating film. 8&nbsp;h of battery against a 72&nbsp;h
         gravity tank. <b>The passive plant is not invulnerable here</b>: past about 1.5×
         the seismic design basis the in-containment pool cracks and leaks, and past about 2.5×
-        the heat-exchanger line fails as well — try Beyond-Design Quake and Everything At Once
-        and watch the right-hand side degrade.</td></tr>
+        the heat-exchanger line fails as well. Neither on its own melts it down, because the
+        water is still inside the containment and gravity puts it back; what does melt it down
+        is losing the containment, or turning the passive kit off. Try Beyond-Design Quake,
+        Everything At Once and the <b>disable passive systems</b> toggle and watch which one
+        actually breaks it.</td></tr>
       <tr><th>Faked</th><td>The consequence figures (land, evacuees, cost, latent cancers) are
         scaling laws fitted to <b>two</b> data points — Fukushima ≈15&nbsp;PBq and Chernobyl
         ≈85&nbsp;PBq. They are the right order of magnitude and nothing more. The latent-cancer
         number is a straight LNT extrapolation, shown because people ask for it, not because the
         model believes it precisely. The tsunami inundation is cinematic, not hydrodynamic.
-        And the fraction of recirculated water that fails to come back each pass is a guess — it
-        is what sets that 55&nbsp;h figure. With a perfectly closed containment the number would
-        be far larger; with a leakier one, far smaller.</td></tr>
+        The condensate loop — water boiled off inside the containment condenses on the
+        cold steel shell and drains back to the pool and the floor — is modelled as closed but
+        not perfect: 6% of what the heat exchanger boils, and 2% of each recirculation pass, is
+        treated as held up and not returned. Those two fractions are a guess, and they are what
+        decides whether the passive unit rides out a total blackout for days or for weeks. With
+        a perfectly closed containment it never runs out; with a leaky one it fails in hours.</td></tr>
     </table>
     <p class="fine">Not convinced the passive kit is what does the work? Turn on
       <b>Disable passive systems</b> and run the same scenario: Unit B melts down too, and faster
