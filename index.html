@@ -127,8 +127,12 @@
         <b>Blue is water going in.</b></li>
       <li><b>Moving dashes mean flow.</b> A dark, still pipe has nothing in it.</li>
       <li>Watch what happens when the power goes: on the left everything stops, and the spare
-        water is at the bottom behind a pump. On the right the loop keeps moving and the water is
-        already above the core.</li>
+        water is at the bottom behind a pump. On the right the loop keeps moving, the pool takes
+        the heat, and the water is already above the core.</li>
+      <li>The line under each name is <b>the step it has reached</b> — heat is not getting out,
+        losing water, fuel is uncovered, meltdown. Watch them separate.</li>
+      <li>The Gen-III+ plant still has a pump. It runs the turbine and makes the electricity;
+        nothing safety-related depends on it, which is why it can just stop.</li>
     </ul>
     <h3 class="ledgerHead">What is real here, and what is not</h3>
     <p class="fine">Half the value of a simulation is knowing which numbers to trust. So:</p>
@@ -151,7 +155,10 @@
         like-for-like. The Gen-II unit is a large dry PWR containment; a Mark-I BWR is a harder
         case. The Gen-III+ unit is AP1000-class: PRHR, CMTs, ADS, IRWST gravity injection and a
         steel shell cooled by air and an evaporating film. 8&nbsp;h of battery against a 72&nbsp;h
-        gravity tank.</td></tr>
+        gravity tank. <b>The passive plant is not invulnerable here</b>: past about 1.5×
+        the seismic design basis the in-containment pool cracks and leaks, and past about 2.5×
+        the heat-exchanger line fails as well — try Beyond-Design Quake and Everything At Once
+        and watch the right-hand side degrade.</td></tr>
       <tr><th>Faked</th><td>The consequence figures (land, evacuees, cost, latent cancers) are
         scaling laws fitted to <b>two</b> data points — Fukushima ≈15&nbsp;PBq and Chernobyl
         ≈85&nbsp;PBq. They are the right order of magnitude and nothing more. The latent-cancer
@@ -160,8 +167,9 @@
     </table>
     <p class="fine">Not convinced the passive kit is what does the work? Turn on
       <b>Disable passive systems</b> and run the same scenario: Unit B melts down too, and faster
-      than Unit A, because it has no steam-driven pump to fall back on. That toggle is in the UI
-      so the comparison can be falsified.</p>
+      than Unit A, because it has no steam-driven pump to fall back on. The severe seismic
+      scenarios damage it without any toggle at all. Both are in the UI so the comparison can be
+      falsified rather than just asserted.</p>
     <button class="btn primary big" id="startBtn">Start the simulator</button>
   </div>
 </div>

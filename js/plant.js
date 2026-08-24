@@ -98,6 +98,7 @@ export class Plant {
     // --- passive systems ---
     this.prhr = P;
     this.prhrOk = true;
+    this.irwstCracked = false;
     this.prhrRunning = false;
     this.cmtLevel = P ? 1 : 0;
     this.accumLevel = 1;
@@ -187,7 +188,7 @@ export class Plant {
     // can never disagree with the model.
     const sys = this.sys = {
       rcp: 0, natCirc: 0, feed: 0, aux: 0, rcic: 0, prhr: 0, cmt: 0,
-      accum: 0, gravity: 0, sprays: 0, pccs: 0, film: 0, boil: 0,
+      accum: 0, gravity: 0, sprays: 0, pccs: 0, film: 0, boil: 0, sink: 'none',
       ads: false, vent: false, grid: false, diesel: false, battery: 0
     };
     let q = 0;          // W removed from the primary system
@@ -247,6 +248,20 @@ export class Plant {
       this.paths.push('Accumulators (passive, ~1 min of water)');
     }
 
+    // Ground motion well past the design basis is not something the label
+    // "passive" protects you from. The pool and the PRHR line are Seismic
+    // Category I, but qualification has a number on it, and past that number
+    // these are just a tank and a pipe.
+    if (P && this.quakeDamage >= 0.30 && !this.irwstCracked) {
+      this.irwstCracked = true;
+      this.log('Ground motion cracks the in-containment pool - it is losing water', 'crit');
+    }
+    if (P && this.quakeDamage >= 0.55 && this.prhrOk) {
+      this.prhrOk = false;
+      this.log('PRHR heat-exchanger line fails on the shaking - no passive heat path', 'crit');
+    }
+    if (P && this.irwstCracked) this.irwst = Math.max(0, this.irwst - 26 * dt);
+
     if (P && !this.sabotaged) {
       // PRHR heat exchanger: natural circulation to the in-containment tank.
       // Its isolation valve is fail-open, so *losing* power starts it.
@@ -260,12 +275,20 @@ export class Plant {
         this.irwst = Math.max(0, this.irwst - (qp / H_FG) * dt * 0.55);
         if (qp > 0) this.paths.push('PRHR HX - natural circulation');
       }
-      // Core makeup tanks: gravity + pressure balance, no pump involved
-      if (this.cmtLevel > 0 && (this.water < RPV_WATER * 0.94 || this.pRPV < 12)) {
-        inject += 26;
-        sys.cmt = 1;
-        this.cmtLevel = Math.max(0, this.cmtLevel - dt / 4200);
-        this.paths.push('Core makeup tanks (gravity)');
+      // Core makeup tanks. Their discharge valves are fail-open air-operated
+      // valves: losing power OPENS them, so in a blackout the tanks come into
+      // service immediately. While the loop is still full they recirculate -
+      // cold water down the injection line, hot water up the balance line -
+      // and only drain in earnest once the loop is actually losing inventory.
+      const cmtOpen = !acPower || this.water < RPV_WATER * 0.94 || this.pRPV < 12;
+      const cmtDraining = this.water < RPV_WATER * 0.97 || this.pRPV < 12;
+      if (this.cmtLevel > 0 && cmtOpen) {
+        inject += cmtDraining ? 26 : 5;
+        sys.cmt = cmtDraining ? 1 : 0.35;
+        this.cmtLevel = Math.max(0, this.cmtLevel - dt / (cmtDraining ? 4200 : 34000));
+        this.paths.push(cmtDraining
+          ? 'Core makeup tanks draining into the vessel (gravity)'
+          : 'Core makeup tanks in service, recirculating (gravity)');
       }
       // Automatic depressurisation, then gravity injection
       if (!this.adsFired && (this.water < RPV_WATER * 0.72 || this.cmtLevel < 0.4)) {
@@ -290,6 +313,10 @@ export class Plant {
       this.paths.push('PASSIVE SYSTEMS DISABLED (what-if)');
     }
 
+    // Where the heat is actually going, which is not the same box in every
+    // case: a Gen-III+ plant in a blackout is not using its steam generator at
+    // all, it is dumping into the pool inside containment.
+    sys.sink = sys.prhr > 0 ? 'pool' : (sys.feed || sys.aux || sys.rcic) ? 'turbine' : 'none';
     this.qRemoved = q;
     this.coolingMargin = Pth > 0 ? clamp(q / Pth, 0, 2) : 2;
 
