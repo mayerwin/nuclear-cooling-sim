@@ -8,11 +8,11 @@
 <meta name="theme-color" content="#0a1018" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230e1a24'/%3E%3Cg fill='%2364e08a'%3E%3Ccircle cx='32' cy='32' r='6'/%3E%3Cpath d='M32 8a24 24 0 0 1 20.8 12L38 28.5A10 10 0 0 0 32 26z'/%3E%3Cpath d='M52.8 44A24 24 0 0 1 32 56V38.5a10 10 0 0 0 5.2-1.4z'/%3E%3Cpath d='M11.2 44A24 24 0 0 1 11.2 20L26 28.5a10 10 0 0 0 0 7z'/%3E%3C/g%3E%3C/svg%3E" />
 <link rel="stylesheet" href="css/style.css" />
+<script src="vendor/joint.min.js"></script>
 </head>
 <body>
 <canvas id="stage"></canvas>
-<div id="cutwrap"><svg id="cutstage" aria-hidden="true"
-     preserveAspectRatio="xMidYMid meet"></svg></div>
+<div id="cutwrap"><div id="cutstage" aria-hidden="true"></div></div>
 
 <!-- ======================= TOP BAR ======================= -->
 <header id="topbar">
@@ -119,31 +119,16 @@
         </ul>
       </div>
     </div>
-    <h3 class="ledgerHead">How to read the cutaway</h3>
-    <p class="fine">The <b>Cutaway</b> view is a process mimic, drawn the way a control room draws
-      one. Both sections are the same drawing wherever the two designs agree, so you can put them
-      side by side and difference them by eye.</p>
+    <h3 class="ledgerHead">How to read the diagram</h3>
     <ul class="fine howto">
-      <li><b>Quiet means normal.</b> Colour is spent on things that have gone wrong, so a section
-        that stays grey and blue is a section that is fine.</li>
-      <li><b>Both sections are the same drawing.</b> Anything present on one and absent on the
-        other is the comparison: the Gen-III+ unit's pool, heat exchanger, gravity tanks and roof
-        tank have no counterpart on the left.</li>
-      <li><b>Warm means the reactor's own water</b> (320&nbsp;°C, going red as the fuel
-        overheats); <b>blue means water going in</b> — injection, the secondary side, the pools.
-        That is the convention every PWR diagram uses, not a single temperature scale.</li>
-      <li><b>Drawn to scale, with people on the operating deck for it.</b> The steam generator
-        really is about half as tall again as the reactor vessel, and the two plants really are
-        different sizes — the Gen-III+ core is 14&nbsp;ft where the Gen-II core is 12.</li>
-      <li><b>The green bar is the argument.</b> It measures the water sitting above the fuel that
-        can reach it without a pump. On the Gen-III+ unit that is a real distance. On the Gen-II
-        unit there is none: its tank is outside the building, behind a pump.</li>
-      <li><b>Each section shows one coolant loop of four (or of two)</b>, which is how a section
-        through a reactor building works. It is written on the drawing.</li>
-      <li><b>Dashes moving along a pipe mean flow</b>, and which way. A dark, still pipe has
-        nothing in it.</li>
-      <li><b>The scale beside the reactor is the water level</b>, with the bottom and top of the
-        fuel marked. It turns red the moment the water drops past the fuel.</li>
+      <li>Both plants are drawn as the <b>same five boxes</b>. Only one thing moves: where the
+        spare water sits.</li>
+      <li><b>Orange is the reactor's own water</b>, going red as the fuel overheats.
+        <b>Blue is water going in.</b></li>
+      <li><b>Moving dashes mean flow.</b> A dark, still pipe has nothing in it.</li>
+      <li>Watch what happens when the power goes: on the left everything stops, and the spare
+        water is at the bottom behind a pump. On the right the loop keeps moving and the water is
+        already above the core.</li>
     </ul>
     <h3 class="ledgerHead">What is real here, and what is not</h3>
     <p class="fine">Half the value of a simulation is knowing which numbers to trust. So:</p>

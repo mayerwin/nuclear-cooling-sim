@@ -62,17 +62,13 @@ export class Sim {
 
   // The cutaway has its own camera: two cross-sections side by side on a wide
   // screen, one at a time on a phone.
-  // The SVG cutaway fits itself with its viewBox; this just tells it which
-  // sections to show and how wide to be.
+  // The schematic fits itself; this just says which circuits to show.
   fitCut() {
     if (!this.cutStage) return;
     const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
     const wide = this.cutCam.w / dpr > 860;
-    // On a phone the gutters would shrink the drawing to a thumbnail, so the
-    // captions come off and the building gets the whole screen.
     this.cutStage.setFocus(wide ? this.cutFocus
-      : (this.cutFocus === 'both' ? 'active' : this.cutFocus),
-      wide && this.showLabels);
+      : (this.cutFocus === 'both' ? 'active' : this.cutFocus));
   }
 
   setView(v) {
@@ -90,9 +86,9 @@ export class Sim {
     this.passive = new Plant(MODE.PASSIVE, 'Unit B — Passive Cooling (Gen III+)');
     this.plants = [this.active, this.passive];
     this.views = [new PlantView(this.active, s.active), new PlantView(this.passive, s.passive)];
-    const svg = typeof document !== 'undefined' && document.getElementById('cutstage');
-    if (svg) {
-      this.cutStage = new CutStage(svg);
+    const host = typeof document !== 'undefined' && document.getElementById('cutstage');
+    if (host) {
+      this.cutStage = new CutStage(host);
       this.cutStage.build(this.plants);
       this.fitCut();
     }

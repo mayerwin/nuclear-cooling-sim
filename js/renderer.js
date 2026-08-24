@@ -83,12 +83,12 @@ export class Renderer {
     const cw = CW / dpr, ch = CH / dpr;
     const narrow = cw < 861;
     const items = narrow ? [
-      ['#cf8038', 'reactor water'], ['#e8391f', 'overheating'],
-      ['#2f8ed6', 'water going in'], ['#cad642', 'hydrogen']
+      ['#e07a3c', 'reactor water'], ['#e8391f', 'overheating'],
+      ['#2f8ed6', 'water going in'], ['#ffd35c', 'electricity']
     ] : [
-      ['#cf8038', 'reactor water 320 \u00b0C'], ['#e8391f', 'fuel overheating'],
-      ['#2f8ed6', 'cold water in'], ['#43bcd8', 'back to the reactor'],
-      ['#b7c6d2', 'steam'], ['#cad642', 'hydrogen'], ['#7fd0e4', 'air draught']
+      ['#e07a3c', 'the reactor\u2019s own water'], ['#e8391f', 'fuel overheating'],
+      ['#2f8ed6', 'water going in'], ['#3fc0d8', 'water coming back'],
+      ['#b7c6d2', 'heat leaving'], ['#ffd35c', 'electricity']
     ];
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
