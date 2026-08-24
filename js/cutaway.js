@@ -319,6 +319,27 @@ Section.prototype.build = function (root, defs) {
     stroke: P_ ? '#9fb3c2' : C.liner, 'stroke-width': P_ ? 0.34 : 0.24 });
   el(this.L.back, 'rect', { x: X(cx - ro), y: Y(G.floor), width: ro * 2, height: G.floor + 1.4,
     fill: '#3b3936' });
+  // the failure states, drawn rather than captioned
+  this.r.blown = el(this.L.front, 'g', { opacity: 0 });
+  {   // sky through a torn-open dome
+    const seed = this.passive ? 7 : 3, pts = [];
+    for (let i = 0; i <= 12; i++) {
+      const u = cx - ro + (ro * 2) * (i / 12);
+      let h = Math.imul(i + 1, 374761393) ^ Math.imul(seed, 668265263);
+      h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
+      pts.push([u, G.spring + 1.4 + ((h >>> 16) / 65536) * 4.2]);
+    }
+    const tear = 'M' + pts.map(q => `${X(q[0])},${Y(q[1])}`).join(' L ');
+    const cover = tear
+      + ` L${X(cx + ro + 1)},${Y(G.spring + G.domeRy + 11)}`
+      + ` L${X(cx - ro - 1)},${Y(G.spring + G.domeRy + 11)} Z`;
+    el(this.r.blown, 'path', { d: cover, fill: '#0b111a' });
+    el(this.r.blown, 'path', { d: tear, fill: 'none', stroke: '#8b8579',
+      'stroke-width': 0.6, 'stroke-linejoin': 'round' });
+    el(this.r.blown, 'path', { d: tear, fill: 'none', stroke: 'rgba(255,130,70,.55)',
+      'stroke-width': 0.24 });
+  }
+  this.r.sabotage = el(this.L.anno, 'g', { opacity: 0 });
 
   // containment atmosphere: steam haze, then hydrogen stratifying under the dome
   const ag = el(this.L.atmo, 'g', { 'clip-path': `url(#atmo${this.key})` });
@@ -555,6 +576,13 @@ Section.prototype.buildKit = function () {
     el(this.L.wall, 'path', { d: tdp, fill: 'none', stroke: C.steel, 'stroke-width': 0.3 });
     this.liquid('cT' + this.key, X(t0), t1 - t0, 'pccs');
     this.pccs = { base: tb, top: tt };
+    for (const [qx, qy] of [[i0 + 4.6, ib + 4.2], [cx - 6.4, this.cmtTop - 3],
+      [cx + 8.2, this.accTop - 3], [i0 + 1.4, 12.0]]) {
+      const QX = X(qx), QY = Y(qy), r2 = 1.5;
+      el(this.r.sabotage, 'path', {
+        d: `M${QX - r2},${QY - r2} L${QX + r2},${QY + r2} M${QX + r2},${QY - r2} L${QX - r2},${QY + r2}`,
+        stroke: C.bad, 'stroke-width': 0.5, 'stroke-linecap': 'round' });
+    }
     // the evaporating film running down the outside of the steel shell
     this.r.film = [];
     for (let i = 0; i < 10; i++)
@@ -665,7 +693,14 @@ Section.prototype.update = function (t) {
   this.setLevel('rpv', surf, R.base, tempColor(wet));
   const uncovered = surf < G.core.z1;
   const rodCol = !uncovered ? '#cfd9e1' : tempColor(p.Tclad);
-  for (const rod of this.r.rods) rod.setAttribute('fill', rodCol);
+  // fuel that has melted is no longer standing there: the bundle slumps
+  const slump = clamp(p.meltFrac, 0, 1);
+  const rodH = G.core.h * (1 - 0.72 * slump);
+  for (const rod of this.r.rods) {
+    rod.setAttribute('fill', rodCol);
+    rod.setAttribute('y', Y(G.core.z0 + rodH));
+    rod.setAttribute('height', rodH);
+  }
   this.r.glow.setAttribute('opacity',
     uncovered && p.Tclad > 680 ? clamp((p.Tclad - 680) / 900, 0, 0.85) : 0);
   this.r.corium.setAttribute('opacity', p.vesselBreach ? 0.55 + 0.35 * p.mcci : 0);
@@ -799,8 +834,11 @@ Section.prototype.update = function (t) {
   const T = p.Tclad - 273;
   this.setTag('tCore', `core ${T.toFixed(0)} °C`, T > 800 ? 'bad' : T > 360 ? 'warn' : 'ok');
   this.setTag('tCirc', flow > 0 && !s.rcp ? 'natural circulation' : '', 'ok');
-  this.setTag('tPump', s.rcp ? '' : (this.passive ? 'pumps off — not needed' : 'PUMPS STOPPED'),
-    this.passive ? 'ok' : 'bad');
+  // "not needed" is only true while the passive plant is actually coping; once
+  // it is not, the caption must stop reassuring the reader
+  const coping = this.passive && p.coolingMargin >= 0.99 && p.coreDamage < 0.01;
+  this.setTag('tPump', s.rcp ? '' : (coping ? 'pumps off — not needed' : 'PUMPS STOPPED'),
+    coping ? 'ok' : 'bad');
   this.setTag('tCorium', p.vesselBreach ? 'corium on the basemat' : '', 'bad');
   this.setTag('tCtmt', p.explosions > 0 || p.rupturedByPower ? 'CONTAINMENT BLOWN OPEN'
     : !p.ctmtIntact ? 'CONTAINMENT FAILED' : (h2 > 60 ? `hydrogen ${h2 | 0} kg` : ''), 'bad');
@@ -823,6 +861,8 @@ Section.prototype.update = function (t) {
   this.r.stateBg.setAttribute('fill', good ? 'rgba(10,40,26,.9)' : 'rgba(60,14,10,.92)');
   this.r.stateTx.setAttribute('fill', good ? C.ok : '#ff9c88');
   this.r.liner.setAttribute('stroke', p.ctmtIntact ? (this.passive ? '#9fb3c2' : C.liner) : C.bad);
+  this.r.blown.setAttribute('opacity', p.explosions > 0 || p.rupturedByPower ? 1 : 0);
+  this.r.sabotage.setAttribute('opacity', p.sabotaged ? 1 : 0);
   this.layoutTags();
 };
 
