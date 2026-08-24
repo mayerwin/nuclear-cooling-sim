@@ -31,25 +31,44 @@ import { MODE } from './plant.js';
 const NS = 'http://www.w3.org/2000/svg';
 
 // ---- geometry, metres ------------------------------------------------------
-export const GEO = {
-  gnd: 52,              // svg-y of elevation zero
-  cx: 50,               // section centre
-  rin: 19.5, wall: 1.15,
-  floor: 2.0, spring: 28.5, domeRy: 12.5,
-  deck: 17.4,
-  rpv:  { dx: -12.5, r: 2.2, base: 5.0, cyl: 7.2, head: 1.9 },
-  core: { up: 2.4, h: 3.66 },
-  sg:   { dx: 2.0, base: 9.0, rl: 1.75, ru: 2.35, hLow: 8.4, hCone: 2.3, hUp: 5.8 },
-  przr: { dx: 13.5, base: 13.5, r: 1.2, h: 10.2 },
-  hotZ: 11.6, coldZ: 8.2
-};
-GEO.rpv.cylTop = GEO.rpv.base + GEO.rpv.r + GEO.rpv.cyl;
-GEO.rpv.top    = GEO.rpv.cylTop + GEO.rpv.head;
-GEO.core.z0    = GEO.rpv.base + GEO.core.up;
-GEO.core.z1    = GEO.core.z0 + GEO.core.h;
-GEO.sg.yCone   = GEO.sg.base + GEO.sg.rl + GEO.sg.hLow;
-GEO.sg.yUp     = GEO.sg.yCone + GEO.sg.hCone;
-GEO.sg.yTop    = GEO.sg.yUp + GEO.sg.hUp;
+// Per design, because the two machines are not the same size and drawing them
+// from one set of constants erases real differences. Figures from the NRC
+// Westinghouse Technology Systems Manual (ML11223A213, ML11223A212) and the
+// AP1000 design certification material (NUREG-1793 Ch.5; NRC HRTD R107P
+// ML11221A083).
+const COMMON = { gnd: 58, cx: 50, floor: 2.0, deck: 17.4, spring: 36, domeRy: 13, crane: 34.0 };
+
+export function makeGeo(passive) {
+  const G = Object.assign({}, COMMON, passive ? {
+    // AP1000
+    rin: 19.8, wall: 0.55, steelShell: true,
+    rpv:  { dx: -12.8, r: 2.25, base: 4.2, cyl: 7.9, head: 2.05 },
+    core: { up: 2.4, h: 4.27, halfW: 1.52 },          // 14 ft fuel, 157 assemblies
+    sg:   { dx: 2.6, base: 7.0, rl: 2.1, ru: 3.0, hLow: 9.4, hCone: 2.6, hUp: 6.6 },
+    przr: { dx: -1.4, base: 18.5, r: 1.27, h: 10.24 },  // 100 in x 503 in
+    // AP1000 puts the inlet (cold) nozzle ABOVE the outlet, offset 17.5 in, so
+    // the loop can be drained to mid-loop with the pumps in place
+    hotZ: 14.4, coldZ: 14.84, hotD: 0.79, coldD: 0.56, loops: 2
+  } : {
+    // Westinghouse 4-loop, large dry containment
+    rin: 21.35, wall: 1.15, steelShell: false,
+    rpv:  { dx: -13.4, r: 2.42, base: 4.2, cyl: 8.4, head: 2.1 },
+    core: { up: 2.6, h: 3.66, halfW: 1.68 },          // 12 ft fuel, 193 assemblies
+    sg:   { dx: 3.0, base: 8.0, rl: 1.9, ru: 2.44, hLow: 8.4, hCone: 2.3, hUp: 5.9 },
+    przr: { dx: -1.6, base: 18.5, r: 1.145, h: 13.1 }, // 90 in x 607 in
+    hotZ: 15.2, coldZ: 14.0, hotD: 0.74, coldD: 0.70, loops: 4,
+    xoverD: 0.79
+  });
+  G.rpv.cylTop = G.rpv.base + G.rpv.r + G.rpv.cyl;
+  G.rpv.top    = G.rpv.cylTop + G.rpv.head;
+  G.core.z0    = G.rpv.base + G.rpv.r + G.core.up;
+  G.core.z1    = G.core.z0 + G.core.h;
+  G.sg.yCone   = G.sg.base + G.sg.rl + G.sg.hLow;
+  G.sg.yUp     = G.sg.yCone + G.sg.hCone;
+  G.sg.yTop    = G.sg.yUp + G.sg.hUp;
+  return G;
+}
+export const GEO = makeGeo(false);
 
 const Y = m => GEO.gnd - m;
 
@@ -121,6 +140,7 @@ export class Section {
     this.ox = ox;                                   // metres, section offset
     this.passive = plant.mode === MODE.PASSIVE;
     this.key = this.passive ? 'p' : 'a';
+    this.G = makeGeo(this.passive);
     this.r = {};                                    // live element references
   }
   x(m) { return this.ox + m; }                      // section-local -> world
@@ -288,7 +308,7 @@ Section.prototype.build = function (root, defs) {
   this.L = {};
   for (const k of ['back', 'atmo', 'shell', 'fluid', 'intern', 'wall', 'pipe', 'ext', 'front', 'anno'])
     this.L[k] = el(root, 'g', { class: 'cl-' + k });
-  const G = GEO, X = m => this.x(m), P_ = this.passive;
+  const G = this.G, X = m => this.x(m), P_ = this.passive;
   const cx = G.cx, rin = G.rin, ro = rin + G.wall;
 
   // ---- the building ------------------------------------------------------
@@ -364,16 +384,18 @@ Section.prototype.build = function (root, defs) {
   this.liquid('cR' + this.key, X(rx - R.r), R.r * 2, 'rpv');
   // the fuel: the single most important object in the drawing
   const fg = el(this.L.intern, 'g', { 'clip-path': `url(#cR${this.key})` });
-  el(fg, 'rect', { x: X(rx - 2.0), y: Y(G.core.z1), width: 4.0, height: G.core.h, fill: '#1b2732' });
+  el(fg, 'rect', { x: X(rx - G.core.halfW), y: Y(G.core.z1), width: G.core.halfW * 2,
+    height: G.core.h, fill: '#1b2732' });
   this.r.rods = [];
   for (let i = -4; i <= 4; i++)
-    this.r.rods.push(el(fg, 'rect', { x: X(rx + i * 0.44 - 0.17), y: Y(G.core.z1),
-      width: 0.34, height: G.core.h, fill: '#cfd9e1', stroke: '#20303e', 'stroke-width': 0.06 }));
+    this.r.rods.push(el(fg, 'rect', { x: X(rx + i * (G.core.halfW / 4.6) - 0.15),
+      y: Y(G.core.z1), width: 0.3, height: G.core.h, fill: '#cfd9e1', stroke: '#20303e',
+      'stroke-width': 0.06 }));
   for (const zz of [G.core.z0, G.core.z1])
-    el(fg, 'rect', { x: X(rx - 2.05), y: Y(zz) - 0.19, width: 4.1, height: 0.38,
-      fill: '#8f9ba5', stroke: '#dde6ee', 'stroke-width': 0.06 });
-  this.r.glow = el(fg, 'rect', { x: X(rx - 2.05), y: Y(G.core.z1), width: 4.1, height: G.core.h,
-    fill: 'url(#cutGlow)', opacity: 0 });
+    el(fg, 'rect', { x: X(rx - G.core.halfW), y: Y(zz) - 0.19, width: G.core.halfW * 2,
+      height: 0.38, fill: '#8f9ba5', stroke: '#dde6ee', 'stroke-width': 0.06 });
+  this.r.glow = el(fg, 'rect', { x: X(rx - G.core.halfW), y: Y(G.core.z1),
+    width: G.core.halfW * 2, height: G.core.h, fill: 'url(#cutGlow)', opacity: 0 });
   this.r.corium = el(this.L.intern, 'ellipse', { cx: X(rx), cy: Y(G.floor + 0.3), rx: 3, ry: 0.9,
     fill: '#e2621f', opacity: 0 });
   this.r.breach = el(this.L.wall, 'path', { d: `M${X(rx - 1.1)},${Y(R.base)} L${X(rx + 1.1)},${Y(R.base)}`,
@@ -425,26 +447,65 @@ Section.prototype.build = function (root, defs) {
 // the primary loop, the power cycle, and the floor everyone stands on
 // ---------------------------------------------------------------------------
 Section.prototype.buildLoop = function () {
-  const G = GEO, R = G.rpv, S = G.sg, Z = G.przr, cx = G.cx;
+  const G = this.G, R = G.rpv, S = G.sg, Z = G.przr, cx = G.cx;
   const rx = this.rx, sx = this.sx, zx = this.zx, X = m => this.x(m);
-  // hot leg: vessel outlet nozzle to the steam generator channel head
-  this.pipe([[R.dx + cx + R.r - 0.2, G.hotZ], [sx - S.rl + 0.3, G.hotZ],
-    [sx - S.rl + 0.3, S.base + 1.4]], 1.0, 'hot');
-  // cold leg: channel head, through the pump, back into the vessel
-  this.pumpX = rx + R.r + 4.4;
-  this.pipe([[sx + S.rl - 0.3, S.base + 1.4], [sx + S.rl - 0.3, G.coldZ],
-    [rx + R.r - 0.2, G.coldZ]], 1.0, 'cold');
-  this.pump(this.pumpX, G.coldZ, 'rcp');
-  // surge line
-  this.pipe([[zx, Z.base + 0.5], [zx, G.hotZ], [sx + 3.4, G.hotZ]], 0.42, 'surge');
-  // power cycle: steam out, feedwater back. Same on both plants - the
-  // difference between the two designs is not here.
+  const chan = S.base + S.rl;                 // steam generator channel head
+
+  if (this.passive) {
+    // AP1000: the reactor coolant pumps are canned-motor units bolted straight
+    // to the bottom of the steam generator channel head - two per generator.
+    // There is no crossover leg, no pump seal, and nothing for a seal LOCA to
+    // happen to. That arrangement IS the design's signature.
+    this.pipe([[rx + R.r - 0.2, G.hotZ], [sx - S.rl - 1.4, G.hotZ],
+      [sx - S.rl - 1.4, chan], [sx - S.rl + 0.3, chan]], G.hotD, 'hot');
+    this.pumpX = sx - 1.35;
+    this.pump(sx - 1.35, S.base - 0.9, 'rcp');
+    this.pump(sx + 1.35, S.base - 0.9, 'rcp2');
+    this.pipe([[sx - 1.35, S.base - 2.1], [sx - 1.35, G.coldZ - 2.4],
+      [rx + R.r + 3.2, G.coldZ - 2.4], [rx + R.r + 3.2, G.coldZ],
+      [rx + R.r - 0.2, G.coldZ]], G.coldD, 'cold');
+    this.pipe([[sx + 1.35, S.base - 2.1], [sx + 1.35, G.coldZ - 4.0],
+      [rx + R.r + 1.6, G.coldZ - 4.0]], G.coldD, 'cold2');
+  } else {
+    // Westinghouse loop: hot leg to the inlet plenum, then a crossover leg that
+    // dips below the top of the fuel - the loop seal - into the pump suction,
+    // then the cold leg back to the vessel. The dip is not decoration: it is
+    // why small-break behaviour in these plants is what it is.
+    this.pipe([[rx + R.r - 0.2, G.hotZ], [sx - S.rl - 1.2, G.hotZ],
+      [sx - S.rl - 1.2, chan], [sx - S.rl + 0.3, chan]], G.hotD, 'hot');
+    this.pumpX = cx + 10.2;
+    const seal = G.core.z1 - 2.6;             // below the top of the active fuel
+    this.pipe([[sx + S.rl - 0.3, chan], [sx + S.rl + 1.4, chan],
+      [sx + S.rl + 1.4, seal], [this.pumpX, seal], [this.pumpX, 7.6]],
+      G.xoverD, 'xover');
+    this.pump(this.pumpX, 8.9, 'rcp');
+    this.pipe([[this.pumpX, 10.2], [this.pumpX, G.coldZ],
+      [rx + R.r - 0.2, G.coldZ]], G.coldD, 'cold');
+  }
+  // the surge line has to land on a hot leg, which is where the pressuriser
+  // actually hangs
+  this.pipe([[zx, Z.base + 0.5], [zx, G.hotZ]], 0.42, 'surge');
+
+  // nozzles on the vessel belt
+  for (const z of [G.hotZ, G.coldZ])
+    el(this.L.wall, 'rect', { x: X(rx + R.r - 0.5), y: Y(z + 0.5), width: 1.1, height: 1.0,
+      fill: '#8b96a0', stroke: '#c2ccd5', 'stroke-width': 0.08 });
+  // Direct vessel injection. Everything that puts water back into the core -
+  // accumulators, makeup tanks, the pool - arrives at this one nozzle, into the
+  // downcomer above the fuel. Drawing it as one address is the honest shape.
+  this.dvi = { z: G.core.z1 + 1.6, x: rx - R.r };
+  el(this.L.wall, 'rect', { x: X(rx - R.r - 0.6), y: Y(this.dvi.z + 0.42), width: 1.1,
+    height: 0.84, fill: '#8b96a0', stroke: '#c2ccd5', 'stroke-width': 0.08 });
+
+  // power cycle: steam out, feedwater back. The same on both plants, because
+  // the difference between the designs is not here.
   this._into = 'ext';
-  this.pipe([[sx, S.yTop + 0.2], [sx, S.yTop + 2.6], [cx + G.rin + 3.4, S.yTop + 2.6]], 0.85, 'steam');
-  this.pipe([[cx + G.rin + 3.4, 27.6], [sx + S.ru + 1.5, 27.6],
+  this.pipe([[sx, S.yTop + 0.2], [sx, S.yTop + 2.6], [cx + G.rin + 3.4, S.yTop + 2.6]],
+    0.85, 'steam');
+  this.pipe([[cx + G.rin + 3.4, S.yCone + 4.2], [sx + S.ru + 1.5, S.yCone + 4.2],
     [sx + S.ru + 1.5, S.yCone + 1.4], [sx + S.ru - 0.3, S.yCone + 1.4]], 0.7, 'feed');
   this.offPage(cx + G.rin + 3.6, S.yTop + 2.6, 'to turbine', 'steamFlag');
-  this.offPage(cx + G.rin + 3.6, 27.6, 'condensate', 'feedFlag');
+  this.offPage(cx + G.rin + 3.6, S.yCone + 4.2, 'condensate', 'feedFlag');
   this._into = null;
 
   // operating deck, cut open around the reactor cavity
@@ -452,17 +513,57 @@ Section.prototype.buildLoop = function () {
     d: `M${X(cx - G.rin)},${Y(G.deck)} L${X(rx - R.r - 2.2)},${Y(G.deck)}
         M${X(rx + R.r + 2.2)},${Y(G.deck)} L${X(cx + G.rin)},${Y(G.deck)}`,
     stroke: '#75716a', 'stroke-width': 0.85 });
-  // polar crane - it is what tells you this is a building
-  el(this.L.front, 'path', { d: `M${X(cx - G.rin + 1)},${Y(29)} L${X(cx + G.rin - 1)},${Y(29)}`,
+  el(this.L.front, 'path', { d: `M${X(cx - G.rin + 1)},${Y(G.crane)} L${X(cx + G.rin - 1)},${Y(G.crane)}`,
     stroke: '#5b646d', 'stroke-width': 0.5 });
-  el(this.L.front, 'path', { d: `M${X(cx - 4)},${Y(29)} L${X(cx - 4)},${Y(27.4)}
-    L${X(cx + 4)},${Y(27.4)} L${X(cx + 4)},${Y(29)}`, fill: 'none', stroke: '#5b646d',
-    'stroke-width': 0.36 });
-  // people, so the reader knows how big all of this is
-  for (const px of [cx - 6.4, cx + 16.4]) this.human(px, G.deck + 0.45);
-  el(this.L.anno, 'text', { x: X(cx + 16.4), y: Y(G.deck + 2.9), class: 'cutDim',
+  el(this.L.front, 'path', { d: `M${X(cx - 4)},${Y(G.crane)} L${X(cx - 4)},${Y(G.crane - 1.6)}
+    L${X(cx + 4)},${Y(G.crane - 1.6)} L${X(cx + 4)},${Y(G.crane)}`, fill: 'none',
+    stroke: '#5b646d', 'stroke-width': 0.36 });
+  for (const px of [cx - 7.4, cx + 14.2]) this.human(px, G.deck + 0.45);
+  el(this.L.anno, 'text', { x: X(cx + 14.2), y: Y(G.deck + 2.9), class: 'cutDim',
     'text-anchor': 'middle' }, '1.8 m');
+  // The single most-documented way a reader misreads a section like this is to
+  // believe the plant has one of everything. Say the count on the drawing.
+  el(this.L.anno, 'text', { x: X(cx), y: Y(G.spring + 1.5), class: 'cutDim',
+    'text-anchor': 'middle' }, `1 of ${G.loops} coolant loops shown`);
 };
+
+Section.prototype.buildPower = function () {
+  const G = this.G, cx = G.cx, X = m => this.x(m);
+  const bus = G.floor - 3.0;
+  this.r.cables = [];
+  const feedPoints = this.passive ? [[this.pumpX, G.sg.base - 0.9]]
+    : [[this.pumpX, 8.9], [cx - G.rin - 6.5, 6.4]];
+  for (const [px, pz] of feedPoints) {
+    const d = `M${X(cx - G.rin - 9)},${Y(bus)} L${X(px)},${Y(bus)} L${X(px)},${Y(pz - 1.6)}`;
+    el(this.L.ext, 'path', { d, fill: 'none', stroke: '#2b3138', 'stroke-width': 0.5,
+      'stroke-linejoin': 'round' });
+    this.r.cables.push(el(this.L.ext, 'path', { d, fill: 'none', stroke: C.power,
+      'stroke-width': 0.26, 'stroke-linejoin': 'round', 'stroke-dasharray': '1.1 2.4',
+      'stroke-dashoffset': 0 }));
+  }
+  this.r.busFlag = el(this.L.ext, 'g', {});
+  el(this.r.busFlag, 'rect', { x: X(cx - G.rin - 15.6), y: Y(bus) - 1.5, width: 7.2,
+    height: 3.0, rx: 0.6, fill: 'rgba(18,26,34,.94)', stroke: C.power, 'stroke-width': 0.14 });
+  this.r.busTx = el(this.r.busFlag, 'text', { x: X(cx - G.rin - 12.0), y: Y(bus) + 0.6,
+    class: 'cutFlag', 'text-anchor': 'middle' }, 'grid');
+  el(this.L.ext, 'path', { d: `M${X(cx - G.rin - 8.4)},${Y(bus)} L${X(cx - G.rin - 9)},${Y(bus)}`,
+    stroke: '#2b3138', 'stroke-width': 0.5 });
+};
+Section.prototype.updatePower = function (t) {
+  const s = this.p.sys || {};
+  const live = !!(s.grid || s.diesel);
+  const src = s.grid ? 'grid' : s.diesel ? 'diesels' : s.battery > 0 ? 'batteries only' : 'NO POWER';
+  const col = s.grid ? C.power : s.diesel ? C.power : s.battery > 0 ? C.warn : C.bad;
+  for (const c of this.r.cables) {
+    c.setAttribute('stroke', live ? C.power : '#39404a');
+    c.setAttribute('stroke-dashoffset', live ? (-t * 6) % 3.5 : 0);
+    c.setAttribute('opacity', live ? 1 : 0.5);
+  }
+  this.r.busTx.textContent = src;
+  this.r.busTx.setAttribute('fill', col);
+  this.r.busFlag.querySelector('rect').setAttribute('stroke', col);
+};
+
 Section.prototype.human = function (x, b) {
   const X = this.x(x);
   el(this.L.front, 'circle', { cx: X, cy: Y(b + 1.63), r: 0.17, fill: '#f0f6fa' });
@@ -485,21 +586,25 @@ Section.prototype.offPage = function (x, y, text, name) {
 // what the two designs do NOT share - the whole comparison
 // ---------------------------------------------------------------------------
 Section.prototype.buildKit = function () {
-  const G = GEO, cx = G.cx, X = m => this.x(m), rx = this.rx, R = G.rpv, S = G.sg, Z = G.przr;
+  const G = this.G, cx = G.cx, X = m => this.x(m), rx = this.rx, R = G.rpv, S = G.sg, Z = G.przr;
   // accumulators: passive kit a Gen-II plant already has, good for about a
   // minute. Both plants carry them.
   this.r.accum = [];
-  for (let i = 0; i < 2; i++) {
-    const ax = cx + 8.2 + i * 3.6, ar = 1.7, ab = 4.4, ah = 5.4;
+  const nAcc = this.passive ? 2 : 1;
+  for (let i = 0; i < nAcc; i++) {
+    const ax = cx + 8.2 + i * 3.6, ar = this.passive ? 1.6 : 1.35, ab = 4.4,
+      ah = this.passive ? 5.6 : 5.2;
     const d = `M${X(ax - ar)},${Y(ab + ar)} A${ar},${ar} 0 0 0 ${X(ax + ar)},${Y(ab + ar)}
       L${X(ax + ar)},${Y(ab + ar + ah)} A${ar},${ar} 0 0 0 ${X(ax - ar)},${Y(ab + ar + ah)} Z`;
     this.vessel(this.L.shell, this.L.wall, `cA${i}${this.key}`, d);
     this.liquid(`cA${i}${this.key}`, X(ax - ar), ar * 2, 'acc' + i);
     this.r.accum.push({ base: ab, top: ab + ar * 2 + ah });
-    this.pipe([[ax, ab], [ax, G.coldZ - 2.2], [rx + 4.6, G.coldZ - 2.2],
-      [rx + 4.6, G.coldZ - 0.5]], 0.5, 'accP' + i);
+    // into the vessel, not the cold leg: every passive source arrives at the
+    // same direct-injection nozzle
+    this.pipe([[ax, ab], [ax, this.dvi.z - 3.4], [this.dvi.x - 4.2, this.dvi.z - 3.4],
+      [this.dvi.x - 4.2, this.dvi.z], [this.dvi.x - 0.2, this.dvi.z]], 0.5, 'accP' + i);
   }
-  this.accTop = 4.4 + 1.7 * 2 + 5.4;
+  this.accTop = 4.4 + (this.passive ? 1.6 : 1.35) * 2 + (this.passive ? 5.6 : 5.2);
 
   if (!this.passive) {
     // ---- Gen-II: everything that matters needs a running pump -------------
@@ -520,16 +625,18 @@ Section.prototype.buildKit = function () {
         d: `M${X(ux)},${Y(27.5)} L${X(ux)},${Y(26.2)}`,
         stroke: 'rgba(120,190,238,.75)', 'stroke-width': 0.22, opacity: 0.25 }));
     }
-    // hardened vent
+    // Containment purge path. A large dry PWR has a purge line; the hardened
+    // severe-accident vent of NRC Order EA-13-109 is a BWR Mark I/II fitting
+    // and does not belong on this plant.
     this._into = 'ext';
-    this.pipe([[cx - G.rin + 1.5, 24], [cx - G.rin - 4.5, 24], [cx - G.rin - 4.5, 40]],
+    this.pipe([[cx - G.rin + 1.5, 25], [cx - G.rin - 4.5, 25], [cx - G.rin - 4.5, 36]],
       0.5, 'vent');
-    this.valve(cx - G.rin - 1.6, 24, 'ventValve');
+    this.valve(cx - G.rin - 1.6, 25, 'ventValve');
     this._into = null;
   } else {
     // ---- AP1000: water above the core, and no pump in any of it -----------
     // IRWST: 2,000 t sitting on the operating deck, above the loops
-    const i0 = cx - 18.6, i1 = cx - 9.0, ib = 18.4, it = 26.4;
+    const i0 = cx - 18.4, i1 = cx - 11.2, ib = 18.4, it = 26.4;
     const idp = `M${X(i0)},${Y(ib)} L${X(i0)},${Y(it)} L${X(i1)},${Y(it)} L${X(i1)},${Y(ib)} Z`;
     el(this.L.shell, 'path', { d: idp, fill: C.dark });
     const cp = el(this.defs, 'clipPath', { id: 'cI' + this.key }); el(cp, 'path', { d: idp });
@@ -538,11 +645,11 @@ Section.prototype.buildKit = function () {
     this.liquid('cI' + this.key, X(i0), i1 - i0, 'irwst');
     this.irw = { x0: i0, x1: i1, base: ib, top: it };
     // PRHR: a C-tube bundle standing in that pool, on a thermosiphon. No pump.
-    const hx = i0 + 4.6;
+    const hx = i0 + 3.6;
     this.r.prhr = el(this.L.intern, 'path', {
       d: (() => { let p = `M${X(hx)},${Y(ib + 0.8)}`;
         for (let i = 0; i < 11; i++)
-          p += ` L${X(hx + (i % 2 ? 2.6 : -2.6))},${Y(ib + 1.2 + i * 0.62)}`;
+          p += ` L${X(hx + (i % 2 ? 2.2 : -2.2))},${Y(ib + 1.2 + i * 0.62)}`;
         return p; })(),
       fill: 'none', stroke: '#5d666f', 'stroke-width': 0.62, 'stroke-linejoin': 'round' });
     this.pipe([[cx - 4.6, G.hotZ], [cx - 4.6, 27.6], [hx, 27.6], [hx, ib + 8.2]], 0.5, 'prhrIn');
@@ -551,23 +658,31 @@ Section.prototype.buildKit = function () {
     // core makeup tanks: full system pressure, driven by gravity and a balance line
     this.r.cmt = [];
     for (let i = 0; i < 2; i++) {
-      const ax = cx - 6.4 + i * 3.4, ar = 1.6, ah = 7.2, ab = 19.4;
+      const ax = cx - 8.6 + i * 3.4, ar = 1.6, ah = 7.6, ab = 19.4;
       const d = `M${X(ax - ar)},${Y(ab + ar)} A${ar},${ar} 0 0 0 ${X(ax + ar)},${Y(ab + ar)}
         L${X(ax + ar)},${Y(ab + ar + ah)} A${ar},${ar} 0 0 0 ${X(ax - ar)},${Y(ab + ar + ah)} Z`;
       this.vessel(this.L.shell, this.L.wall, `cC${i}${this.key}`, d);
       this.liquid(`cC${i}${this.key}`, X(ax - ar), ar * 2, 'cmt' + i);
-      this.pipe([[ax, ab], [ax, 15.4], [rx + 4.6, 15.4], [rx + 4.6, G.coldZ + 1.2]], 0.5, 'cmtP' + i);
+      this.pipe([[ax, ab], [ax, this.dvi.z + 2.6], [this.dvi.x - 4.2, this.dvi.z + 2.6],
+        [this.dvi.x - 4.2, this.dvi.z], [this.dvi.x - 0.2, this.dvi.z]], 0.5, 'cmtP' + i);
+      // Pressure balance line from a cold leg into the top of the tank. This is
+      // what holds it at system pressure, and therefore what makes it drain the
+      // moment the loop loses inventory - without it the tank is an
+      // unexplained box.
+      this.pipe([[ax, ab + ar * 2 + ah], [ax, ab + ar * 2 + ah + 1.6],
+        [rx + R.r + 2.2, ab + ar * 2 + ah + 1.6], [rx + R.r + 2.2, G.coldZ]],
+        0.32, 'cmtBal' + i);
       this.r.cmt.push({ base: ab, top: ab + ar * 2 + ah });
     }
-    this.cmtTop = 19.4 + 1.6 * 2 + 7.2;
+    this.cmtTop = 19.4 + 1.6 * 2 + 7.6;
     // automatic depressurisation, venting the pressuriser into the pool
     this.valve(Z.dx + cx - 2.2, this.przrTop + 1.2, 'ads');
     this.pipe([[Z.dx + cx, this.przrTop], [Z.dx + cx, this.przrTop + 1.2],
       [i1 - 1.5, this.przrTop + 1.2], [i1 - 1.5, it - 0.6]], 0.5, 'adsP');
     // gravity injection, straight down into the vessel
-    this.pipe([[i0 + 1.4, ib], [i0 + 1.4, R.base + 2.2], [rx - R.r + 0.2, R.base + 2.2]],
+    this.pipe([[i0 + 1.4, ib], [i0 + 1.4, this.dvi.z], [this.dvi.x - 0.2, this.dvi.z]],
       0.62, 'grav');
-    this.valve(i0 + 1.4, 12.0, 'gravValve');
+    this.valve(i0 + 1.4, 15.4, 'gravValve');
     // PCCS tank, nested in the top of the shield building
     const t0 = cx - 7, t1 = cx + 7, tb = G.spring + G.domeRy + 0.8, tt = tb + 3.4;
     const tdp = `M${X(t0)},${Y(tb)} L${X(t0)},${Y(tt)} L${X(t1)},${Y(tt)} L${X(t1)},${Y(tb)} Z`;
@@ -593,7 +708,7 @@ Section.prototype.buildKit = function () {
     for (let i = 0; i < 8; i++)
       this.r.draught.push(el(this.L.front, 'path', { d: '', fill: C.air, opacity: 0 }));
   }
-  // the sump / suppression pool everything eventually drains into
+  // the recirculation sump, and the floodup across the floor after a leak
   const s0 = cx - G.rin + 0.3, s1 = cx + G.rin - 0.3;
   const sdp = `M${X(s0)},${Y(G.floor)} L${X(s0)},${Y(G.floor + 3.6)} L${X(s1)},${Y(G.floor + 3.6)} L${X(s1)},${Y(G.floor)} Z`;
   const scp = el(this.defs, 'clipPath', { id: 'cS' + this.key }); el(scp, 'path', { d: sdp });
@@ -605,7 +720,7 @@ Section.prototype.buildKit = function () {
 // with two sections up the captions sit on the outside edges and never fight.
 // ---------------------------------------------------------------------------
 Section.prototype.buildAnno = function () {
-  const G = GEO, cx = G.cx, R = G.rpv, S = G.sg, Z = G.przr;
+  const G = this.G, cx = G.cx, R = G.rpv, S = G.sg, Z = G.przr;
   this.L.labels = el(this.L.anno, 'g', {});
   const saveAnno = this.L.anno; this.L.anno = this.L.labels;
   const gxL = cx - G.rin - 5.5, gxR = cx + G.rin + 16.5;
@@ -619,16 +734,17 @@ Section.prototype.buildAnno = function () {
   add(this.pumpX, G.coldZ, this.passive ? 'coolant pumps (not safety)' : 'coolant pumps');
   if (this.passive) {
     add(this.irw.x1, this.irw.top - 1, 'IRWST · 2,000 t');
-    add(this.irw.x0 + 4.6, this.irw.base + 4.2, 'PRHR HX · no pump');
-    add(cx - 6.4, this.cmtTop - 2, 'core makeup tanks');
+    add(this.irw.x0 + 3.6, this.irw.base + 4.2, 'PRHR HX · no pump');
+    add(cx - 8.6, this.cmtTop - 2, 'core makeup tanks');
     add(cx + 8.2, this.accTop - 2, 'accumulators');
     add(cx, this.pccs.base + 1.7, 'PCCS tank · 3,000 t');
     add(cx + G.rin, 26, 'steel containment vessel');
   } else {
     add(cx + 8.2, this.accTop - 2, 'accumulators');
     add(cx - G.rin - 6.5, 6.4, 'ECCS pumps');
+    add(cx - G.rin - 12.0, G.floor - 3.0, 'electrical supply');
     add(cx - 10, 27.5, 'containment sprays');
-    add(cx - G.rin - 4.5, 34, 'hardened vent');
+    add(cx - G.rin - 4.5, 32, 'containment purge');
     add(cx + G.rin, 26, 'concrete containment');
   }
   // Each caption goes to whichever gutter is nearer, so a leader never has to
@@ -645,10 +761,10 @@ Section.prototype.buildAnno = function () {
   this.L.anno = saveAnno;
 
   // state pills, which appear only when they have something to say
-  this.tag(GEO.rpv.dx + cx, GEO.rpv.base - 1.9, 'tCore', 'ok');
+  this.tag(G.rpv.dx + cx, G.rpv.base - 1.9, 'tCore', 'ok');
   this.tag(cx + 6, G.hotZ + 2.6, 'tCirc', 'ok');
-  this.tag(this.pumpX + 5.0, G.coldZ + 2.9, 'tPump', 'bad');
-  this.tag(cx, 36, 'tCtmt', 'bad');
+  this.tag(this.pumpX - 1.5, G.coldZ + 3.4, 'tPump', 'bad');
+  this.tag(cx, 38, 'tCtmt', 'bad');
   this.tag(cx + 2.5, G.floor + 1.2, 'tCorium', 'bad');
   this.tag(cx + 2, 24.5, 'tSafety', 'ok');
 
@@ -667,14 +783,14 @@ Section.prototype.buildAnno = function () {
     class: 'cutPct', 'text-anchor': 'end' }, '100%');
 
   // title block
-  this.r.title = el(this.L.anno, 'text', { x: this.x(cx), y: Y(56), class: 'cutTitle',
+  this.r.title = el(this.L.anno, 'text', { x: this.x(cx), y: Y(62), class: 'cutTitle',
     'text-anchor': 'middle' }, this.passive ? 'PASSIVE · Gen III+' : 'ACTIVE · Gen II');
   this.r.title.setAttribute('fill', this.passive ? '#57d9ff' : '#ff8b5c');
-  el(this.L.anno, 'text', { x: this.x(cx), y: Y(53.6), class: 'cutSub', 'text-anchor': 'middle' },
+  el(this.L.anno, 'text', { x: this.x(cx), y: Y(59.6), class: 'cutSub', 'text-anchor': 'middle' },
     this.passive ? 'gravity · natural circulation · evaporation' : 'pumps · diesels · operators');
-  this.r.stateBg = el(this.L.anno, 'rect', { x: this.x(cx) - 9, y: Y(51.4), width: 18, height: 2.8,
+  this.r.stateBg = el(this.L.anno, 'rect', { x: this.x(cx) - 9, y: Y(57.4), width: 18, height: 2.8,
     rx: 0.7, fill: 'rgba(10,40,26,.9)', stroke: C.ok, 'stroke-width': 0.14 });
-  this.r.stateTx = el(this.L.anno, 'text', { x: this.x(cx), y: Y(51.4) + 2.0, class: 'cutState',
+  this.r.stateTx = el(this.L.anno, 'text', { x: this.x(cx), y: Y(57.4) + 2.0, class: 'cutState',
     'text-anchor': 'middle' }, 'NORMAL');
 };
 
@@ -684,7 +800,7 @@ Section.prototype.buildAnno = function () {
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 
 Section.prototype.update = function (t) {
-  const p = this.p, s = p.sys || {}, G = GEO, R = G.rpv, S = G.sg, Z = G.przr, cx = G.cx;
+  const p = this.p, s = p.sys || {}, G = this.G, R = G.rpv, S = G.sg, Z = G.przr, cx = G.cx;
   const lvl = clamp(p.level, 0, 1);
   const surf = R.base + lvl * (R.cylTop - R.base);
   const wet = Math.min(p.Tclad, 660);
@@ -734,6 +850,8 @@ Section.prototype.update = function (t) {
   const coldC = coolColor(Math.min(620, p.Tcore - 60));
   this.setFlow('hot', hotC, flow, t);
   this.setFlow('cold', coldC, flow, t, true);
+  if (this.passive) { this.setFlow('cold2', coldC, flow, t, true); this.setPump('rcp2', s.rcp > 0); }
+  else this.setFlow('xover', coldC, flow, t, true);
   this.setFlow('surge', hotC, flow ? 0.25 : 0, t);
   this.setFlow('steam', '#b7c6d2', s.feed ? 1 : 0, t);
   this.setFlow('feed', coolColor(480), s.feed ? 1 : 0, t, true);
@@ -741,7 +859,7 @@ Section.prototype.update = function (t) {
   this.r.steamFlag.textContent = p.uhs ? 'to turbine' : 'HEAT SINK LOST';
   this.r.steamFlag.setAttribute('fill', p.uhs ? C.text : C.bad);
 
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < this.r.accum.length; i++) {
     this.setLevel('acc' + i, this.r.accum[i].base + 1.5
       + (this.r.accum[i].top - this.r.accum[i].base - 3) * clamp(p.accumLevel, 0, 1),
       this.r.accum[i].base + 1.5, C.cold);
@@ -773,6 +891,8 @@ Section.prototype.update = function (t) {
         + (this.r.cmt[i].top - this.r.cmt[i].base - 3) * clamp(p.cmtLevel, 0, 1),
         this.r.cmt[i].base + 1.5, C.cold);
       this.setFlow('cmtP' + i, C.cold, s.cmt || 0, t);
+      // the balance line carries pressure, not a visible flow
+      this.setFlow('cmtBal' + i, '#6a7580', 0, t);
     }
     this.setFlow('prhrIn', hotC, s.prhr || 0, t);
     this.setFlow('prhrOut', coolColor(520), s.prhr || 0, t);
@@ -863,6 +983,8 @@ Section.prototype.update = function (t) {
   this.r.liner.setAttribute('stroke', p.ctmtIntact ? (this.passive ? '#9fb3c2' : C.liner) : C.bad);
   this.r.blown.setAttribute('opacity', p.explosions > 0 || p.rupturedByPower ? 1 : 0);
   this.r.sabotage.setAttribute('opacity', p.sabotaged ? 1 : 0);
+  this.updatePower(t);
+  this.updateHead();
   this.layoutTags();
 };
 
@@ -900,6 +1022,8 @@ export class CutStage {
       sec.buildLoop();
       sec.buildKit();
       sec.buildAnno();
+      sec.buildPower();
+      sec.buildHead();
       sec.root = g;
       return sec;
     });
@@ -946,3 +1070,55 @@ export class CutStage {
       if (s.root.style.display !== 'none') s.update(t);
   }
 }
+
+// ---------------------------------------------------------------------------
+// The driving head: the vertical distance from the water that is available to
+// fall into the core down to the top of the fuel. Drawn in the same place, at
+// the same scale, on both sections.
+//
+// This is the argument as a quantity rather than as a list of extra equipment.
+// Differences that line up against shared structure get noticed; differences
+// that are simply an extra object with no counterpart mostly do not (Gentner &
+// Markman, Psychological Science 1994). "This plant has a heat exchanger the
+// other lacks" is the second kind. "Both have a head-to-fuel distance, and one
+// of them is negative" is the first.
+// ---------------------------------------------------------------------------
+Section.prototype.buildHead = function () {
+  const G = this.G, cx = G.cx, X = m => this.x(m);
+  const hx = cx + G.rin - 2.6;
+  const g = el(this.L.anno, 'g', {});
+  this.r.headLine = el(g, 'path', { d: '', stroke: '#7fe0b0', 'stroke-width': 0.16 });
+  this.r.headTick = el(g, 'path', { d: '', stroke: '#7fe0b0', 'stroke-width': 0.16 });
+  // set alongside the dimension line, the way a drawing does it: it costs no
+  // horizontal room, which matters when two sections are up at once
+  this.r.headTxt = el(g, 'text', { x: 0, y: 0, class: 'cutHead',
+    'text-anchor': 'middle' }, '');
+  this.headX = hx;
+};
+Section.prototype.updateHead = function () {
+  const G = this.G, X = m => this.x(m), x = X(this.headX);
+  const taf = G.core.z1;
+  // the highest water inside the building that can reach the core without a pump
+  const top = this.passive
+    ? this.irw.base + (this.irw.top - this.irw.base) * clamp(this.p.irwst / 2.1e6, 0, 1)
+    : G.floor + 0.35;                   // a Gen-II plant's in-containment water is the sump
+  const good = top > taf;
+  const y0 = Y(Math.max(top, taf)), y1 = Y(Math.min(top, taf));
+  this.r.headLine.setAttribute('d', `M${x},${y0} L${x},${y1}`);
+  this.r.headTick.setAttribute('d',
+    `M${x - 1.1},${Y(taf)} L${x + 1.1},${Y(taf)} M${x - 1.1},${Y(top)} L${x + 1.1},${Y(top)}`);
+  const col = good ? '#7fe0b0' : C.bad;
+  this.r.headLine.setAttribute('stroke', col);
+  this.r.headTick.setAttribute('stroke', col);
+  // read upward from the bottom tick, so a short bar never hangs the caption
+  // off the floor
+  const tx = x + 1.9, ty = y1 - 0.4;
+  this.r.headTxt.setAttribute('x', tx);
+  this.r.headTxt.setAttribute('y', ty);
+  this.r.headTxt.setAttribute('text-anchor', 'start');
+  this.r.headTxt.setAttribute('transform', `rotate(-90 ${tx} ${ty})`);
+  this.r.headTxt.setAttribute('fill', col);
+  this.r.headTxt.textContent = good
+    ? `${(top - taf).toFixed(0)} m of water above the fuel`
+    : 'no water above the fuel';
+};

@@ -40,6 +40,8 @@ body.viewcut #stage{cursor:default}
 .cutSub{font-size:1.6px;fill:rgba(198,214,228,.72)}
 .cutState{font-size:1.9px;font-weight:800}
 .cutBolt{font-size:1.5px}
+.cutHead{font-size:1.6px;font-weight:800}
+.cutHeadSub{font-size:1.2px;font-weight:600}
 
 /* ------------------------------ top bar ------------------------------ */
 #topbar{position:fixed;top:0;left:0;right:0;height:60px;display:flex;align-items:center;
