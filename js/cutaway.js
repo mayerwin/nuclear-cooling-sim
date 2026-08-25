@@ -68,8 +68,8 @@ export function overflowReport() { return SHRUNK.slice(); }
 // ---------------------------------------------------------------------------
 const G = {
   shell: { x: 11, y: 11, r: 8.8, h: 12.6, domeH: 5.2 },
-  core:  { x: 7.6,  y: 14.4, r: 1.70, z: 0.8,  h: 8.2 },
-  sg:    { x: 14.4, y: 7.6,  r: 1.45, z: 1.0,  h: 10.4 },
+  core:  { x: 7.6,  y: 14.4, r: 1.40, z: 0.8,  h: 8.2 },
+  sg:    { x: 14.4, y: 7.6,  r: 1.20, z: 1.0,  h: 10.4 },
   pump:  { x: 14.4, y: 14.4, r: 1.35, z: 2.4,  h: 2.4 },
   pool:  { x0: 3.2, y0: 8.8, x1: 7.8, y1: 13.4, z: 9.4, h: 2.5 },
   base:  { x0: 17.0, y0: 18.5, x1: 23.0, y1: 21.5, z: -2.0, h: 2.6 },
@@ -81,8 +81,14 @@ const G = {
 // is what makes the loop turn over on its own when the pump stops.
 const HOT_Z = 6.9, COLD_Z = 3.6, SG_IN_Z = 7.8, SG_OUT_Z = 4.4;
 const COIL_Z = G.pool.z + 1.2;      // the passive heat exchanger, under the pool
+// The model calls the core uncovered below FUEL_TOP, so the drawing puts the
+// surface exactly on the top of the fuel at that number and nowhere else.
+// Everything about the water level is derived from these three lines.
+const W0 = G.core.z + G.core.h * 0.06;          // the surface at level 0
+const W1 = G.core.z + G.core.h * 0.66;          // the surface at level 1
 const FUEL_Z0 = G.core.z + 0.75;
-const FUEL_Z1 = G.core.z + G.core.h * FUEL_TOP;
+const FUEL_Z1 = W0 + (W1 - W0) * FUEL_TOP;
+const waterZ = (level) => W0 + (W1 - W0) * clamp(level, 0, 1);
 
 // The loop, as a route through the building: reactor -> far corner -> boiler
 // -> near corner (the pump) -> reactor. Every leg is axis-aligned so it reads
@@ -167,13 +173,13 @@ function steamSpace(ctx, o, surfY, amount) {
 }
 
 // A pressure-vessel profile: domed bottom, straight barrel, domed head.
-function capsuleProf(n = 16) {
+function capsuleProf(n = 44) {
   const out = [];
   for (let i = 0; i <= n; i++) {
     const t = i / n;
     let r;
     if (t < 0.14) r = Math.sqrt(1 - Math.pow(1 - t / 0.14, 2));
-    else if (t > 0.80) r = Math.sqrt(1 - Math.pow((t - 0.80) / 0.20, 2));
+    else if (t > 0.70) r = Math.sqrt(1 - Math.pow((t - 0.70) / 0.30, 2));
     else r = 1;
     out.push({ t, r: Math.max(0.06, r) });
   }
@@ -210,7 +216,7 @@ function glassShell(ctx, o, tint) {
 // The domed head is solid steel and there is nothing behind it worth seeing, so
 // it is painted opaque. It is what makes a glass cylinder read as a reactor
 // vessel rather than as a tank of water.
-const HEAD_T = 0.80;
+const HEAD_T = 0.70;
 function vesselHead(ctx, o, tone) {
   const pts = [];
   for (const s of CAPSULE) {
@@ -244,17 +250,16 @@ function vesselHead(ctx, o, tone) {
 
 // The liquid inside a vessel of revolution: a body clipped to the silhouette,
 // an elliptical surface with a moving crest, and bubbles when it boils.
-function liquidIn(ctx, o, frac, col, t, boil, alpha) {
-  const f = clamp(frac, 0, 1);
-  if (f <= 0.004) return null;
-  const zTop = o.z + o.h * (0.08 + 0.70 * f);
+function liquidIn(ctx, o, zTop, col, t, boil, alpha) {
+  const zBot = o.z + o.h * 0.05;
+  if (zTop <= zBot + 0.02) return null;
+  const tt = clamp((zTop - o.z) / o.h, 0, 1);
   const surf = project(o.x, o.y, zTop);
-  const bot = project(o.x, o.y, o.z + o.h * 0.08);
-  // radius at the surface, from the profile
+  const bot = project(o.x, o.y, zBot);
+  // radius at the surface, read off the same profile the shell is drawn from
   let r = o.r;
   for (let i = 1; i < CAPSULE.length; i++) {
     const s = CAPSULE[i], p0 = CAPSULE[i - 1];
-    const tt = (0.08 + 0.70 * f);
     if (s.t >= tt) { r = o.r * lerp(p0.r, s.r, (tt - p0.t) / (s.t - p0.t || 1)); break; }
   }
   const rx = r * ERX, ry = r * ERY;
@@ -297,10 +302,15 @@ function liquidIn(ctx, o, frac, col, t, boil, alpha) {
 
   // the surface, an ellipse in the isometric plane
   ctx.beginPath(); ctx.ellipse(surf.x, sy, rx, ry, 0, 0, TAU);
-  ctx.fillStyle = shade(col, 1.16); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(surf.x, sy - 0.8, rx * 0.88, ry * 0.88, 0, 0, TAU);
+  const sg2 = ctx.createRadialGradient(surf.x - rx * 0.3, sy - ry * 0.5, ry * 0.1,
+    surf.x, sy, rx * 1.1);
+  sg2.addColorStop(0, shade(col, 1.30));
+  sg2.addColorStop(0.55, shade(col, 1.10));
+  sg2.addColorStop(1, shade(col, 0.92));
+  ctx.fillStyle = sg2; ctx.fill();
+  ctx.beginPath(); ctx.ellipse(surf.x, sy - 0.8, rx * 0.72, ry * 0.72, 0, 0, TAU);
   ctx.fillStyle = shade(col, 1.34);
-  ctx.globalAlpha = 0.30 + 0.14 * Math.sin(t * 2.3); ctx.fill(); ctx.globalAlpha = 1;
+  ctx.globalAlpha = 0.16 + 0.10 * Math.sin(t * 2.3); ctx.fill(); ctx.globalAlpha = 1;
   ctx.strokeStyle = withA(shade(col, 1.5), 0.5); ctx.lineWidth = 1.2;
   ctx.beginPath(); ctx.ellipse(surf.x, sy, rx, ry, 0, 0, TAU); ctx.stroke();
   // ripples travelling out across it
@@ -491,6 +501,43 @@ function domePath(ctx) {
   ctx.closePath();
 }
 
+// The polar crane. Every reactor building has one, running on a rail round the
+// inside of the wall, and it is what the space above the machines is for.
+function polarCrane(ctx, t) {
+  const s = G.shell;
+  const railZ = 11.9, girdZ = 12.05, girdH = 0.5;
+  const c = project(s.x, s.y, railZ);
+  // the rail ring, on the half of the wall that is still there
+  ctx.beginPath();
+  ctx.ellipse(c.x, c.y, s.r * 0.965 * ERX, s.r * 0.965 * ERY, 0, CUT1, CUT0 + TAU);
+  ctx.strokeStyle = 'rgba(150,166,180,0.55)'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(c.x, c.y, s.r * 0.965 * ERX, s.r * 0.965 * ERY, 0, CUT1, CUT0 + TAU);
+  ctx.strokeStyle = 'rgba(20,28,36,0.5)'; ctx.lineWidth = 1; ctx.stroke();
+  // the bridge, spanning the far half
+  const gy = 8.0, dy = gy - s.y;
+  const half = Math.sqrt(Math.max(0, s.r * s.r * 0.93 - dy * dy));
+  const x0 = s.x - half, x1 = s.x + half;
+  box(ctx, { x: x0, y: gy - 0.42, z: girdZ, w: x1 - x0, d: 0.84, h: girdH,
+    color: '#8b98a4', top: '#9dabb7' });
+  // end trucks
+  for (const ex of [x0, x1 - 1.1]) {
+    box(ctx, { x: ex, y: gy - 0.72, z: railZ, w: 1.1, d: 1.44, h: girdZ - railZ + 0.2,
+      color: '#6f7c88' });
+  }
+  // the trolley, parked where it was left
+  const tx = s.x + 2.1;
+  box(ctx, { x: tx, y: gy - 0.66, z: girdZ + girdH, w: 1.5, d: 1.32, h: 0.62,
+    color: '#98a6b2', top: '#aab8c4' });
+  // hoist rope and block
+  const a = project(tx + 0.75, gy, girdZ + girdH * 0.5);
+  const b = project(tx + 0.75, gy, girdZ - 1.6);
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+  ctx.strokeStyle = 'rgba(206,218,228,0.8)'; ctx.lineWidth = 1.4; ctx.stroke();
+  box(ctx, { x: tx + 0.45, y: gy - 0.3, z: girdZ - 2.1, w: 0.6, d: 0.6, h: 0.5,
+    color: '#c2a04a', top: '#d6b45c' });
+}
+
 // Handrail along the near edge of the cut floor. A grating floor with nothing
 // on its edge reads as a shape; a floor with a rail on it reads as a place
 // somebody works in.
@@ -649,9 +696,9 @@ function fuelBundle(ctx, p, st, t) {
     const a = project(g.x + r.dx * k, g.y + r.dy * k, FUEL_Z0);
     const b = project(g.x + r.dx * k, g.y + r.dy * k, top - slump * (top - FUEL_Z0));
     ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
-    ctx.strokeStyle = 'rgba(8,12,16,0.55)'; ctx.lineWidth = 9; ctx.stroke();
-    ctx.strokeStyle = shade(col, 0.80 + 0.3 * hash(i * 5)); ctx.lineWidth = 6.6; ctx.stroke();
-    ctx.strokeStyle = shade(col, 1.35); ctx.lineWidth = 2.4; ctx.stroke();
+    ctx.strokeStyle = 'rgba(6,10,14,0.7)'; ctx.lineWidth = 8.6; ctx.stroke();
+    ctx.strokeStyle = shade(col, 0.86 + 0.3 * hash(i * 5)); ctx.lineWidth = 6.4; ctx.stroke();
+    ctx.strokeStyle = shade(col, 1.5); ctx.lineWidth = 2.2; ctx.stroke();
   }
   // grid straps, which is what a real assembly is held together with
   ctx.strokeStyle = 'rgba(190,205,216,0.30)'; ctx.lineWidth = 2;
@@ -695,7 +742,7 @@ function drawReactor(ctx, p, st, t) {
   fuelBundle(ctx, p, st, t);
   ctx.restore();
   const wcol = waterColor(p.Tclad);
-  const surf = liquidIn(ctx, o, st.lvl, wcol, t, st.s.boil || 0, 0.6);
+  const surf = liquidIn(ctx, o, waterZ(st.lvl), wcol, t, st.s.boil || 0, 0.54);
   if (surf) {
     ctx.save(); revolvePath(ctx, o); ctx.clip();
     steamSpace(ctx, o, surf.y, clamp((st.s.boil || 0) * 2.2, 0, 1));
@@ -711,6 +758,13 @@ function drawReactor(ctx, p, st, t) {
       ctx.fillStyle = `rgba(226,240,248,${0.30 * (1 - ph) * clamp(st.s.boil * 2, 0, 1)})`;
       ctx.beginPath(); ctx.ellipse(xx, yy, 6 + ph * 9, 4 + ph * 6, 0, 0, TAU); ctx.fill();
     }
+    ctx.restore();
+  }
+  // Make-up water arriving. The head is cut open, so you watch it land.
+  if (st.injecting && !p.vesselBreach) {
+    ctx.save(); revolvePath(ctx, o); ctx.clip();
+    pour(ctx, g.x - 0.35, g.y - 0.35, g.z + g.h * 0.84, waterZ(st.lvl) + 0.05,
+      t, heatedWater(0.04), 7);
     ctx.restore();
   }
   glassShell(ctx, o, p.vesselBreach ? '#b4746a' : C.steel);
@@ -774,9 +828,10 @@ function drawBoiler(ctx, p, st, t) {
     ctx.setLineDash([]);
   }
   // secondary water: this side boils and the steam goes to the turbine
-  const sfrac = st.sink === 'turbine' ? 0.70 : 0.45;
+  const sfrac = st.sink === 'turbine' ? 0.62 : 0.42;
   ctx.restore();
-  const ssurf = liquidIn(ctx, o, sfrac, heatedWater(hot ? 0.20 : 0.02), t, hot ? 0.7 : 0.05, 0.62);
+  const ssurf = liquidIn(ctx, o, g.z + g.h * sfrac, heatedWater(hot ? 0.20 : 0.02),
+    t, hot ? 0.7 : 0.05, 0.62);
   if (ssurf) {
     ctx.save(); revolvePath(ctx, o); ctx.clip();
     steamSpace(ctx, o, ssurf.y, hot ? 0.85 : 0.15);
@@ -932,7 +987,21 @@ function drawPool(ctx, p, st, t) {
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(c.x, c.y); ctx.stroke();
     }
   }
+  // a caged ladder up the near column
+  {
+    const [lx, ly] = feet[3];
+    ctx.strokeStyle = 'rgba(168,186,200,0.7)'; ctx.lineWidth = 1.4;
+    for (let z = 0.5; z < b.z; z += 0.55) {
+      const p0 = project(lx - 0.34, ly + 0.34, z), p1 = project(lx + 0.34, ly - 0.34, z);
+      ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+    }
+    for (const d of [-0.34, 0.34]) {
+      const p0 = project(lx + d, ly - d, 0.4), p1 = project(lx + d, ly - d, b.z);
+      ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+    }
+  }
   for (const [lx, ly] of feet) {
+    shadow(ctx, lx, ly, 0, 15, 8, 0.34);
     const a = project(lx, ly, 0), c = project(lx, ly, b.z);
     ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(c.x, c.y);
     ctx.strokeStyle = 'rgba(10,16,22,0.55)'; ctx.lineWidth = 11; ctx.stroke();
@@ -1120,12 +1189,13 @@ function drawScene(ctx, p, st, t, labels) {
   // floor. That return is in the model, so it is in the picture.
   if (P && (st.s.pccs || 0) > 0.05) {
     const sh = G.shell;
-    for (const th of [Math.PI * 1.18, Math.PI * 1.62]) {
+    for (const th of [Math.PI * 1.04, Math.PI * 1.94]) {
       const a = gAngle(th);
       const wx = sh.x + sh.r * 0.94 * Math.cos(a), wy = sh.y + sh.r * 0.94 * Math.sin(a);
       pour(ctx, wx, wy, sh.h * 0.62, 0.05, t, heatedWater(0.12), 6);
     }
   }
+  polarCrane(ctx, t);
   railArc(ctx, CUT0, CUT1, G.shell.r * 0.985, 0, 20);
   glassDome(ctx, p, st, t);
   shellAir(ctx, p, st, t);
@@ -1243,13 +1313,13 @@ function captions(p, st) {
               : st.poolLoop ? 'taking the heat from the reactor' : 'ready — no pump needed',
       { px: 14, maxW: 340,
         fill: st.lost ? C.bad : st.onFloor ? C.ok : st.cracked ? C.warn : C.ok });
-    at(6.6, 16.7, 6.9, 30, 46, st.poolLoop ? 'heat goes up to the pool' : 'the path to the pool',
-      { px: 13, weight: 600, align: 'left', maxW: 230, prio: 1, lead: true,
+    at(6.6, 16.7, 6.9, 200, 60, st.poolLoop ? 'heat goes up to the pool' : 'the path to the pool',
+      { px: 13, weight: 600, align: 'left', maxW: 250, prio: 1, lead: true,
         fill: st.poolLoop ? C.hot : '#7d8a96' });
   } else {
-    at((g.base.x0 + g.base.x1) / 2, g.base.y1, g.base.z, 0, 40, 'WATER IN THE BASEMENT',
+    at((g.base.x0 + g.base.x1) / 2, g.base.y1, g.base.z, 0, 30, 'WATER IN THE BASEMENT',
       { px: 16, weight: 800, maxW: 320, lead: true });
-    at((g.base.x0 + g.base.x1) / 2, g.base.y1, g.base.z, 0, 60,
+    at((g.base.x0 + g.base.x1) / 2, g.base.y1, g.base.z, 0, 50,
       st.injecting ? 'being pumped up'
         : !st.live ? 'CANNOT REACH THE REACTOR'
           : !p.pumpsOk ? 'THE PUMPS HAVE FAILED' : 'waiting down here',
@@ -1343,7 +1413,11 @@ function circuitState(p) {
 // ---------------------------------------------------------------------------
 // the stage: fit the building (or two of them) into the band and paint it
 // ---------------------------------------------------------------------------
-const CONTENT = { x: -440, y: -36, w: 872, h: 840 };
+// The top of the far wall projects far higher than the dome's apex does — a
+// point with a small x + y climbs the screen twice over, once for its depth and
+// once for its height. Measured, not guessed: anything shorter here hides the
+// top of the building under the fixed top bar.
+const CONTENT = { x: -440, y: -132, w: 872, h: 934 };
 const GAP = 80;
 
 export class Cutaway {
@@ -1361,7 +1435,7 @@ export class Cutaway {
     const narrow = cw < 861;
     return narrow
       ? { x: 8, y: 124, w: cw - 16, h: ch - 124 - 226 }
-      : { x: 318, y: 104, w: cw - 318 - 350, h: ch - 104 - 128 };
+      : { x: 318, y: 128, w: cw - 318 - 350, h: ch - 128 - 128 };
   }
 
   draw(ctx, sim, CW, CH, t) {
