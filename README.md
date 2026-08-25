@@ -40,10 +40,18 @@ the reactor on the passive unit, a tank in the basement behind a pump on the act
 Every vessel is a glass shell over its own contents: clip to the silhouette, draw the water and
 the fuel, then lay the shell back over as glass. So the water level is not a bar on a gauge —
 it is water, with a surface that ripples, bubbles when it boils and turns from blue through
-scalding pale to orange as it heats. Slugs of it travel the whole loop; when the pump stops
-they slow to the crawl of natural circulation rather than stopping. When the level drops below
-the top of the fuel the rods go grey → orange → red and start to slump, and the headline under
-each title names the step that plant has reached.
+scalding pale to orange as it heats. The pipes are cut open too, so what travels along them is
+water in a bore rather than a dashed line meaning water; when the pump stops it slows to the
+crawl of natural circulation rather than stopping. The pump itself is cut open from above: an
+impeller with curved vanes turning in a casing full of water, and still when it is not running.
+When the level drops below the top of the fuel the rods go grey → orange → red and start to
+slump, and the headline under each title names the step that plant has reached.
+
+Pick a single unit and the **turbine hall** appears outside the containment: steam off the top
+of the boiler, through the wall, into the turbine; the generator with the megawatts it is
+making written beside it; the condenser turning the steam back into water; and the pulses of
+power running down the bus to the switchyard. Lose the reactor and all of that visibly stops.
+Lose the containment and there is a hole torn in the wall with the inside coming out of it.
 
 The water is drawn rather than diagrammed. Each vessel is a cylinder, so its
 contents get an elliptical surface with a moving crest, bubbles that rise when
