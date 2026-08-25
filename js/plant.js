@@ -371,10 +371,19 @@ export class Plant {
       if (!this.scrammed) this.scram('heat sink lost');
     } else {
       this.steamToCtmt = Math.max(0, this.steamToCtmt * Math.pow(0.2, dt));
-      this.water = Math.min(RPV_WATER, this.water + (-net / H_FG) * 0.15 * dt);
+      // Steam condensing back into the vessel only makes water if there is
+      // something cool enough to condense on. Ungated, this term refilled a
+      // core that had already melted - the level visibly crept back up during
+      // a meltdown, which is water appearing out of nowhere.
+      if (!this.vesselBreach && this.Tclad < 900) {
+        this.water = Math.min(RPV_WATER, this.water + (-net / H_FG) * 0.15 * dt);
+      }
     }
     this.water = Math.min(RPV_WATER * 1.02, this.water + inject * dt);
     if (this.leakRate) this.water = Math.max(0, this.water - this.leakRate * dt);
+    // A vessel with a hole in the bottom does not hold water. Whatever is
+    // injected runs straight through to the cavity floor.
+    if (this.vesselBreach) this.water = Math.max(0, this.water - (inject + 60) * dt);
 
     // ---- core temperature ------------------------------------------------
     const covered = clamp(this.water / (RPV_WATER * 0.55), 0, 1);

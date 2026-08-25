@@ -60,20 +60,25 @@ export class Renderer {
     return this.drawSite(sim);
   }
 
-  // The inside of both plants, cut open. Drawn back to front by hand: the
-  // geometry is fixed, so a sort would only add a way to get it wrong.
-  // The cutaway is SVG now; the canvas only paints the backdrop behind it.
+  // The cutaway is painted here, on the same canvas as the site view: backdrop,
+  // then the circuits, then the key.
   drawCut(sim) {
-    const ctx = this.ctx, CW = this.canvas.width, CH = this.canvas.height;
+    const ctx = this.ctx;
+    const CW = this.canvas.width, CH = this.canvas.height;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const g = ctx.createLinearGradient(0, 0, 0, CH);
-    g.addColorStop(0, '#0c141d'); g.addColorStop(0.5, '#121c26'); g.addColorStop(1, '#0a1119');
+    g.addColorStop(0, '#0a1119'); g.addColorStop(0.55, '#0c1620'); g.addColorStop(1, '#0a1119');
     ctx.fillStyle = g; ctx.fillRect(0, 0, CW, CH);
-    ctx.strokeStyle = 'rgba(120,170,210,0.05)'; ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let x = 0; x < CW; x += 40) { ctx.moveTo(x, 0); ctx.lineTo(x, CH); }
-    for (let y = 0; y < CH; y += 40) { ctx.moveTo(0, y); ctx.lineTo(CW, y); }
-    ctx.stroke();
+    const dpr = CW / (window.innerWidth || CW);
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.strokeStyle = 'rgba(80,130,180,0.055)'; ctx.lineWidth = 1;
+    const cw = CW / dpr, ch = CH / dpr;
+    for (let x = 0; x < cw; x += 46) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, ch); ctx.stroke(); }
+    for (let y = 0; y < ch; y += 46) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cw, y); ctx.stroke(); }
+    ctx.restore();
+    if (sim.cutStage) sim.cutStage.draw(ctx, sim, CW, CH, sim.visTime);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.drawCutLegend(ctx, CW, CH);
     return undefined;
   }
@@ -93,6 +98,7 @@ export class Renderer {
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     const left = narrow ? 10 : 322;
     const right = cw - (narrow ? 10 : 344);
     const rows = [[]];

@@ -8,7 +8,8 @@ import { PlantView } from './plantview.js';
 import { FX } from './fx.js';
 import { Camera } from './iso.js';
 import { byId } from './scenarios.js';
-import { CutStage } from './cutaway.js';
+import { Cutaway } from './cutaway.js';
+import { Sound } from './audio.js';
 import { clamp, lerp, smoothstep } from './util.js';
 
 export const SPEEDS = [0, 1, 30, 120, 900, -1];   // -1 = AUTO (adaptive)
@@ -29,6 +30,7 @@ export class Sim {
     this.view = 'site';                 // 'site' | 'cut'
     this.cutFocus = 'both';             // 'both' | 'active' | 'passive'
     this.cutCam = new Camera(canvas.width, canvas.height);
+    this.sound = new Sound();
     this.scenario = null;
     this.pending = [];
     this.feed = [];
@@ -86,12 +88,8 @@ export class Sim {
     this.passive = new Plant(MODE.PASSIVE, 'Unit B — Passive Cooling (Gen III+)');
     this.plants = [this.active, this.passive];
     this.views = [new PlantView(this.active, s.active), new PlantView(this.passive, s.passive)];
-    const host = typeof document !== 'undefined' && document.getElementById('cutstage');
-    if (host) {
-      this.cutStage = new CutStage(host);
-      this.cutStage.build(this.plants);
-      this.fitCut();
-    }
+    if (!this.cutStage) this.cutStage = new Cutaway();
+    this.fitCut();
     this.hook();
   }
 
@@ -136,10 +134,31 @@ export class Sim {
     }
   }
 
+  // Everything that happens says so out loud. The word list is the scenario
+  // log itself, so a new timeline entry gets a sound without wiring anything.
+  cueFor(msg, kind) {
+    const m = msg.toLowerCase();
+    if (/hydrogen explosion/.test(m)) return 'explosion';
+    if (/steam explosion/.test(m)) return 'steamex';
+    if (/vessel breach|vessel fails|breached/.test(m)) return 'breach';
+    if (/containment fail/.test(m)) return 'breach';
+    if (/tsunami|wave/.test(m)) return 'wave';
+    if (/earthquake|quake|seismic|ground motion/.test(m)) return 'quake';
+    if (/flood|submerged|inundat|seawater/.test(m)) return 'flood';
+    if (/fire|burn/.test(m)) return 'fire';
+    if (/scram|shut down/.test(m)) return 'scram';
+    if (/valve|relief|porv|depressuris/.test(m)) return 'valve';
+    if (/fail|lost|trip|blackout|starved|ruptur/.test(m)) return 'trip';
+    if (/start|energis|re-energ|connected/.test(m)) return 'start';
+    if (kind === 'crit') return 'trip';
+    return null;
+  }
+
   announce(msg, kind = 'info') {
     const last = this.feed[this.feed.length - 1];
     if (last && last.msg === msg) { last.n = (last.n || 1) + 1; last.t = this.t; this.onFeed && this.onFeed(); return; }
     this.feed.push({ t: this.t, msg, kind });
+    if (this.sound) { const c = this.cueFor(msg, kind); if (c) this.sound.cue(c); }
     if (this.feed.length > 120) this.feed.shift();
     this.onFeed && this.onFeed();
   }
@@ -238,7 +257,7 @@ export class Sim {
     // The cutaway's extent depends on the zoom (its captions are screen-sized),
     // so the fit is a fixed point rather than a one-shot calculation. Re-solving
     // it every frame converges in two or three and survives a resize for free.
-    if (this.view === 'cut' && this.cutStage) this.cutStage.update(this.visTime);
+    if (this.sound) this.sound.frame(this);
 
     if (this.cine) {
       this.cine.t += rdt;

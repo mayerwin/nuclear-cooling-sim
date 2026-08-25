@@ -1,716 +1,502 @@
 // ---------------------------------------------------------------------------
-// cutaway.js - what actually happens in the circuit, as a schematic.
+// cutaway.js - the circuit, painted on the same canvas as everything else.
 //
-// Drawn with JointJS (vendor/joint.min.js, MPL-2.0): its graph, its shape
-// definitions, its orthogonal router and rounded connector do the plumbing.
-// Hand-routed pipes are where this view kept falling down; a library that does
-// it properly is worth the 460 kB.
+// This was SVG once. SVG is a fine way to draw a diagram and a bad way to draw
+// water: every drop has to be a DOM node, and moving liquid means mutating the
+// document sixty times a second. On canvas the water can be what it is - a
+// surface with waves on it, slugs of fluid travelling down a pipe, a stream
+// falling into a tank and splashing.
 //
-// Deliberately NOT to scale. The question this view answers is "where is the
-// water going, and what stops it", so it holds a handful of boxes a side and
-// as few words as will carry the point. Real dimensions live in the site view
-// and in the fidelity ledger.
+// Everything here is a pure function of the model and the clock. No random
+// numbers in a draw call: variation comes from hashing an index, so a frozen
+// frame is a still one.
 //
-// Three things are drawn because they are the argument, not decoration:
-//   - the route inside the reactor, so the water is seen going *through* the
-//     fuel rather than up to the edge of a box;
-//   - the boiler standing above the reactor, because that is what keeps the
-//     loop turning when the pump stops;
-//   - the containment line, because on the passive plant it is the outer wall
-//     of the cooling loop and not just a radiological barrier.
-//
-// The whole comparison is one thing: when the pump stops, does anything still
-// move, and is there water above the core to fall in.
+// Vessels are drawn as cylinders: a shaded body, an elliptical cap, and an
+// elliptical liquid surface. That single trick - the ellipse - is what makes a
+// flat drawing read as a tank with water in it rather than a blue rectangle.
 // ---------------------------------------------------------------------------
+
 import { MODE, FUEL_TOP } from './plant.js';
 
-const J = () => window.joint;
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const lerp = (a, b, t) => a + (b - a) * t;
+const TAU = Math.PI * 2;
+// deterministic per-index jitter
+const hash = (i) => {
+  const s = Math.sin(i * 12.9898) * 43758.5453;
+  return s - Math.floor(s);
+};
 
 const C = {
-  hot: '#e07a3c', hotHi: '#ff6a2a',
-  cold: '#3fc0d8', water: '#2f8ed6', rcs: '#2b86cf',
-  steam: '#b7c6d2', power: '#ffd35c',
+  cold: '#39b6dc', water: '#2f8ed6', hot: '#e8763a',
+  steam: '#c3d2dd', power: '#ffd35c',
   ok: '#63e08a', warn: '#ffc44d', bad: '#ff5c48',
-  ink: '#dbe8f2', dim: '#93a6b6', panel: '#111a23', edge: '#6f7d8a'
+  ink: '#e6f0f7', dim: '#93a6b6'
 };
+
 // Physically, hotter is whiter. Visually, pale reads as harmless, and a core at
-// 2900 C is not. The ramp stays in the red once the fuel is failing.
+// 2900 C is not, so the ramp stays in the red once the fuel is failing.
 const RAMP = [[560, '#d9853a'], [720, '#e59a2e'], [900, '#e8702a'],
   [1100, '#e8481c'], [1500, '#f52d10'], [2200, '#ff3a18'], [3200, '#ff6a33']];
-function hx(c) { const h = c.slice(1); const n = parseInt(h, 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+const hx = (c) => { const n = parseInt(c.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 export function tempColor(K) {
   if (K <= RAMP[0][0]) return RAMP[0][1];
-  for (let i = 1; i < RAMP.length; i++) if (K <= RAMP[i][0]) {
-    const t = (K - RAMP[i - 1][0]) / (RAMP[i][0] - RAMP[i - 1][0]);
-    const a = hx(RAMP[i - 1][1]), b = hx(RAMP[i][1]);
-    return `rgb(${a[0] + (b[0] - a[0]) * t | 0},${a[1] + (b[1] - a[1]) * t | 0},${a[2] + (b[2] - a[2]) * t | 0})`;
+  for (let i = 1; i < RAMP.length; i++) {
+    if (K <= RAMP[i][0]) {
+      const u = (K - RAMP[i - 1][0]) / (RAMP[i][0] - RAMP[i - 1][0]);
+      const a = hx(RAMP[i - 1][1]), b = hx(RAMP[i][1]);
+      return `rgb(${a[0] + (b[0] - a[0]) * u | 0},${a[1] + (b[1] - a[1]) * u | 0},${a[2] + (b[2] - a[2]) * u | 0})`;
+    }
   }
   return RAMP[RAMP.length - 1][1];
 }
-const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
-
-// ---- geometry -------------------------------------------------------------
-// Every vessel is drawn as a real silhouette rather than a rectangle, so the
-// sizes are fixed and the insides are written as paths in the vessel's own
-// coordinates. A schematic still has to look like the machine it stands for.
-const RPV_W = 300, RPV_H = 430;
-const SG_W = 260, SG_H = 430;
-const PUMP_W = 230, PUMP_H = 240;
-const TANK_W = 300, TANK_H = 160;
-
-// The reactor pressure vessel: a tall capsule with a domed head and bottom.
-const RPV_SHELL = 'M 46 108 Q 46 34 150 34 Q 254 34 254 108 L 254 292 '
-  + 'Q 254 366 150 366 Q 46 366 46 292 Z';
-const RPV_CAV = 'M 58 112 Q 58 46 150 46 Q 242 46 242 112 L 242 288 '
-  + 'Q 242 354 150 354 Q 58 354 58 288 Z';
-const CAV_TOP = 46, CAV_BOT = 354, CAV_SPAN = CAV_BOT - CAV_TOP;
-const RPV_IN = 118, RPV_OUT = 88;          // cold and hot nozzle heights
-const CH1 = 122, CH2 = 172, CH_BOT = 320, ANN = 229;
-// Cold water comes in at the nozzle, drops down the gap between the core and
-// the wall, crosses the bottom and rises between the fuel rods: the real route.
-const RPV_COLD = `M 254 ${RPV_IN} H ${ANN} V ${CH_BOT} H ${CH1}`;
-const RPV_HOT = `M ${CH1} ${CH_BOT} V ${RPV_OUT} H 254 M ${CH2} ${CH_BOT} V ${RPV_OUT - 6}`;
-const RODS = [[80, 34], [130, 34], [180, 34]];   // x, width - three rod stacks
-
-// The steam generator: channel head, conical transition, upper drum, domed top.
-const SG_SHELL = 'M 28 350 Q 28 366 46 366 L 214 366 Q 232 366 232 350 L 232 200 '
-  + 'L 182 150 L 182 78 Q 182 34 130 34 Q 78 34 78 78 L 78 150 L 28 200 Z';
-const SG_CAV = 'M 40 346 Q 40 354 48 354 L 212 354 Q 220 354 220 346 L 220 205 '
-  + 'L 170 155 L 170 78 Q 170 46 130 46 Q 90 46 90 78 L 90 155 L 40 205 Z';
-const SG_TOP = 46, SG_BOT = 354, SG_SPAN = SG_BOT - SG_TOP;
-const SG_IN = 330, SG_OUT_X = 160;
-const SG_HOT = `M 28 ${SG_IN} H 76 V 190 H 118`;
-const SG_COLD = `M 118 190 H ${SG_OUT_X} V 366`;
-
-// ---- shapes ---------------------------------------------------------------
-let SHAPES = null;
-function defineShapes() {
-  if (SHAPES) return SHAPES;
-  const j = J();
-  const F = 'ui-sans-serif,system-ui,sans-serif';
-
-  // A vessel: steel shell, dark cavity, water with a lit surface, the fuel, and
-  // the route the water takes through it. The cavity is a clip path, so the
-  // water can be a plain rectangle and still take the shape of the vessel.
-  const Vessel = j.dia.Element.define('n.Vessel', {
-    size: { width: RPV_W, height: RPV_H },
-    z: 6,
-    attrs: {
-      shadow: { d: RPV_SHELL, fill: 'rgba(0,0,0,.45)', transform: 'translate(0,9)',
-        filter: 'url(#cBlur)' },
-      skirt: { d: 'M 104 320 L 92 388 L 208 388 L 196 320 Z', fill: '#38454f',
-        stroke: '#22303c', strokeWidth: 2 },
-      skirtHi: { d: 'M 104 320 L 92 388', fill: 'none', stroke: 'rgba(255,255,255,.16)',
-        strokeWidth: 2.5 },
-      shell: { d: RPV_SHELL, fill: 'url(#cSteel)', stroke: '#22303c', strokeWidth: 2 },
-      shellHi: { d: RPV_SHELL, fill: 'none', stroke: 'rgba(255,255,255,.30)',
-        strokeWidth: 2, transform: 'translate(0,2)' },
-      cav: { d: RPV_CAV, fill: 'url(#cCav)' },
-      liquid: { x: 0, y: 0, width: RPV_W, height: 0, fill: 'url(#cWater)', clipPath: '' },
-      surf: { x: 0, y: 0, width: RPV_W, height: 4, fill: 'rgba(190,232,255,.85)',
-        opacity: 0, clipPath: '' },
-      glow: { x: 0, y: 0, width: 0, height: 0, rx: 7, fill: '#ff5a1e',
-        filter: 'url(#cHot)', opacity: 0 },
-      fuel1: { x: 0, y: 0, width: 0, height: 0, rx: 5, fill: 'url(#cClad)',
-        stroke: '#1b2833', strokeWidth: 1.5, opacity: 0 },
-      rod1: { x: 0, y: 0, width: 0, height: 0, rx: 5, fill: 'url(#cRods)', opacity: 0 },
-      fuel2: { x: 0, y: 0, width: 0, height: 0, rx: 5, fill: 'url(#cClad)',
-        stroke: '#1b2833', strokeWidth: 1.5, opacity: 0 },
-      rod2: { x: 0, y: 0, width: 0, height: 0, rx: 5, fill: 'url(#cRods)', opacity: 0 },
-      fuel3: { x: 0, y: 0, width: 0, height: 0, rx: 5, fill: 'url(#cClad)',
-        stroke: '#1b2833', strokeWidth: 1.5, opacity: 0 },
-      rod3: { x: 0, y: 0, width: 0, height: 0, rx: 5, fill: 'url(#cRods)', opacity: 0 },
-      // the two halves of the route, each drawn as a tube
-      rimA: { d: 'M 0 0', stroke: '#0b1219', strokeWidth: 16, fill: 'none',
-        strokeLinejoin: 'round', strokeLinecap: 'round' },
-      rimB: { d: 'M 0 0', stroke: '#0b1219', strokeWidth: 16, fill: 'none',
-        strokeLinejoin: 'round', strokeLinecap: 'round' },
-      chanA: { d: 'M 0 0', stroke: C.cold, strokeWidth: 11, fill: 'none',
-        strokeLinejoin: 'round', strokeLinecap: 'round' },
-      chanB: { d: 'M 0 0', stroke: C.hot, strokeWidth: 11, fill: 'none',
-        strokeLinejoin: 'round', strokeLinecap: 'round' },
-      glossA: { d: 'M 0 0', stroke: 'rgba(255,255,255,.28)', strokeWidth: 3.4, fill: 'none',
-        strokeLinejoin: 'round', strokeLinecap: 'round' },
-      glossB: { d: 'M 0 0', stroke: 'rgba(255,255,255,.28)', strokeWidth: 3.4, fill: 'none',
-        strokeLinejoin: 'round', strokeLinecap: 'round' },
-      dashA: { d: 'M 0 0', stroke: 'rgba(255,255,255,.95)', strokeWidth: 5, fill: 'none',
-        strokeDasharray: '2.5 26', strokeLinecap: 'round', opacity: 0 },
-      dashB: { d: 'M 0 0', stroke: 'rgba(255,255,255,.95)', strokeWidth: 5, fill: 'none',
-        strokeDasharray: '2.5 26', strokeLinecap: 'round', opacity: 0 },
-      nozA: { x: 274, y: RPV_IN - 11, width: 28, height: 22, rx: 4, fill: 'url(#cSteel)',
-        stroke: '#22303c', strokeWidth: 1.5 },
-      nozB: { x: 274, y: RPV_OUT - 11, width: 28, height: 22, rx: 4, fill: 'url(#cSteel)',
-        stroke: '#22303c', strokeWidth: 1.5 },
-      nozC: { x: 0, y: 0, width: 0, height: 0, opacity: 0 },
-      bub: { d: 'M 0 0', fill: 'rgba(226,244,255,.55)', opacity: 0 },
-      fuelTx: { x: 0, y: 0, textAnchor: 'middle', fill: '#9fb2c2', fontSize: 11.5,
-        fontWeight: 800, fontFamily: F, letterSpacing: '.05em', opacity: 0 },
-      name: { x: 'calc(w/2)', y: 22, textAnchor: 'middle', fill: C.ink, fontSize: 16,
-        fontWeight: 800, fontFamily: F, letterSpacing: '.08em',
-        stroke: 'rgba(6,12,18,.85)', strokeWidth: 5, paintOrder: 'stroke' },
-      value: { x: 'calc(w/2)', y: 396, textAnchor: 'middle', fill: C.dim, fontSize: 15,
-        fontWeight: 700, fontFamily: F, stroke: 'rgba(6,12,18,.8)', strokeWidth: 4,
-        paintOrder: 'stroke' },
-      value2: { x: 'calc(w/2)', y: 418, textAnchor: 'middle', fill: '#a2bacd', fontSize: 13,
-        fontWeight: 700, fontFamily: F, stroke: 'rgba(6,12,18,.8)', strokeWidth: 4,
-        paintOrder: 'stroke', opacity: 0 }
-    }
-  }, { markup: [
-    { tagName: 'path', selector: 'shadow' },
-    { tagName: 'path', selector: 'skirt' }, { tagName: 'path', selector: 'skirtHi' },
-    { tagName: 'path', selector: 'shell' }, { tagName: 'path', selector: 'cav' },
-    { tagName: 'rect', selector: 'liquid' }, { tagName: 'rect', selector: 'surf' },
-    { tagName: 'rect', selector: 'glow' },
-    { tagName: 'rect', selector: 'fuel1' }, { tagName: 'rect', selector: 'rod1' },
-    { tagName: 'rect', selector: 'fuel2' }, { tagName: 'rect', selector: 'rod2' },
-    { tagName: 'rect', selector: 'fuel3' }, { tagName: 'rect', selector: 'rod3' },
-    { tagName: 'path', selector: 'bub' },
-    { tagName: 'path', selector: 'rimA' }, { tagName: 'path', selector: 'rimB' },
-    { tagName: 'path', selector: 'chanA' }, { tagName: 'path', selector: 'chanB' },
-    { tagName: 'path', selector: 'glossA' }, { tagName: 'path', selector: 'glossB' },
-    { tagName: 'path', selector: 'dashA' }, { tagName: 'path', selector: 'dashB' },
-    { tagName: 'path', selector: 'shellHi' },
-    { tagName: 'rect', selector: 'nozA' }, { tagName: 'rect', selector: 'nozB' },
-    { tagName: 'rect', selector: 'nozC' },
-    { tagName: 'text', selector: 'fuelTx' },
-    { tagName: 'text', selector: 'name' },
-    { tagName: 'text', selector: 'value' }, { tagName: 'text', selector: 'value2' }] });
-
-  // An open basin of water, or a closed tank in the basement.
-  const Tank = j.dia.Element.define('n.Tank', {
-    size: { width: TANK_W, height: TANK_H },
-    z: 6,
-    attrs: {
-      shadow: { x: 14, y: 44, width: TANK_W - 28, height: 94, rx: 10,
-        fill: 'rgba(0,0,0,.45)', filter: 'url(#cBlur)' },
-      shell: { d: `M 8 30 L 8 122 Q 8 134 20 134 L ${TANK_W - 20} 134 `
-        + `Q ${TANK_W - 8} 134 ${TANK_W - 8} 122 L ${TANK_W - 8} 30`,
-        fill: 'none', stroke: 'url(#cSteel)', strokeWidth: 13, strokeLinecap: 'round',
-        strokeLinejoin: 'round' },
-      cav: { x: 20, y: 42, width: TANK_W - 40, height: 82, rx: 4, fill: 'url(#cCav)' },
-      liquid: { x: 20, y: 42, width: TANK_W - 40, height: 0, fill: 'url(#cWater)' },
-      surf: { x: 20, y: 0, width: TANK_W - 40, height: 4, fill: 'rgba(190,232,255,.85)',
-        opacity: 0 },
-      shellHi: { d: `M 13 30 L 13 120 Q 13 128 22 128 L ${TANK_W - 22} 128`,
-        fill: 'none', stroke: 'rgba(255,255,255,.24)', strokeWidth: 2,
-        strokeLinecap: 'round' },
-      name: { x: 'calc(w/2)', y: 22, textAnchor: 'middle', fill: C.ink, fontSize: 15,
-        fontWeight: 800, fontFamily: F, letterSpacing: '.07em',
-        stroke: 'rgba(6,12,18,.85)', strokeWidth: 5, paintOrder: 'stroke' },
-      value: { x: 'calc(w/2)', y: 156, textAnchor: 'middle', fill: C.dim, fontSize: 14.5,
-        fontWeight: 700, fontFamily: F, stroke: 'rgba(6,12,18,.8)', strokeWidth: 4,
-        paintOrder: 'stroke' }
-    }
-  }, { markup: [
-    { tagName: 'rect', selector: 'shadow' }, { tagName: 'path', selector: 'shell' },
-    { tagName: 'rect', selector: 'cav' }, { tagName: 'rect', selector: 'liquid' },
-    { tagName: 'rect', selector: 'surf' }, { tagName: 'path', selector: 'shellHi' },
-    { tagName: 'text', selector: 'name' }, { tagName: 'text', selector: 'value' }] });
-
-  // A centrifugal pump: volute casing, suction and discharge nozzles, and an
-  // impeller that actually turns when the pump is running.
-  const Pump = j.dia.Element.define('n.Pump', {
-    size: { width: PUMP_W, height: PUMP_H },
-    z: 6,
-    attrs: {
-      noz: { d: 'M 0 68 H 60 V 92 H 0 Z M 103 0 H 127 V 60 H 103 Z',
-        fill: 'url(#cSteel)', stroke: '#22303c', strokeWidth: 1.5 },
-      base: { d: 'M 84 118 L 74 152 L 156 152 L 146 118 Z', fill: '#38454f',
-        stroke: '#22303c', strokeWidth: 2 },
-      shadow: { cx: 115, cy: 89, r: 58, fill: 'rgba(0,0,0,.45)', filter: 'url(#cBlur)' },
-      body: { cx: 115, cy: 80, r: 58, fill: 'url(#cVolute)', stroke: '#22303c',
-        strokeWidth: 2 },
-      ring: { cx: 115, cy: 80, r: 46, fill: '#0b141c', stroke: 'rgba(255,255,255,.10)',
-        strokeWidth: 1.5 },
-      imp: { d: 'M 115 44 A 36 36 0 0 1 141 57 L 122 74 A 12 12 0 0 0 115 68 Z',
-        fill: '#5fb2e8', transform: 'rotate(0,115,80)' },
-      imp2: { d: 'M 115 44 A 36 36 0 0 1 141 57 L 122 74 A 12 12 0 0 0 115 68 Z',
-        fill: '#5fb2e8', transform: 'rotate(120,115,80)' },
-      imp3: { d: 'M 115 44 A 36 36 0 0 1 141 57 L 122 74 A 12 12 0 0 0 115 68 Z',
-        fill: '#5fb2e8', transform: 'rotate(240,115,80)' },
-      hub: { cx: 115, cy: 80, r: 11, fill: '#8fa6b7', stroke: '#22303c', strokeWidth: 1.5 },
-      gloss: { d: 'M 72 46 A 58 58 0 0 1 152 42', fill: 'none',
-        stroke: 'rgba(255,255,255,.32)', strokeWidth: 3, strokeLinecap: 'round' },
-      name: { x: 115, y: 176, textAnchor: 'middle', fill: C.ink, fontSize: 15,
-        fontWeight: 800, fontFamily: F, letterSpacing: '.07em',
-        stroke: 'rgba(6,12,18,.85)', strokeWidth: 5, paintOrder: 'stroke' },
-      value: { x: 115, y: 197, textAnchor: 'middle', fill: C.dim, fontSize: 13.5,
-        fontWeight: 700, fontFamily: F, stroke: 'rgba(6,12,18,.8)', strokeWidth: 4,
-        paintOrder: 'stroke' },
-      value2: { x: 115, y: 216, textAnchor: 'middle', fill: C.dim, fontSize: 12.5,
-        fontWeight: 600, fontFamily: F, stroke: 'rgba(6,12,18,.8)', strokeWidth: 4,
-        paintOrder: 'stroke' }
-    }
-  }, { markup: [
-    { tagName: 'path', selector: 'noz' }, { tagName: 'path', selector: 'base' },
-    { tagName: 'circle', selector: 'shadow' },
-    { tagName: 'circle', selector: 'body' }, { tagName: 'circle', selector: 'ring' },
-    { tagName: 'path', selector: 'imp' }, { tagName: 'path', selector: 'imp2' },
-    { tagName: 'path', selector: 'imp3' }, { tagName: 'circle', selector: 'hub' },
-    { tagName: 'path', selector: 'gloss' }, { tagName: 'text', selector: 'name' },
-    { tagName: 'text', selector: 'value' }, { tagName: 'text', selector: 'value2' }] });
-
-  // The electrical supply.
-  const Panel = j.dia.Element.define('n.Panel', {
-    size: { width: 180, height: 92 },
-    z: 6,
-    attrs: {
-      shadow: { x: 4, y: 12, width: 172, height: 78, rx: 11, fill: 'rgba(0,0,0,.45)',
-        filter: 'url(#cBlur)' },
-      body: { x: 2, y: 2, width: 176, height: 82, rx: 11, fill: 'url(#cPanel)',
-        stroke: '#22303c', strokeWidth: 2 },
-      bolt: { d: 'M 26 22 L 40 22 L 33 38 L 44 38 L 24 62 L 30 44 L 20 44 Z',
-        fill: C.power },
-      name: { x: 108, y: 34, textAnchor: 'middle', fill: C.ink, fontSize: 14,
-        fontWeight: 800, fontFamily: F, letterSpacing: '.06em' },
-      value: { x: 108, y: 58, textAnchor: 'middle', fill: C.dim, fontSize: 14,
-        fontWeight: 700, fontFamily: F }
-    }
-  }, { markup: [
-    { tagName: 'rect', selector: 'shadow' }, { tagName: 'rect', selector: 'body' },
-    { tagName: 'path', selector: 'bolt' }, { tagName: 'text', selector: 'name' },
-    { tagName: 'text', selector: 'value' }] });
-
-  // Where a line leaves the picture.
-  const Flag = j.dia.Element.define('n.Flag', {
-    size: { width: 215, height: 54 },
-    z: 6,
-    attrs: {
-      body: { refD: 'M 0 0 L 0.86 0 L 1 0.5 L 0.86 1 L 0 1 Z', fill: 'url(#cPanel)',
-        stroke: C.edge, strokeWidth: 2 },
-      name: { x: 'calc(w/2-10)', y: 'calc(h/2+6)', textAnchor: 'middle', fill: C.ink,
-        fontSize: 15, fontWeight: 700, fontFamily: F }
-    }
-  }, { markup: [{ tagName: 'path', selector: 'body' }, { tagName: 'text', selector: 'name' }] });
-
-  // The containment: a cutaway of the building everything above stands in. It
-  // is the answer to "when is passive cooling not enough" - the water the
-  // passive plant recirculates never crosses this line.
-  const Zone = j.dia.Element.define('n.Zone', {
-    size: { width: 802, height: 990 },
-    z: 0,
-    attrs: {
-      hull: { d: 'M 0 938 L 0 220 A 401 210 0 0 1 802 220 L 802 938 Z',
-        fill: 'url(#cConc)', stroke: '#3d4e5f', strokeWidth: 2 },
-      voidd: { d: 'M 20 938 L 20 224 A 381 196 0 0 1 782 224 L 782 938 Z',
-        fill: 'rgba(10,18,26,.96)' },
-      slab: { x: -12, y: 936, width: 826, height: 46, rx: 6, fill: 'url(#cConc)',
-        stroke: '#3d4e5f', strokeWidth: 2 },
-      hi: { d: 'M 10 700 L 10 220 A 391 203 0 0 1 200 44', fill: 'none',
-        stroke: 'rgba(255,255,255,.14)', strokeWidth: 3, strokeLinecap: 'round' },
-      name: { x: 24, y: 966, textAnchor: 'start', fill: C.dim, fontSize: 13.5,
-        fontWeight: 700, fontFamily: F }
-    }
-  }, { markup: [
-    { tagName: 'path', selector: 'hull' }, { tagName: 'path', selector: 'voidd' },
-    { tagName: 'path', selector: 'hi' }, { tagName: 'rect', selector: 'slab' },
-    { tagName: 'text', selector: 'name' }] });
-
-  // A pipe, drawn as a tube: a dark rim for depth, the fluid itself, a gloss
-  // down the middle, and the flow riding on top. Pipes sit under the vessels,
-  // so they run into the nozzles rather than stopping at a boundary.
-  const Pipe = j.dia.Link.define('n.Pipe', {
-    attrs: {
-      rim: { connection: true, stroke: '#0b1219', strokeWidth: 20, fill: 'none',
-        strokeLinejoin: 'round', strokeLinecap: 'round' },
-      bore: { connection: true, stroke: C.water, strokeWidth: 14, fill: 'none',
-        strokeLinejoin: 'round', strokeLinecap: 'round' },
-      gloss: { connection: true, stroke: 'rgba(255,255,255,.26)', strokeWidth: 4.4,
-        fill: 'none', strokeLinejoin: 'round', strokeLinecap: 'round' },
-      flow: { connection: true, stroke: 'rgba(255,255,255,.95)', strokeWidth: 6,
-        fill: 'none', strokeDasharray: '2.5 30', strokeDashoffset: 0,
-        strokeLinecap: 'round', opacity: 0 }
-    },
-    router: { name: 'orthogonal', args: { padding: 20 } },
-    connector: { name: 'rounded', args: { radius: 24 } },
-    connectionPoint: { name: 'anchor' },
-    z: 2
-  }, { markup: [{ tagName: 'path', selector: 'rim' }, { tagName: 'path', selector: 'bore' },
-    { tagName: 'path', selector: 'gloss' }, { tagName: 'path', selector: 'flow' }] });
-
-  const Wire = j.dia.Link.define('n.Wire', {
-    attrs: {
-      rim: { connection: true, stroke: '#0d1720', strokeWidth: 9, fill: 'none',
-        strokeLinejoin: 'round', strokeLinecap: 'round' },
-      bore: { connection: true, stroke: C.power, strokeWidth: 4.5, fill: 'none',
-        strokeDasharray: '11 9', strokeDashoffset: 0, strokeLinejoin: 'round' }
-    },
-    router: { name: 'orthogonal', args: { padding: 16 } },
-    connector: { name: 'rounded', args: { radius: 12 } },
-    connectionPoint: { name: 'anchor' },
-    z: 1
-  }, { markup: [{ tagName: 'path', selector: 'rim' }, { tagName: 'path', selector: 'bore' }] });
-
-  SHAPES = { Vessel, Tank, Pump, Panel, Flag, Zone, Pipe, Wire };
-  return SHAPES;
+// Water in the loop is blue when it is cool and red when it is not. Real hot
+// water is not red; this is the one place the picture chooses legibility over
+// literal truth, and the ledger says so.
+function waterColor(K) {
+  // Normal primary water sits at 620 K and must still read as water, so the
+  // shift starts where the plant is actually in trouble. It goes through a pale
+  // scalding colour rather than straight from blue to orange: mixing those two
+  // in RGB passes through brown, and brown water looks dirty, not hot.
+  const u = clamp((K - 660) / 400, 0, 1);
+  const mid = hx('#cfe6f2');
+  const a = u < 0.5 ? hx('#2f8ed6') : mid;
+  const b = u < 0.5 ? mid : hx('#ff6a33');
+  const v = u < 0.5 ? u * 2 : (u - 0.5) * 2;
+  return `rgb(${lerp(a[0], b[0], v) | 0},${lerp(a[1], b[1], v) | 0},${lerp(a[2], b[2], v) | 0})`;
+}
+function shade(col, f) {
+  let r, g, b;
+  if (col[0] === '#') [r, g, b] = hx(col);
+  else { const m = col.match(/[\d.]+/g); r = +m[0]; g = +m[1]; b = +m[2]; }
+  const k = (v) => clamp(f > 1 ? v + (255 - v) * (f - 1) : v * f, 0, 255) | 0;
+  return `rgb(${k(r)},${k(g)},${k(b)})`;
 }
 
-// ===========================================================================
-// One circuit, drawn as a section through the building: up on the screen is up
-// on the site. The boiler stands above the reactor, which is why the loop keeps
-// turning with the pump off, and the spare water is above the core on one
-// design and in the basement on the other.
-// ===========================================================================
-const W = 840, H = 1260;
+// ---------------------------------------------------------------------------
+// The layout, in design units. One circuit is W wide; the second sits beside it.
+// ---------------------------------------------------------------------------
+const W = 840, GAP = 90;
+const L = {
+  zone: { x: 18, y: 10, w: 802, hull: 938, slab: 46 },
+  pool: { x: 70, y: 150, w: 300, h: 160 },
+  core: { x: 116, y: 500, w: 208, h: 336 },
+  sg: { x: 494, y: 258, w: 212, h: 344 },
+  pump: { cx: 630, cy: 770, r: 58 },
+  power: { x: 640, y: 1030, w: 180, h: 92 },
+  base: { x: 40, y: 1030, w: 300, h: 160 },
+  eccs: { cx: 485, cy: 1080, r: 58 },
+  flag: { x: 520, y: -70, w: 215, h: 54 }
+};
+// nozzle heights on the reactor, and where the water goes inside it
+const CORE_IN = 0.20, CORE_OUT = 0.10;     // as a fraction of vessel height
+const CONTENT = { x: -10, y: -80, w: 870, h: 1340 };
 
-class Circuit {
-  constructor(plant, graph, ox) {
-    this.p = plant;
-    this.passive = plant.mode === MODE.PASSIVE;
-    this.g = graph;
-    this.ox = ox;
-    this.cells = [];
-    this.build();
-  }
-  add(c) { this.g.addCell(c); this.cells.push(c); return c; }
-  tagPipe(link, text, col, pos, dx, dy) {
-    link.labels([{ position: { distance: pos, offset: { x: dx || 0, y: dy || 0 } },
-      attrs: { labelText: { text, fill: col, fontSize: 14.5, fontWeight: 700,
-        fontFamily: 'ui-sans-serif,system-ui,sans-serif', textAnchor: 'middle',
-        textVerticalAnchor: 'middle', stroke: 'rgba(8,14,20,.9)', strokeWidth: 4,
-        paintOrder: 'stroke' } },
-      markup: [{ tagName: 'text', selector: 'labelText' }] }]);
-  }
-  at(x, y) { return { x: this.ox + x, y }; }
+// ---------------------------------------------------------------------------
+// drawing primitives
+// ---------------------------------------------------------------------------
 
-  build() {
-    const S = defineShapes(), P = this.passive;
-    // Pipes are given the two points they actually join, not an element and a
-    // hint. Every nozzle position here is read off the vessel drawings above,
-    // so the plumbing lands on the stubs instead of near them, and the router
-    // is never left guessing.
-    const pipe = (a, b, col, verts) => {
-      const l = this.add(new S.Pipe({
-        source: this.at(a[0], a[1]), target: this.at(b[0], b[1]),
-        vertices: (verts || []).map(v => this.at(v[0], v[1])),
-        router: { name: 'normal' } }));
-      // remembered so an idle pipe can go steel and come back the right colour
-      if (col) { l.set('fluid', col); l.attr('bore/stroke', col); }
-      return l;
-    };
-
-    // where everything stands, and where its nozzles are
-    const CORE = [70, 470], SG = [470, 228], PUMP = [515, 690];
-    const POOL = [70, 150], BASE = [40, 1010], ECCS = [370, 980], PWR = [640, 1010];
-    const coreHot = [CORE[0] + 300, CORE[1] + RPV_OUT];      // 370, 558
-    const coreCold = [CORE[0] + 300, CORE[1] + RPV_IN];      // 370, 588
-    const coreTopA = [CORE[0] + 100, CORE[1]];               // gravity inlet
-    const coreTopB = [CORE[0] + 200, CORE[1]];               // heat-exchanger riser
-    const sgIn = [SG[0], SG[1] + SG_IN];
-    const sgOut = [SG[0] + SG_OUT_X, SG[1] + 366];
-    const sgTop = [SG[0] + 130, SG[1] + 30];
-    const pumpTop = [PUMP[0] + 115, PUMP[1]];
-    const pumpLeft = [PUMP[0], PUMP[1] + 80];
-    const pumpBot = [PUMP[0] + 115, PUMP[1] + 138];
-    const poolA = [POOL[0] + 100, POOL[1] + 134];
-    const poolB = [POOL[0] + 200, POOL[1] + 134];
-
-    this.zone = this.add(new S.Zone({ position: this.at(18, 10) }));
-
-    this.core = this.add(new S.Vessel({ position: this.at(CORE[0], CORE[1]) }));
-    this.core.attr({ name: { text: 'REACTOR' },
-      rimA: { d: RPV_COLD }, rimB: { d: RPV_HOT },
-      chanA: { d: RPV_COLD }, chanB: { d: RPV_HOT },
-      glossA: { d: RPV_COLD }, glossB: { d: RPV_HOT },
-      dashA: { d: RPV_COLD }, dashB: { d: RPV_HOT },
-      liquid: { clipPath: 'url(#cRpvClip)' }, surf: { clipPath: 'url(#cRpvClip)' },
-      fuelTx: { x: 150, y: 346, text: 'FUEL RODS', opacity: 1 } });
-    for (let i = 0; i < 3; i++) {
-      const [x, w] = RODS[i];
-      this.core.attr(`fuel${i + 1}`, { x, width: w, opacity: 1 });
-      this.core.attr(`rod${i + 1}`, { x, width: w, opacity: 1 });
-    }
-
-    this.sg = this.add(new S.Vessel({ position: this.at(SG[0], SG[1]),
-      size: { width: SG_W, height: SG_H } }));
-    this.sg.attr({ name: { text: 'BOILER' },
-      shadow: { d: SG_SHELL }, shell: { d: SG_SHELL }, shellHi: { d: SG_SHELL },
-      cav: { d: SG_CAV },
-      rimA: { d: SG_COLD }, rimB: { d: SG_HOT },
-      chanA: { d: SG_COLD }, chanB: { d: SG_HOT },
-      glossA: { d: SG_COLD }, glossB: { d: SG_HOT },
-      dashA: { d: SG_COLD }, dashB: { d: SG_HOT },
-      liquid: { clipPath: 'url(#cSgClip)' }, surf: { clipPath: 'url(#cSgClip)' },
-      nozA: { x: -4, y: SG_IN - 11, width: 26, height: 22 },
-      nozB: { x: SG_OUT_X - 13, y: 352, width: 26, height: 20 },
-      nozC: { x: 117, y: 22, width: 26, height: 20, rx: 4, fill: 'url(#cSteel)',
-        stroke: '#22303c', strokeWidth: 1.5, opacity: 1 },
-      skirt: { d: 'M 60 340 L 50 396 L 210 396 L 200 340 Z' },
-      skirtHi: { d: 'M 60 340 L 50 396' } });
-
-    this.pump = this.add(new S.Pump({ position: this.at(PUMP[0], PUMP[1]) }));
-    this.pump.attr({ name: { text: 'PUMP' } });
-
-    this.flag = this.add(new S.Flag({ position: this.at(520, -70) }));
-    this.flag.attr({ name: { text: 'heat out, to the sea' } });
-
-    this.supply = this.add(new S.Tank({
-      position: P ? this.at(POOL[0], POOL[1]) : this.at(BASE[0], BASE[1]) }));
-    this.supply.attr({ name: { text: P ? 'POOL ABOVE THE REACTOR' : 'WATER IN THE BASEMENT' } });
-
-    this.power = this.add(new S.Panel({ position: this.at(PWR[0], PWR[1]) }));
-    this.power.attr({ name: { text: 'POWER' } });
-
-    // the loop: reactor -> boiler -> pump -> reactor
-    this.hot = pipe(coreHot, sgIn, C.hot);
-    this.cold1 = pipe(sgOut, pumpTop, C.cold);
-    this.cold2 = pipe(pumpLeft, coreCold, C.cold, [[420, 770], [420, 588]]);
-    this.out = pipe(sgTop, [sgTop[0], -16], C.steam);
-
-    if (P) {
-      // The pool does two jobs, both real: it is the water that falls in, and
-      // the heat exchanger standing in it is where the heat goes when the
-      // boiler route is gone.
-      this.inject = pipe(poolA, coreTopA, C.water);
-      this.tagPipe(this.inject, 'falls in', C.water, 0.5, -54);
-      this.prhrLink = pipe(coreTopB, poolB, C.hot);
-      this.tagPipe(this.prhrLink, 'heat rises', C.hot, 0.5, 56);
-    } else {
-      // the same inlet, reached the long way: up out of the basement, past the
-      // whole height of the reactor, behind a pump that needs electricity
-      this.eccs = this.add(new S.Pump({ position: this.at(ECCS[0], ECCS[1]) }));
-      this.eccs.attr({ name: { text: 'BACKUP PUMP' } });
-      this.inject = pipe([BASE[0] + 300, BASE[1] + 88], [ECCS[0], ECCS[1] + 80],
-        C.water, [[355, BASE[1] + 88], [355, ECCS[1] + 80]]);
-      this.inject2 = pipe([ECCS[0] + 115, ECCS[1]], coreTopA, C.water,
-        [[485, 950], [52, 950], [52, 410], [170, 410]]);
-      this.tagPipe(this.inject2, 'the long way round, uphill', C.water, 0.20, 0, -24);
-    }
-
-    this.wires = [this.add(new S.Wire({
-      source: this.at(PWR[0] + 70, PWR[1]), target: this.at(pumpBot[0], pumpBot[1]),
-      vertices: [this.at(PWR[0] + 70, pumpBot[1])], router: { name: 'normal' } }))];
-    if (!P) this.wires.push(this.add(new S.Wire({
-      source: this.at(PWR[0], PWR[1] + 38), target: this.at(ECCS[0] + 173, ECCS[1] + 80),
-      vertices: [this.at(PWR[0] - 30, PWR[1] + 38), this.at(PWR[0] - 30, ECCS[1] + 80)],
-      router: { name: 'normal' } })));
-  }
+function capsulePath(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + w / 2, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w / 2, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.closePath();
 }
 
-Circuit.prototype.update = function (t) {
-  const p = this.p, s = p.sys || {}, P = this.passive;
-  const flow = Math.max(s.rcp || 0, s.natCirc || 0);
-  const IDLE = '#46545f';
-  const setFlow = (link, on, rate) => {
-    link.attr('flow/opacity', on ? 0.95 : 0);
-    link.attr('bore/stroke', on ? (link.get('fluid') || C.water) : IDLE);
-    link.attr('gloss/opacity', on ? 0.26 : 0.12);
-    if (link.label(0)) link.prop('labels/0/attrs/labelText/opacity', on ? 1 : 0.35);
-    if (on) link.attr('flow/strokeDashoffset', -(t * 30 * Math.min(1.5, rate || 1)) % 45);
-  };
-  const level = (el, frac, top, span, fill) => {
-    const h = span * clamp(frac, 0, 1), y = top + span - h;
-    el.attr({ liquid: { height: h, y, fill },
-      surf: { y: y - 2, opacity: h > 3 ? 1 : 0 } });
-  };
-  // bubbles rise as a function of the clock, so a frozen frame is a still one
-  const bubbles = (x0, x1, yBot, yTop, n, seed) => {
-    let d = '';
+// A vertical cylinder, lit from the upper left. The horizontal gradient is the
+// whole illusion: dark limb, bright band, dark limb.
+function steelGrad(ctx, x, w) {
+  const g = ctx.createLinearGradient(x, 0, x + w, 0);
+  g.addColorStop(0, '#2c3742');
+  g.addColorStop(0.10, '#5d7183');
+  g.addColorStop(0.30, '#c2d3de');
+  g.addColorStop(0.46, '#93a7b6');
+  g.addColorStop(0.78, '#4d5d6b');
+  g.addColorStop(1, '#26313b');
+  return g;
+}
+
+function ellipse(ctx, cx, cy, rx, ry) {
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, TAU);
+}
+
+// Liquid inside a cylindrical cavity: body, then the surface as an ellipse with
+// a moving crest. Bubbles rise through it when it is hot.
+function liquid(ctx, cav, frac, t, col, opts = {}) {
+  const { x, y, w, h } = cav;
+  const f = clamp(frac, 0, 1);
+  if (f <= 0.001) return null;
+  const rx = w / 2, ry = opts.flat ? Math.min(7, w * 0.03) : Math.min(16, w * 0.115);
+  const surf = y + h - f * h;
+  const cx = x + rx;
+  const wob = Math.sin(t * 1.7) * 1.2 + Math.sin(t * 2.9 + 1.3) * 0.7;
+  const sy = surf + wob;
+
+  ctx.save();
+  // body
+  const g = ctx.createLinearGradient(x, sy, x, y + h);
+  g.addColorStop(0, shade(col, 1.35));
+  g.addColorStop(0.18, shade(col, 1.05));
+  g.addColorStop(1, shade(col, 0.6));
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(x, sy);
+  ctx.lineTo(x + w, sy);
+  ctx.lineTo(x + w, y + h);
+  ctx.lineTo(x, y + h);
+  ctx.closePath();
+  ctx.fill();
+  // a vertical sheen down the lit side of the column
+  const sh = ctx.createLinearGradient(x, 0, x + w, 0);
+  sh.addColorStop(0, 'rgba(255,255,255,0)');
+  sh.addColorStop(0.28, 'rgba(255,255,255,.20)');
+  sh.addColorStop(0.46, 'rgba(255,255,255,0)');
+  sh.addColorStop(1, 'rgba(0,0,0,.20)');
+  ctx.fillStyle = sh;
+  ctx.fillRect(x, sy, w, y + h - sy);
+
+  // the surface, seen from a little above
+  ellipse(ctx, cx, sy, rx, ry);
+  ctx.fillStyle = shade(col, 1.5);
+  ctx.fill();
+  ellipse(ctx, cx, sy - 1, rx * 0.92, ry * 0.82);
+  ctx.fillStyle = shade(col, 1.9);
+  ctx.globalAlpha = 0.55 + 0.2 * Math.sin(t * 2.2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  // crest highlight, drifting
+  ctx.strokeStyle = 'rgba(226,246,255,.75)';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  for (let i = 0; i <= 22; i++) {
+    const u = i / 22, ax = x + u * w;
+    const dy = Math.sin(u * 7 + t * 2.4) * 1.7 + Math.sin(u * 13 - t * 1.6) * 0.9;
+    const ey = sy + Math.sin(Math.acos(clamp((ax - cx) / rx, -1, 1))) * ry * 0.35;
+    if (i === 0) ctx.moveTo(ax, ey + dy); else ctx.lineTo(ax, ey + dy);
+  }
+  ctx.stroke();
+
+  // bubbles
+  if (opts.boil > 0.02) {
+    ctx.fillStyle = 'rgba(232,248,255,.55)';
+    const n = Math.round(6 + opts.boil * 14);
     for (let i = 0; i < n; i++) {
-      const ph = ((t * 0.42 + i * 0.37 + seed) % 1);
-      const y = yBot - (yBot - yTop) * ph;
-      const x = x0 + (x1 - x0) * (0.5 + 0.42 * Math.sin(i * 2.4 + seed * 6 + ph * 2.6));
-      const r = 2.6 + 2.2 * Math.sin(i * 1.7 + seed);
-      d += `M ${x.toFixed(1)} ${y.toFixed(1)} m ${-r} 0 a ${r} ${r} 0 1 0 ${2 * r} 0 `
-        + `a ${r} ${r} 0 1 0 ${-2 * r} 0 `;
+      const ph = (t * (0.30 + hash(i) * 0.45) + hash(i + 90)) % 1;
+      const by = y + h - 4 - ph * (y + h - sy - 6);
+      if (by < sy + 3) continue;
+      const bx = x + 8 + hash(i + 30) * (w - 16) + Math.sin(ph * 9 + i) * 3;
+      const r = 1.4 + hash(i + 60) * 2.4;
+      ctx.globalAlpha = 0.25 + 0.55 * (1 - ph);
+      ctx.beginPath(); ctx.arc(bx, by, r, 0, TAU); ctx.fill();
     }
-    return d;
-  };
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+  return sy;
+}
 
+// ---- pipes ---------------------------------------------------------------
+// A pipe is a polyline. It is drawn three times: a dark rim for depth, the
+// fluid, and a highlight along the lit side. Then slugs of brighter liquid
+// travel along it, which is what makes the water look like it is moving.
+
+function tracePath(ctx, pts, r) {
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [x, y] = pts[i], [nx, ny] = pts[i + 1];
+    const [px, py] = pts[i - 1];
+    const d1 = Math.hypot(x - px, y - py), d2 = Math.hypot(nx - x, ny - y);
+    const rr = Math.min(r * 2.2, d1 / 2, d2 / 2);
+    ctx.lineTo(x - (x - px) / d1 * rr, y - (y - py) / d1 * rr);
+    ctx.quadraticCurveTo(x, y, x + (nx - x) / d2 * rr, y + (ny - y) / d2 * rr);
+  }
+  const last = pts[pts.length - 1];
+  ctx.lineTo(last[0], last[1]);
+}
+
+function pipe(ctx, pts, r, col, opts = {}) {
+  ctx.save();
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  tracePath(ctx, pts, r);
+  ctx.strokeStyle = '#0a1017'; ctx.lineWidth = r * 2 + 5; ctx.stroke();
+  ctx.strokeStyle = shade(col, 0.62); ctx.lineWidth = r * 2; ctx.stroke();
+  ctx.strokeStyle = col; ctx.lineWidth = r * 1.5; ctx.stroke();
+  ctx.strokeStyle = shade(col, 1.45); ctx.lineWidth = r * 0.55;
+  ctx.globalAlpha = 0.5; ctx.stroke(); ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function measure(pts) {
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) {
+    cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  }
+  return cum;
+}
+function at(pts, cum, d) {
+  const total = cum[cum.length - 1];
+  d = ((d % total) + total) % total;
+  let i = 1;
+  while (i < cum.length - 1 && cum[i] < d) i++;
+  const u = (d - cum[i - 1]) / Math.max(1e-6, cum[i] - cum[i - 1]);
+  const x = lerp(pts[i - 1][0], pts[i][0], u), y = lerp(pts[i - 1][1], pts[i][1], u);
+  const dx = pts[i][0] - pts[i - 1][0], dy = pts[i][1] - pts[i - 1][1];
+  const len = Math.hypot(dx, dy) || 1;
+  return { x, y, tx: dx / len, ty: dy / len };
+}
+
+// slugs of brighter fluid running along the pipe
+function flow(ctx, pts, r, t, speed, col) {
+  const cum = measure(pts), total = cum[cum.length - 1];
+  const spacing = 46, n = Math.max(1, Math.floor(total / spacing));
+  const off = t * speed * 46;
+  ctx.save();
+  ctx.lineCap = 'round';
+  for (let i = 0; i < n; i++) {
+    // A slug that straddles the end of the pipe would be drawn from the outlet
+    // back to the inlet - one long diagonal across the whole picture.
+    const d = (((off + i * spacing) % total) + total) % total;
+    if (d + 15 > total) continue;
+    const a = at(pts, cum, d), b = at(pts, cum, d + 15);
+    const g = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+    g.addColorStop(0, 'rgba(255,255,255,0)');
+    g.addColorStop(0.45, shade(col, 1.75));
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.strokeStyle = g; ctx.lineWidth = r * 1.15;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// water falling from one place to another, with a splash where it lands
+function pour(ctx, x, y0, y1, w, t, col, into) {
+  if (y1 <= y0 + 2) return;
+  ctx.save();
+  const g = ctx.createLinearGradient(0, y0, 0, y1);
+  g.addColorStop(0, shade(col, 1.3));
+  g.addColorStop(0.4, col);
+  g.addColorStop(1, shade(col, 0.75));
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  const steps = 22;
+  for (let i = 0; i <= steps; i++) {
+    const u = i / steps, yy = lerp(y0, y1, u);
+    const wob = Math.sin(u * 9 - t * 9) * 1.6 * u;
+    ctx.lineTo(x - w / 2 * (1 - u * 0.15) + wob, yy);
+  }
+  for (let i = steps; i >= 0; i--) {
+    const u = i / steps, yy = lerp(y0, y1, u);
+    const wob = Math.sin(u * 9 - t * 9 + 0.6) * 1.6 * u;
+    ctx.lineTo(x + w / 2 * (1 - u * 0.15) + wob, yy);
+  }
+  ctx.closePath(); ctx.fill();
+  // droplets riding the stream
+  ctx.fillStyle = shade(col, 1.7);
+  for (let i = 0; i < 7; i++) {
+    const ph = (t * 1.5 + hash(i) * 3) % 1;
+    const yy = lerp(y0, y1, ph);
+    ctx.globalAlpha = 0.5 * (1 - ph * 0.4);
+    ctx.beginPath();
+    ctx.ellipse(x + (hash(i + 5) - 0.5) * w * 0.5, yy, w * 0.16, w * 0.3, 0, 0, TAU);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  if (into) {
+    // splash: a couple of ellipses opening out where it hits
+    for (let i = 0; i < 3; i++) {
+      const ph = ((t * 1.9 + i / 3) % 1);
+      ctx.globalAlpha = 0.35 * (1 - ph);
+      ctx.strokeStyle = shade(col, 1.8); ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.ellipse(x, y1, w * (0.5 + ph * 2.4), w * (0.18 + ph * 0.7), 0, 0, TAU);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
+// ---- machinery -----------------------------------------------------------
+
+function shadowUnder(ctx, cx, cy, rx) {
+  ctx.save();
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rx);
+  g.addColorStop(0, 'rgba(0,0,0,.5)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ellipse(ctx, cx, cy, rx, rx * 0.24); ctx.fill();
+  ctx.restore();
+}
+
+// A pressure vessel: capsule shell, domed cap, dark cavity, support skirt.
+function vesselShell(ctx, b, tone) {
+  const { x, y, w, h } = b, r = w * 0.42;
+  shadowUnder(ctx, x + w / 2, y + h + 10, w * 0.62);
+  // skirt
+  ctx.fillStyle = '#333f4a'; ctx.strokeStyle = '#1d262e'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x + w * 0.28, y + h - 14); ctx.lineTo(x + w * 0.20, y + h + 26);
+  ctx.lineTo(x + w * 0.80, y + h + 26); ctx.lineTo(x + w * 0.72, y + h - 14);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+
+  capsulePath(ctx, x, y, w, h, r);
+  ctx.fillStyle = steelGrad(ctx, x, w); ctx.fill();
+  ctx.strokeStyle = tone || '#1b242c'; ctx.lineWidth = 2.5; ctx.stroke();
+  // the cap, so the top reads as a dome and not a semicircle
+  ctx.save();
+  capsulePath(ctx, x, y, w, h, r); ctx.clip();
+  ellipse(ctx, x + w / 2, y + r * 0.5, w * 0.42, w * 0.16);
+  ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.restore();
+}
+
+function cavityOf(b, wall) {
+  return { x: b.x + wall, y: b.y + wall, w: b.w - wall * 2, h: b.h - wall * 2 };
+}
+
+function clipCavity(ctx, cav) {
+  capsulePath(ctx, cav.x, cav.y, cav.w, cav.h, cav.w * 0.42);
+  ctx.clip();
+}
+
+function cavityFill(ctx, cav) {
+  capsulePath(ctx, cav.x, cav.y, cav.w, cav.h, cav.w * 0.42);
+  const g = ctx.createLinearGradient(cav.x, cav.y, cav.x + cav.w, cav.y + cav.h);
+  g.addColorStop(0, '#0a141d'); g.addColorStop(1, '#16242f');
+  ctx.fillStyle = g; ctx.fill();
+}
+
+// A centrifugal pump: volute, nozzles, an impeller that turns while it runs.
+function pumpBody(ctx, p, spin, live, tone) {
+  const { cx, cy, r } = p;
+  shadowUnder(ctx, cx, cy + r + 26, r * 1.25);
+  // base
+  ctx.fillStyle = '#333f4a'; ctx.strokeStyle = '#1d262e'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(cx - r * 0.55, cy + r * 0.55); ctx.lineTo(cx - r * 0.8, cy + r + 22);
+  ctx.lineTo(cx + r * 0.8, cy + r + 22); ctx.lineTo(cx + r * 0.55, cy + r * 0.55);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  // volute
+  const g = ctx.createRadialGradient(cx - r * 0.35, cy - r * 0.4, r * 0.1, cx, cy, r);
+  g.addColorStop(0, '#c3d3de'); g.addColorStop(0.45, '#67798a'); g.addColorStop(1, '#2f3b46');
+  ellipse(ctx, cx, cy, r, r); ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = tone || '#1b242c'; ctx.lineWidth = 2.5; ctx.stroke();
+  ellipse(ctx, cx, cy, r * 0.78, r * 0.78);
+  ctx.fillStyle = '#0b141c'; ctx.fill();
+  // impeller
+  ctx.save();
+  ctx.translate(cx, cy); ctx.rotate(spin);
+  ctx.fillStyle = live ? '#63b7ea' : '#44525f';
+  for (let i = 0; i < 3; i++) {
+    ctx.rotate(TAU / 3);
+    ctx.beginPath();
+    ctx.moveTo(0, -r * 0.12);
+    ctx.quadraticCurveTo(r * 0.42, -r * 0.55, r * 0.66, -r * 0.16);
+    ctx.quadraticCurveTo(r * 0.40, -r * 0.02, 0, r * 0.16);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+  ellipse(ctx, cx, cy, r * 0.19, r * 0.19);
+  ctx.fillStyle = '#93a7b6'; ctx.fill();
+  ctx.strokeStyle = '#1b242c'; ctx.lineWidth = 1.5; ctx.stroke();
+  // gloss
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.88, Math.PI * 1.12, Math.PI * 1.72);
+  ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.lineWidth = 3; ctx.stroke();
+}
+
+// An open basin of water.
+function basin(ctx, b, tone) {
+  shadowUnder(ctx, b.x + b.w / 2, b.y + b.h - 14, b.w * 0.5);
+  ctx.save();
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(b.x, b.y);
+  ctx.lineTo(b.x, b.y + b.h - 22);
+  ctx.quadraticCurveTo(b.x, b.y + b.h - 6, b.x + 16, b.y + b.h - 6);
+  ctx.lineTo(b.x + b.w - 16, b.y + b.h - 6);
+  ctx.quadraticCurveTo(b.x + b.w, b.y + b.h - 6, b.x + b.w, b.y + b.h - 22);
+  ctx.lineTo(b.x + b.w, b.y);
+  ctx.strokeStyle = tone || '#48596a'; ctx.lineWidth = 13; ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,.20)'; ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(b.x + 5, b.y); ctx.lineTo(b.x + 5, b.y + b.h - 24);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------------------
+// text, with a guarantee it fits
+// ---------------------------------------------------------------------------
+// Captions that had to be shrunk past legibility to fit their box. The harness
+// reads this rather than trying to measure canvas text from outside.
+const SHRUNK = [];
+export function overflowReport() { return SHRUNK.slice(); }
+
+function label(ctx, text, x, y, opts = {}) {
+  const px = opts.px || 15, weight = opts.weight || 700, maxW = opts.maxW || 1e9;
+  let size = px;
+  ctx.font = `${weight} ${size}px ui-sans-serif, system-ui, sans-serif`;
+  const w = ctx.measureText(text).width;
+  if (w > maxW) {
+    size = Math.max(7, size * maxW / w);
+    ctx.font = `${weight} ${size}px ui-sans-serif, system-ui, sans-serif`;
+    if (size < 8.5) SHRUNK.push(`${text} (${size.toFixed(1)}px in ${maxW}px)`);
+  }
+  ctx.textAlign = opts.align || 'center';
+  ctx.textBaseline = 'alphabetic';
+  if (opts.halo !== false) {
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(5,10,15,.92)';
+    ctx.lineWidth = Math.max(3, size * 0.34);
+    ctx.strokeText(text, x, y);
+  }
+  ctx.fillStyle = opts.fill || C.ink;
+  ctx.fillText(text, x, y);
+  return size;
+}
+
+// ---------------------------------------------------------------------------
+// one circuit
+// ---------------------------------------------------------------------------
+const CORE_CAV_WALL = 13;
+const ROD = [[159, 34], [203, 34], [247, 34]];   // x, width
+const CH = [198, 242];                            // coolant channels between them
+const CH_BOT = 800, HOT_TOP = 545, ANN = 298;
+const HOT_Y = 534, COLD_Y = 567;
+
+function circuitState(p) {
+  const s = p.sys || {};
+  const P = p.mode === MODE.PASSIVE;
   const sink = s.sink || 'none';
-  const viaSG = sink === 'turbine';
   const carried = sink !== 'none';
-
-  // ---- the reactor --------------------------------------------------------
+  const flow = Math.max(s.rcp || 0, s.natCirc || 0);
   const lvl = clamp(p.level, 0, 1);
-  const surfY = CAV_BOT - CAV_SPAN * lvl;
-  const rodTop = CAV_BOT - CAV_SPAN * FUEL_TOP;
+  const cav = cavityOf(L.core, CORE_CAV_WALL);
+  const surfY = cav.y + cav.h - lvl * cav.h;
+  const rodTop = cav.y + cav.h - FUEL_TOP * cav.h;
   const covered = surfY <= rodTop;
   const T = p.Tclad - 273;
-  level(this.core, lvl, CAV_TOP, CAV_SPAN, 'url(#cWater)');
-  const glow = T > 400 ? tempColor(Math.min(p.Tclad, 3200)) : null;
-  const rodH = CH_BOT - 18 - rodTop;
-  const MW = (p.qDecay || 0) / 1e6;
-  this.core.attr({
-    shell: { stroke: covered ? '#22303c' : '#7a2a1c' },
-    glow: { x: RODS[0][0] - 10, y: rodTop - 10, width: 144, height: rodH + 20,
-      fill: glow || '#ff5a1e', opacity: glow ? clamp((T - 400) / 700, 0, 0.85) : 0 },
-    fuelTx: { fill: covered ? '#9fb2c2' : '#ffb59c' },
-    value: { text: `water ${Math.round(lvl * 100)}%   ·   ${T.toFixed(0)} °C`,
-      fill: T > 800 ? C.bad : T > 360 ? C.warn : C.dim },
-    // Shutting a reactor down stops the chain reaction, not the heat. Without
-    // this number nothing else on the page has a reason to exist.
-    value2: { opacity: 1, text: p.scrammed
-      ? `shut down — still making ${MW < 10 ? MW.toFixed(1) : Math.round(MW)} MW of heat`
-      : `running — making ${Math.round(MW).toLocaleString('en-US')} MW of heat` } });
-  for (let i = 1; i <= 3; i++) {
-    this.core.attr(`fuel${i}`, { y: rodTop, height: rodH,
-      fill: glow ? glow : 'url(#cClad)' });
-    this.core.attr(`rod${i}`, { y: rodTop, height: rodH, opacity: glow ? 0.5 : 1 });
-  }
-  const uncovered = !covered;
-
-  // the route through the fuel: it only moves while something is driving it
-  const hotC = tempColor(Math.min(3200, p.Tcore + 40));
-  const moving = flow > 0 && !uncovered;
-  const off = -(t * 30 * Math.min(1.5, flow || 1)) % 45;
-  const backC = carried ? C.cold : hotC;      // "cooled water" only if it was cooled
-  const dead = { A: '#46545f', B: '#46545f' };
-  this.core.attr({
-    chanA: { stroke: moving ? backC : dead.A },
-    chanB: { stroke: moving ? hotC : dead.B },
-    glossA: { opacity: moving ? 0.22 : 0.07 }, glossB: { opacity: moving ? 0.22 : 0.07 },
-    dashA: { opacity: moving ? 0.9 : 0, strokeDashoffset: off },
-    dashB: { opacity: moving ? 0.9 : 0, strokeDashoffset: off },
-    bub: { opacity: uncovered && T > 300 ? 0 : (lvl < 0.999 && T > 340 ? 0.5 : 0),
-      d: bubbles(RODS[0][0], RODS[2][0] + RODS[2][1], CH_BOT - 6, surfY + 6, 7, 0.13) } });
-
-  // ---- the boiler ---------------------------------------------------------
-  const sgLvl = viaSG ? 0.72 : 0.22;
-  level(this.sg, sgLvl, SG_TOP, SG_SPAN, 'url(#cWater)');
-  this.sg.attr({
-    shell: { stroke: carried ? '#22303c' : '#7a2a1c' },
-    chanA: { stroke: moving ? backC : dead.A },
-    chanB: { stroke: moving ? hotC : dead.B },
-    glossA: { opacity: moving ? 0.22 : 0.07 }, glossB: { opacity: moving ? 0.22 : 0.07 },
-    dashA: { opacity: moving ? 0.9 : 0, strokeDashoffset: off },
-    dashB: { opacity: moving ? 0.9 : 0, strokeDashoffset: off },
-    bub: { opacity: viaSG ? 0.6 : 0,
-      d: bubbles(60, 200, SG_BOT - 8, SG_BOT - SG_SPAN * sgLvl + 6, 9, 0.61) },
-    value: { text: viaSG ? 'taking the heat away'
-      : sink === 'pool' ? 'not needed — the pool has it'
-        : sink === 'shell' ? 'not needed — the shell has it' : 'not taking any heat',
-      fill: viaSG ? C.dim : carried ? C.ok : C.bad } });
-
-  // ---- pumps and power ----------------------------------------------------
   const live = !!(s.grid || s.diesel);
-  // The Gen-II last-resort pump runs on steam from the reactor itself, so it
-  // works with no electricity at all - for as long as the steam lasts.
   const steamOnly = !P && !!s.rcic && !s.aux;
-  const spin = (el, on, rate) => {
-    const a = on ? (t * 190 * (rate || 1)) % 360 : 0;
-    el.attr({ imp: { transform: `rotate(${a.toFixed(1)},115,80)` },
-      imp2: { transform: `rotate(${(a + 120).toFixed(1)},115,80)` },
-      imp3: { transform: `rotate(${(a + 240).toFixed(1)},115,80)` } });
-  };
-  // Two lines: what the pump is doing, and what the cooling depends on. This
-  // pump is a normal-running machine on both plants, and when it stops the loop
-  // keeps creeping round on both. The difference is what comes next.
-  const pumpTx = s.rcp
-    ? (P ? ['spinning', 'the cooling needs no pump at all']
-      : ['spinning', 'the cooling needs pumps like this'])
-    : (P ? ['stopped', 'and the cooling carries on anyway']
-      : ['STOPPED', steamOnly ? 'the steam pump covers it'
-        : live ? 'the backups must take over'
-          : 'the backups have no power']);
-  spin(this.pump, !!s.rcp, 1);
-  this.pump.attr({
-    imp: { fill: s.rcp ? '#5fb2e8' : '#42525f' },
-    imp2: { fill: s.rcp ? '#5fb2e8' : '#42525f' },
-    imp3: { fill: s.rcp ? '#5fb2e8' : '#42525f' },
-    body: { stroke: s.rcp ? '#22303c' : (P ? '#2c6a45' : '#7a2a1c') },
-    value: { text: pumpTx[0], fill: s.rcp ? C.ink : (P ? C.ok : C.bad) },
-    value2: { text: pumpTx[1], fill: s.rcp ? C.dim : (P ? C.ok : C.bad) } });
-  const src = s.grid ? 'grid' : s.diesel ? 'diesels'
-    : s.battery > 0 ? `batteries ${(s.battery * p.batteryHours).toFixed(0)} h` : 'NONE';
-  this.power.attr({
-    body: { stroke: live ? 'rgba(255,211,92,.55)' : (s.battery > 0 ? C.warn : C.bad) },
-    bolt: { fill: live ? C.power : (s.battery > 0 ? C.warn : '#5a3630') },
-    value: { text: src, fill: live ? C.power : (s.battery > 0 ? C.warn : C.bad) } });
-  for (const w of this.wires) {
-    w.attr('bore/stroke', live ? C.power : '#3a4550');
-    w.attr('bore/strokeDashoffset', live ? -(t * 22) % 20 : 0);
-    w.attr('bore/opacity', live ? 1 : 0.5);
-  }
-
-  // ---- the loop -----------------------------------------------------------
-  // With nothing taking the heat away the return leg is not cooled water coming
-  // back, it is the same hot water going round again.
-  this.hot.set('fluid', hotC);
-  this.cold1.set('fluid', backC);
-  this.cold2.set('fluid', backC);
-  setFlow(this.hot, flow > 0, flow);
-  setFlow(this.cold1, flow > 0, flow);
-  setFlow(this.cold2, flow > 0, flow);
-  setFlow(this.out, viaSG, 1);
-  if (this.prhrLink) setFlow(this.prhrLink, sink === 'pool', s.prhr || 1);
-  this.flag.attr({ body: { stroke: viaSG ? C.edge : '#39424c', opacity: viaSG ? 1 : 0.5 },
-    name: { fill: viaSG ? C.ink : '#5d6975' } });
-
-  // ---- the spare water ----------------------------------------------------
-  // Weighted by what these actually hold: two 70 t makeup tanks against a
-  // 2,000 t pool.
+  const injecting = P ? !!(s.cmt || s.gravity || s.accum) : !!(s.aux || s.rcic);
+  const poolLoop = P && sink === 'pool';
   const poolFrac = p.irwst / 2.1e6;
   const floorFrac = (p.ctmtSump || 0) / 2.1e6;
   const store = P
-    ? clamp(0.07 * p.cmtLevel + 0.93 * Math.max(poolFrac, floorFrac * 0.85), 0, 1)
-    : 1;
-  // the model keeps a 100 t floor in the pool figure, so "empty" is not zero
+    ? clamp(0.07 * p.cmtLevel + 0.93 * Math.max(poolFrac, floorFrac * 0.85), 0, 1) : 1;
   const onFloor = P && p.irwst < 1.6e5 && floorFrac > 0.05;
-  const injecting = P ? !!(s.cmt || s.gravity || s.accum) : !!(s.aux || s.rcic);
-  // The pool is a natural-circulation loop, not a one-way street: hot water
-  // rises into it and cooled water comes back down.
-  const poolLoop = P && sink === 'pool';
   const cracked = P && p.irwstCracked;
   const lost = P && onFloor && !p.ctmtIntact;
-  level(this.supply, store, 42, 82,
-    lost ? '#6b4a34' : onFloor ? 'url(#cWaterDim)' : cracked ? '#7d5a3a' : 'url(#cWater)');
-  this.supply.attr({
-    shell: { stroke: lost ? '#7a2a1c' : cracked && !onFloor ? '#7a5a1c' : '#22303c' },
-    value: { text: P ? (lost ? 'ESCAPING as steam'
-      : onFloor ? 'still gets back in'
-        : cracked ? 'CRACKED — draining'
-          : injecting ? 'falling into the reactor'
-            : poolLoop ? 'taking the heat from the reactor'
-              : 'ready — no pump needed')
-      : (injecting ? 'being pumped up'
-        : !live ? 'CANNOT REACH THE REACTOR'
-          : !p.pumpsOk ? 'THE PUMPS HAVE FAILED' : 'waiting down here'),
-      fill: lost ? C.bad : onFloor ? C.ok : cracked ? C.warn : P ? C.ok
-        : injecting ? C.ink : (live && p.pumpsOk ? C.dim : C.bad) } });
-  if (P) this.supply.attr('name/text',
-    onFloor ? 'WATER ON THE FLOOR' : 'POOL ABOVE THE REACTOR');
-  if (P) {
-    this.inject.set('fluid', injecting ? C.water : C.cold);
-    this.inject.prop('labels/0/attrs/labelText/text',
-      injecting ? 'falls in' : 'comes back cooled');
-    this.inject.prop('labels/0/attrs/labelText/fill', injecting ? C.water : C.cold);
-  }
-  setFlow(this.inject, injecting || poolLoop, 1);
-  if (this.inject2) setFlow(this.inject2, injecting, 1);
-  if (this.eccs) {
-    spin(this.eccs, injecting, 0.8);
-    this.eccs.attr({
-      imp: { fill: injecting ? '#5fb2e8' : '#42525f' },
-      imp2: { fill: injecting ? '#5fb2e8' : '#42525f' },
-      imp3: { fill: injecting ? '#5fb2e8' : '#42525f' },
-      body: { stroke: steamOnly ? '#7a5a1c' : injecting ? '#22303c'
-        : (live && p.pumpsOk ? '#22303c' : '#7a2a1c') },
-      value: { text: steamOnly ? 'running on steam' : injecting ? 'pumping'
-        : !live ? 'NO POWER' : !p.pumpsOk ? 'BROKEN' : 'waiting',
-        fill: steamOnly ? C.warn : injecting ? C.ink : (live && p.pumpsOk) ? C.dim : C.bad },
-      value2: { text: steamOnly ? 'runs on steam, not the grid'
-        : injecting ? 'lifting water uphill'
-          : !live ? 'it needs electricity'
-            : !p.pumpsOk ? 'it cannot lift the water' : 'starts if the level falls',
-        fill: steamOnly ? C.warn : injecting || (live && p.pumpsOk) ? C.dim : C.bad } });
-  }
-
-  // ---- the wall -----------------------------------------------------------
-  const shell = sink === 'shell';
-  this.zone.attr({
-    hull: { stroke: p.ctmtIntact ? (shell ? '#3f7d5c' : '#3d4e5f') : '#7a2a1c' },
-    slab: { stroke: p.ctmtIntact ? (shell ? '#3f7d5c' : '#3d4e5f') : '#7a2a1c' },
-    name: { fill: p.ctmtIntact ? (shell ? C.ok : C.dim) : C.bad,
-      text: !p.ctmtIntact ? 'CONTAINMENT BREACHED — the barrier is gone'
-        : shell ? 'CONTAINMENT — the steel is taking the heat to the air'
-          : 'CONTAINMENT — nothing inside this line gets out' } });
-
-  // The steps, worst first, so the headline always names the furthest thing
-  // that has happened rather than the first one that matched.
   const lostWater = P && !p.ctmtIntact;
-  this.headline =
+  const uncovered = !covered;
+  const headline =
     p.vesselBreach || /DESTROYED/.test(p.state) ? 'MELTDOWN'
       : uncovered ? 'FUEL IS UNCOVERED'
         : p.coreDamage > 0.01 ? 'FUEL IS DAMAGED'
@@ -724,189 +510,385 @@ Circuit.prototype.update = function (t) {
                         : (flow > 0 && !s.rcp) ? 'COOLING ITSELF, NO PUMP'
                           : !s.grid && !s.diesel ? 'RUNNING ON BATTERIES'
                             : P ? 'SAFE' : 'NORMAL';
-  this.good = !(p.vesselBreach || uncovered || p.coreDamage > 0.01
-    || sink === 'none' || lvl < 0.97 || lostWater);
-};
+  return { s, P, sink, carried, flow, lvl, cav, surfY, rodTop, covered, uncovered,
+    T, live, steamOnly, injecting, poolLoop, store, onFloor, cracked, lost, lostWater,
+    headline,
+    good: !(p.vesselBreach || uncovered || p.coreDamage > 0.01 || sink === 'none'
+      || lvl < 0.97 || lostWater) };
+}
 
-// ===========================================================================
-// The stage: two circuits in one paper, fitted by transformToFitContent.
-// ===========================================================================
-export class CutStage {
-  constructor(host) { this.host = host; this.built = false; this.focus = 'both'; }
+function drawCircuit(ctx, p, st, t) {
+  const { P, s } = st;
+  const hotC = tempColor(Math.min(3200, p.Tcore + 40));
+  const loopHot = tempColor(Math.min(3200, p.Tcore + 40));
+  const loopBack = st.carried ? C.cold : loopHot;
+  const moving = st.flow > 0 && !st.uncovered;
+  const IDLE = '#4a5966';
 
-  build(plants) {
-    if (!window.joint) { this.failed = true; return; }
-    const j = J();
-    this.host.innerHTML = '';
-    this.graph = new j.dia.Graph({}, { cellNamespace: j.shapes });
-    this.paper = new j.dia.Paper({
-      el: this.host, model: this.graph, width: 800, height: 600,
-      gridSize: 1, interactive: false, cellViewNamespace: j.shapes,
-      background: { color: 'transparent' }, sorting: j.dia.Paper.sorting.APPROX
-    });
-    // Materials. Everything in this view is drawn from these: steel with a lit
-    // edge, dark cavities, water with depth, concrete. A schematic can still be
-    // made of something.
-    const defs = this.paper.svg.querySelector('defs') || this.paper.svg.insertBefore(
-      document.createElementNS('http://www.w3.org/2000/svg', 'defs'), this.paper.svg.firstChild);
-    defs.insertAdjacentHTML('beforeend', `
-      <linearGradient id="cSteel" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#b3c5d3"/><stop offset=".13" stop-color="#8698a9"/>
-        <stop offset=".52" stop-color="#4e5e6c"/><stop offset=".84" stop-color="#3b4956"/>
-        <stop offset="1" stop-color="#71838f"/></linearGradient>
-      <radialGradient id="cVolute" cx=".34" cy=".26" r=".85">
-        <stop offset="0" stop-color="#a6b9c8"/><stop offset=".5" stop-color="#5d6f7f"/>
-        <stop offset="1" stop-color="#36434f"/></radialGradient>
-      <linearGradient id="cCav" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#243642"/><stop offset=".45" stop-color="#16242f"/>
-        <stop offset="1" stop-color="#0e1a23"/></linearGradient>
-      <linearGradient id="cWater" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#6fc4f7"/><stop offset=".14" stop-color="#3d9ae4"/>
-        <stop offset=".62" stop-color="#1f6ab4"/><stop offset="1" stop-color="#123f74"/></linearGradient>
-      <linearGradient id="cWaterDim" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#4f8fbc"/><stop offset="1" stop-color="#14405f"/></linearGradient>
-      <linearGradient id="cClad" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" stop-color="#8d9dab"/><stop offset=".28" stop-color="#dfe9f0"/>
-        <stop offset=".62" stop-color="#9aa9b6"/><stop offset="1" stop-color="#616f7c"/></linearGradient>
-      <linearGradient id="cConc" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#54custom"/><stop offset="1" stop-color="#28323d"/></linearGradient>
-      <linearGradient id="cPanel" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#1a2733"/><stop offset="1" stop-color="#0d1620"/></linearGradient>
-      <filter id="cBlur" x="-40%" y="-40%" width="180%" height="180%">
-        <feGaussianBlur stdDeviation="9"/></filter>
-      <filter id="cHot" x="-70%" y="-70%" width="240%" height="240%">
-        <feGaussianBlur stdDeviation="13"/></filter>
-      <pattern id="cRods" width="15" height="10" patternUnits="userSpaceOnUse">
-        <rect x="0" y="0" width="15" height="10" fill="rgba(0,0,0,0)"/>
-        <rect x="5" y="0" width="5" height="10" fill="rgba(14,24,33,.55)"/>
-        <rect x="1.5" y="0" width="1.6" height="10" fill="rgba(255,255,255,.16)"/></pattern>
-      <clipPath id="cRpvClip"><path d="${RPV_CAV}"/></clipPath>
-      <clipPath id="cSgClip"><path d="${SG_CAV}"/></clipPath>`
-      .replace('#54custom', '#4a5a6c'));
-    this.circuits = plants.map((p, i) => new Circuit(p, this.graph, i * (W + 90)));
-    this.head = plants.map((p, i) => {
-      const el = document.createElement('div');
-      el.className = 'cutHead' + (i ? ' pas' : ' act');
-      el.innerHTML = '<b></b><i></i>';
-      this.host.parentNode.appendChild(el);
-      return el;
-    });
-    this.built = true;
+  // ---- containment ------------------------------------------------------
+  const z = L.zone;
+  const tone = !p.ctmtIntact ? '#8a3020' : st.sink === 'shell' ? '#3f7d5c' : '#3d4e5f';
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(z.x, z.hull);
+  ctx.lineTo(z.x, z.y + 210);
+  ctx.ellipse(z.x + z.w / 2, z.y + 210, z.w / 2, 210, 0, Math.PI, 0);
+  ctx.lineTo(z.x + z.w, z.hull);
+  ctx.closePath();
+  const cg = ctx.createLinearGradient(z.x, 0, z.x + z.w, 0);
+  cg.addColorStop(0, '#3a4756'); cg.addColorStop(0.35, '#54custom'.replace('#54custom', '#55677a'));
+  cg.addColorStop(1, '#2a3541');
+  ctx.fillStyle = cg; ctx.fill();
+  ctx.strokeStyle = tone; ctx.lineWidth = 2.5; ctx.stroke();
+  // the void inside
+  ctx.beginPath();
+  ctx.moveTo(z.x + 20, z.hull);
+  ctx.lineTo(z.x + 20, z.y + 214);
+  ctx.ellipse(z.x + z.w / 2, z.y + 214, z.w / 2 - 20, 196, 0, Math.PI, 0);
+  ctx.lineTo(z.x + z.w - 20, z.hull);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(9,16,23,.96)'; ctx.fill();
+  ctx.restore();
+  // basemat
+  ctx.fillStyle = ctx.createLinearGradient
+    ? (() => { const g = ctx.createLinearGradient(0, z.hull, 0, z.hull + z.slab);
+      g.addColorStop(0, '#55677a'); g.addColorStop(1, '#2a3541'); return g; })() : '#44525f';
+  ctx.strokeStyle = tone; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.rect(z.x - 12, z.hull - 2, z.w + 24, z.slab); ctx.fill(); ctx.stroke();
+
+  // ---- pipes (under the machinery, so they run into the nozzles) --------
+  const core = L.core, sg = L.sg, pump = L.pump;
+  const R = 9;
+  const P_hot = [[core.x + core.w, HOT_Y], [sg.x, HOT_Y]];
+  const P_cold1 = [[630, sg.y + sg.h], [630, pump.cy - pump.r]];
+  const P_cold2 = [[pump.cx - pump.r, pump.cy], [420, pump.cy], [420, COLD_Y],
+    [core.x + core.w, COLD_Y]];
+  const P_steam = [[600, sg.y], [600, L.flag.y + L.flag.h]];
+  const inTop = [core.x + 60, core.y], upTop = [core.x + 148, core.y];
+  const pipes = [
+    { pts: P_hot, col: st.flow > 0 ? loopHot : IDLE, on: st.flow > 0, sp: st.flow },
+    { pts: P_cold1, col: st.flow > 0 ? loopBack : IDLE, on: st.flow > 0, sp: st.flow },
+    { pts: P_cold2, col: st.flow > 0 ? loopBack : IDLE, on: st.flow > 0, sp: st.flow },
+    { pts: P_steam, col: st.sink === 'turbine' ? C.steam : IDLE, on: st.sink === 'turbine', sp: 1 }
+  ];
+  if (P) {
+    pipes.push({ pts: [[inTop[0], L.pool.y + L.pool.h - 6], inTop],
+      col: (st.injecting || st.poolLoop) ? (st.injecting ? C.water : C.cold) : IDLE,
+      on: st.injecting || st.poolLoop, sp: 1, down: true });
+    pipes.push({ pts: [upTop, [upTop[0], L.pool.y + L.pool.h - 6]],
+      col: st.poolLoop ? C.hot : IDLE, on: st.poolLoop, sp: s.prhr || 1 });
+  } else {
+    pipes.push({ pts: [[L.base.x + L.base.w, L.base.y + 80], [383, L.base.y + 80],
+      [383, L.eccs.cy], [L.eccs.cx - L.eccs.r, L.eccs.cy]],
+    col: st.injecting ? C.water : IDLE, on: st.injecting, sp: 1 });
+    pipes.push({ pts: [[L.eccs.cx, L.eccs.cy - L.eccs.r], [L.eccs.cx, 1000], [52, 1000],
+      [52, 430], [inTop[0], 430], inTop],
+    col: st.injecting ? C.water : IDLE, on: st.injecting, sp: 1 });
   }
+  for (const q of pipes) pipe(ctx, q.pts, R, q.col);
+  for (const q of pipes) if (q.on) flow(ctx, q.pts, R, t, Math.min(1.6, q.sp || 1), q.col);
 
-  setFocus(focus) {
-    if (!this.built) return;
-    this.focus = focus;
-    const [a, p] = this.circuits;
-    const show = (c, on) => c.cells.forEach(x => {
-      const v = this.paper.findViewByModel(x); if (v) v.el.style.display = on ? '' : 'none';
-    });
-    show(a, focus !== 'passive');
-    show(p, focus !== 'active');
-    this.head[0].style.display = focus !== 'passive' ? '' : 'none';
-    this.head[1].style.display = focus !== 'active' ? '' : 'none';
-    this.fit();
+  // ---- the boiler -------------------------------------------------------
+  vesselShell(ctx, sg, st.carried ? null : '#8a3020');
+  const sgCav = cavityOf(sg, CORE_CAV_WALL);
+  ctx.save(); cavityFill(ctx, sgCav); clipCavity(ctx, sgCav);
+  liquid(ctx, sgCav, st.sink === 'turbine' ? 0.72 : 0.22, t, '#2f8ed6',
+    { boil: st.sink === 'turbine' ? 0.9 : 0 });
+  // the U-tube carrying primary water through it
+  const uHot = [[sgCav.x, HOT_Y], [sgCav.x + 38, HOT_Y], [sgCav.x + 38, 360], [592, 360]];
+  const uCold = [[592, 360], [630, 360], [630, sgCav.y + sgCav.h + 14]];
+  pipe(ctx, uHot, 7, moving ? loopHot : IDLE);
+  pipe(ctx, uCold, 7, moving ? loopBack : IDLE);
+  if (moving) {
+    flow(ctx, uHot, 7, t, st.flow, loopHot);
+    flow(ctx, uCold, 7, t, st.flow, loopBack);
   }
+  ctx.restore();
 
-  fit() {
-    if (!this.built) return;
-    // The paper needs real pixel dimensions before it can work out a scale, and
-    // it has none until the view is on screen. Measure the wrapper: JointJS
-    // sizes the host element itself, so asking the host is asking our own
-    // previous answer.
-    const box = this.host.parentNode;
-    const w = box.clientWidth, h = box.clientHeight;
-    if (!w || !h) return false;
-    this.paper.setDimensions(w, h);
-    this.fitW = w; this.fitH = h;
-    const f = this.focus;
-    const shown = this.circuits
-      .filter(c => !(f === 'active' && c.passive) && !(f === 'passive' && !c.passive))
-      .reduce((a, c) => a.concat(c.cells), []);
-    const bb = this.graph.getCellsBBox(shown);
-    if (!bb) return false;
-    this.topY = bb.y;          // the drawing starts above y=0: the steam line leaves the top
-    this.paper.transformToFitContent({
-      padding: { top: (this._reserved = this.headH()), bottom: 14, left: 14, right: 14 },
-      contentArea: bb, verticalAlign: 'middle', horizontalAlign: 'middle'
-    });
-    this.placeHeads();
-    const need = this.headH();
-    if (!this._refit && Math.abs(need - this._reserved) > 2) {
-      this._refit = true; this._reserved = need; this.fit(); this._refit = false;
+  // ---- the reactor ------------------------------------------------------
+  vesselShell(ctx, core, st.covered ? null : '#8a3020');
+  const cav = st.cav;
+  ctx.save(); cavityFill(ctx, cav); clipCavity(ctx, cav);
+  const boil = clamp((st.T - 300) / 260, 0, 1) * (st.lvl > 0.02 ? 1 : 0);
+  const wCol = waterColor(p.Tclad);
+  const surf = liquid(ctx, cav, st.lvl, t, wCol, { boil });
+  // fuel rods
+  const rodH = 760 - st.rodTop;
+  const glow = st.T > 400 ? tempColor(Math.min(p.Tclad, 3200)) : null;
+  if (glow) {
+    ctx.save();
+    ctx.shadowColor = glow;
+    ctx.shadowBlur = 26 + 30 * clamp((st.T - 400) / 900, 0, 1);
+    ctx.fillStyle = glow;
+    ctx.globalAlpha = clamp((st.T - 400) / 700, 0, 0.9);
+    for (const [rx, rw] of ROD) { ctx.beginPath(); ctx.rect(rx, st.rodTop, rw, rodH); ctx.fill(); }
+    ctx.restore();
+  }
+  for (const [rx, rw] of ROD) {
+    const g = ctx.createLinearGradient(rx, 0, rx + rw, 0);
+    if (glow) {
+      g.addColorStop(0, shade(glow, 0.7)); g.addColorStop(0.3, shade(glow, 1.35));
+      g.addColorStop(1, shade(glow, 0.6));
+    } else {
+      g.addColorStop(0, '#7a8996'); g.addColorStop(0.28, '#e2ecf3');
+      g.addColorStop(0.62, '#9dacb9'); g.addColorStop(1, '#5d6b78');
     }
-    return true;
-  }
-
-  headH() {
-    const h = this.head && this.head[0] ? this.head[0].offsetHeight : 0;
-    return Math.max(52, h + 12);
-  }
-
-  // headings live in the DOM above each circuit, so they stay crisp and short
-  placeHeads() {
-    const sc = this.paper.scale().sx, tr = this.paper.translate();
-    for (let i = 0; i < 2; i++) {
-      const el = this.head[i];
-      el.style.left = (tr.tx + (i * (W + 90) + 10) * sc) + 'px';
-      el.style.top = Math.max(0, tr.ty + (this.topY || 0) * sc - el.offsetHeight - 10) + 'px';
-      el.style.width = ((W - 20) * sc) + 'px';
-      el.style.fontSize = Math.max(12, Math.min(16, 15 * sc)) + 'px';
-    }
-  }
-
-  // A caption that runs off its own box is the defect this view keeps growing
-  // back, because the strings change with the plant's state and no reviewer
-  // sees every state. Rather than police the wording, measure it: anything too
-  // wide for the box it sits in is stepped down until it fits. Same text gives
-  // the same size every time, so the frozen-frame check stays happy.
-  fitCaptions() {
-    for (const c of this.circuits) {
-      for (const cell of c.cells) {
-        if (!cell.isElement()) continue;
-        const view = this.paper.findViewByModel(cell);
-        if (!view || !view.el || view.el.style.display === 'none') continue;
-        const box = cell.size().width - 16;
-        for (const node of view.el.querySelectorAll('text')) {
-          const txt = node.textContent;
-          if (!txt || node.dataset.fitFor === txt) continue;
-          node.dataset.fitFor = txt;
-          if (!node.dataset.fitBase) {
-            node.dataset.fitBase = node.style.fontSize
-              || node.getAttribute('font-size') || '13';
-          }
-          const base = parseFloat(node.dataset.fitBase);
-          node.style.fontSize = base + 'px';
-          const w = node.getBBox().width;
-          if (w > box && w > 0) {
-            node.style.fontSize = Math.max(8.5, base * (box / w)).toFixed(2) + 'px';
-          }
-        }
-      }
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.roundRect(rx, st.rodTop, rw, rodH, 5); ctx.fill();
+    ctx.strokeStyle = 'rgba(12,20,28,.7)'; ctx.lineWidth = 1.2; ctx.stroke();
+    // individual rods
+    ctx.strokeStyle = 'rgba(14,24,33,.45)'; ctx.lineWidth = 2;
+    for (let i = 1; i < 3; i++) {
+      const lx = rx + rw * i / 3;
+      ctx.beginPath(); ctx.moveTo(lx, st.rodTop + 3); ctx.lineTo(lx, st.rodTop + rodH - 3); ctx.stroke();
     }
   }
+  // the route the water takes through the core
+  const colds = [[core.x + core.w, COLD_Y], [ANN, COLD_Y], [ANN, CH_BOT], [CH[0], CH_BOT]];
+  const hots = [[CH[0], CH_BOT], [CH[0], HOT_TOP], [core.x + core.w, HOT_TOP]];
+  const hots2 = [[CH[1], CH_BOT], [CH[1], HOT_TOP + 6]];
+  pipe(ctx, colds, 7, moving ? loopBack : IDLE);
+  pipe(ctx, hots, 7, moving ? hotC : IDLE);
+  pipe(ctx, hots2, 7, moving ? hotC : IDLE);
+  if (moving) {
+    flow(ctx, colds, 7, t, st.flow, loopBack);
+    flow(ctx, hots, 7, t, st.flow, hotC);
+    flow(ctx, hots2, 7, t, st.flow, hotC);
+  }
+  label(ctx, 'FUEL RODS', 220, cav.y + cav.h - 8, { px: 12, weight: 800, fill: st.covered ? '#a9bccb' : '#ffb59c' });
+  ctx.restore();
 
-  update(t) {
-    if (!this.built) return;
-    let changed = false;
-    // re-fit when the view first becomes visible, or the window changes shape
-    const box = this.host.parentNode;
-    if (box.clientWidth !== this.fitW || box.clientHeight !== this.fitH
-      || !this.paper.scale().sx) this.fit();
-    else if (Math.abs(this.headH() - this._reserved) > 2) this.fit();
-    for (let i = 0; i < 2; i++) {
-      const c = this.circuits[i];
-      if (this.focus === 'active' && c.passive) continue;
-      if (this.focus === 'passive' && !c.passive) continue;
-      c.update(t);
-      const el = this.head[i];
-      const b = el.firstChild, sub = el.lastChild;
-      const title = c.passive ? 'PASSIVE' : 'ACTIVE';
-      if (b.textContent !== title) b.textContent = title;
-      if (sub.textContent !== c.headline) sub.textContent = c.headline;
-      el.dataset.tone = c.good ? 'ok' : 'bad';
-      changed = true;
-    }
-    if (changed) { this.placeHeads(); this.fitCaptions(); }
+  // water falling in from the pool, landing on the surface
+  if (P && st.injecting && surf !== null) {
+    pour(ctx, inTop[0], core.y + 6, Math.max(core.y + 20, surf - 2), 13, t, C.water, true);
+  }
+
+  // ---- the spare water --------------------------------------------------
+  const tank = P ? L.pool : L.base;
+  basin(ctx, tank, st.lost ? '#8a3020' : st.cracked && !st.onFloor ? '#7a5a1c' : null);
+  const tcav = { x: tank.x + 9, y: tank.y + 8, w: tank.w - 18, h: tank.h - 22 };
+  ctx.save();
+  ctx.beginPath(); ctx.rect(tcav.x, tcav.y, tcav.w, tcav.h); ctx.clip();
+  liquid(ctx, tcav, P ? st.store : 1, t,
+    st.lost ? '#6b4a34' : st.cracked && !st.onFloor ? '#7d5a3a' : C.water,
+    { boil: 0, flat: true });
+  ctx.restore();
+
+  // ---- pumps ------------------------------------------------------------
+  const spin = (v) => (v ? (t * 3.4) % TAU : 0);
+  pumpBody(ctx, pump, spin(s.rcp), !!s.rcp, s.rcp ? null : (P ? '#2c6a45' : '#8a3020'));
+  if (!P) {
+    pumpBody(ctx, L.eccs, spin(st.injecting) * 0.8,
+      st.injecting, st.steamOnly ? '#7a5a1c' : st.injecting ? null
+        : (st.live && p.pumpsOk ? null : '#8a3020'));
+  }
+
+  // ---- power ------------------------------------------------------------
+  const pw = L.power;
+  ctx.save();
+  const pg = ctx.createLinearGradient(pw.x, pw.y, pw.x, pw.y + pw.h);
+  pg.addColorStop(0, '#1a2733'); pg.addColorStop(1, '#0d1620');
+  ctx.fillStyle = pg;
+  ctx.strokeStyle = st.live ? 'rgba(255,211,92,.65)' : (s.battery > 0 ? C.warn : C.bad);
+  ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.roundRect(pw.x, pw.y, pw.w, pw.h, 11); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = st.live ? C.power : (s.battery > 0 ? C.warn : '#5a3630');
+  ctx.beginPath();
+  ctx.moveTo(pw.x + 24, pw.y + 20); ctx.lineTo(pw.x + 38, pw.y + 20);
+  ctx.lineTo(pw.x + 31, pw.y + 36); ctx.lineTo(pw.x + 42, pw.y + 36);
+  ctx.lineTo(pw.x + 22, pw.y + 60); ctx.lineTo(pw.x + 28, pw.y + 42);
+  ctx.lineTo(pw.x + 18, pw.y + 42); ctx.closePath(); ctx.fill();
+  ctx.restore();
+
+  // ---- wires ------------------------------------------------------------
+  const wires = [[[pw.x + 70, pw.y], [pw.x + 70, pump.cy + pump.r], [pump.cx, pump.cy + pump.r]]];
+  if (!P) wires.push([[pw.x, pw.y + 46], [pw.x - 30, pw.y + 46], [pw.x - 30, L.eccs.cy],
+    [L.eccs.cx + L.eccs.r, L.eccs.cy]]);
+  ctx.save();
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const w of wires) {
+    tracePath(ctx, w, 4);
+    ctx.strokeStyle = '#0a1017'; ctx.lineWidth = 9; ctx.stroke();
+    ctx.setLineDash([11, 9]);
+    ctx.lineDashOffset = st.live ? -(t * 26) % 20 : 0;
+    ctx.strokeStyle = st.live ? C.power : '#3a4550'; ctx.lineWidth = 4.5; ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  ctx.restore();
+
+  // ---- the outlet flag --------------------------------------------------
+  const fl = L.flag, viaSG = st.sink === 'turbine';
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(fl.x, fl.y); ctx.lineTo(fl.x + fl.w * 0.86, fl.y);
+  ctx.lineTo(fl.x + fl.w, fl.y + fl.h / 2); ctx.lineTo(fl.x + fl.w * 0.86, fl.y + fl.h);
+  ctx.lineTo(fl.x, fl.y + fl.h); ctx.closePath();
+  ctx.fillStyle = 'rgba(14,22,30,.95)';
+  ctx.strokeStyle = viaSG ? '#6f7d8a' : '#39424c'; ctx.lineWidth = 2;
+  ctx.globalAlpha = viaSG ? 1 : 0.55; ctx.fill(); ctx.stroke();
+  ctx.globalAlpha = 1;
+  label(ctx, 'heat out, to the sea', fl.x + fl.w * 0.45, fl.y + 34,
+    { px: 15, fill: viaSG ? C.ink : '#5d6975', maxW: fl.w * 0.8 });
+  ctx.restore();
+  return { hotC, loopBack, moving };
+}
+
+function drawLabels(ctx, p, st) {
+  const { P, s } = st;
+  const core = L.core, sg = L.sg, pump = L.pump, tank = P ? L.pool : L.base;
+  const MW = (p.qDecay || 0) / 1e6;
+  // reactor
+  label(ctx, 'REACTOR', core.x + core.w / 2, core.y - 22, { px: 17, weight: 800 });
+  label(ctx, `water ${Math.round(st.lvl * 100)}%   ·   ${st.T.toFixed(0)} °C`,
+    core.x + core.w / 2, core.y + core.h + 56,
+    { px: 16, fill: st.T > 800 ? C.bad : st.T > 360 ? C.warn : C.dim, maxW: 300 });
+  // Shutting a reactor down stops the chain reaction, not the heat. Without
+  // this number nothing else on the page has a reason to exist.
+  label(ctx, p.scrammed
+    ? `shut down — still making ${MW < 10 ? MW.toFixed(1) : Math.round(MW)} MW of heat`
+    : `running — making ${Math.round(MW).toLocaleString('en-US')} MW of heat`,
+  core.x + core.w / 2, core.y + core.h + 78, { px: 13.5, fill: '#a2bacd', maxW: 320 });
+  // boiler
+  label(ctx, 'BOILER', sg.x + sg.w / 2, sg.y - 22, { px: 17, weight: 800 });
+  label(ctx, st.sink === 'turbine' ? 'taking the heat away'
+    : st.sink === 'pool' ? 'not needed — the pool has it'
+      : st.sink === 'shell' ? 'not needed — the shell has it' : 'not taking any heat',
+  sg.x + sg.w / 2, sg.y + sg.h + 54,
+  { px: 15, fill: st.sink === 'turbine' ? C.dim : st.carried ? C.ok : C.bad, maxW: 300 });
+  // pumps. Two lines: what it is doing, and what the cooling depends on. This
+  // pump is a normal-running machine on both plants, and when it stops the loop
+  // keeps creeping round on both. The difference is what comes next.
+  const pumpTx = s.rcp
+    ? (P ? ['spinning', 'the cooling needs no pump at all']
+      : ['spinning', 'the cooling needs pumps like this'])
+    : (P ? ['stopped', 'and the cooling carries on anyway']
+      : ['STOPPED', st.steamOnly ? 'the steam pump covers it'
+        : st.live ? 'the backups must take over' : 'the backups have no power']);
+  const pc = s.rcp ? C.ink : (P ? C.ok : C.bad);
+  label(ctx, 'PUMP', pump.cx, pump.cy + pump.r + 52, { px: 16, weight: 800 });
+  label(ctx, pumpTx[0], pump.cx, pump.cy + pump.r + 73, { px: 14, fill: pc, maxW: 250 });
+  label(ctx, pumpTx[1], pump.cx, pump.cy + pump.r + 92,
+    { px: 13, weight: 600, fill: s.rcp ? C.dim : pc, maxW: 260 });
+  // the store of water
+  label(ctx, P ? (st.onFloor ? 'WATER ON THE FLOOR' : 'POOL ABOVE THE REACTOR')
+    : 'WATER IN THE BASEMENT', tank.x + tank.w / 2, tank.y - 16, { px: 16, weight: 800, maxW: 320 });
+  label(ctx, P ? (st.lost ? 'ESCAPING as steam'
+    : st.onFloor ? 'still gets back in'
+      : st.cracked ? 'CRACKED — draining'
+        : st.injecting ? 'falling into the reactor'
+          : st.poolLoop ? 'taking the heat from the reactor' : 'ready — no pump needed')
+    : (st.injecting ? 'being pumped up'
+      : !st.live ? 'CANNOT REACH THE REACTOR'
+        : !p.pumpsOk ? 'THE PUMPS HAVE FAILED' : 'waiting down here'),
+  tank.x + tank.w / 2, tank.y + tank.h + 18,
+  { px: 15, maxW: 320,
+    fill: st.lost ? C.bad : st.onFloor ? C.ok : st.cracked ? C.warn : P ? C.ok
+      : st.injecting ? C.ink : (st.live && p.pumpsOk ? C.dim : C.bad) });
+  // power
+  const src = s.grid ? 'grid' : s.diesel ? 'diesels'
+    : s.battery > 0 ? `batteries ${(s.battery * p.batteryHours).toFixed(0)} h` : 'NONE';
+  label(ctx, 'POWER', L.power.x + L.power.w / 2 + 14, L.power.y + 36, { px: 15, weight: 800 });
+  label(ctx, src, L.power.x + L.power.w / 2 + 14, L.power.y + 60,
+    { px: 15, fill: st.live ? C.power : (s.battery > 0 ? C.warn : C.bad), maxW: 120 });
+  if (!P) {
+    const e = L.eccs;
+    label(ctx, 'BACKUP PUMP', e.cx, e.cy + e.r + 52, { px: 16, weight: 800 });
+    label(ctx, st.steamOnly ? 'running on steam' : st.injecting ? 'pumping'
+      : !st.live ? 'NO POWER' : !p.pumpsOk ? 'BROKEN' : 'waiting',
+    e.cx, e.cy + e.r + 73,
+    { px: 14, maxW: 250,
+      fill: st.steamOnly ? C.warn : st.injecting ? C.ink : (st.live && p.pumpsOk) ? C.dim : C.bad });
+    label(ctx, st.steamOnly ? 'runs on steam, not the grid'
+      : st.injecting ? 'lifting water uphill'
+        : !st.live ? 'it needs electricity'
+          : !p.pumpsOk ? 'it cannot lift the water' : 'starts if the level falls',
+    e.cx, e.cy + e.r + 92, { px: 13, weight: 600, maxW: 260,
+      fill: st.steamOnly ? C.warn : st.injecting || (st.live && p.pumpsOk) ? C.dim : C.bad });
+    label(ctx, 'the long way round, uphill', 600, 1002,
+      { px: 14, fill: st.injecting ? C.water : '#5f7180', maxW: 300 });
+  } else {
+    label(ctx, st.injecting ? 'falls in' : 'comes back cooled', L.core.x + 60 - 54, 400,
+      { px: 14, fill: st.injecting ? C.water : C.cold, maxW: 130 });
+    label(ctx, 'heat rises', L.core.x + 148 + 56, 400,
+      { px: 14, fill: st.poolLoop ? C.hot : '#6a5a50', maxW: 120 });
+  }
+  // the wall
+  label(ctx, !p.ctmtIntact ? 'CONTAINMENT BREACHED — the barrier is gone'
+    : st.sink === 'shell' ? 'CONTAINMENT — the steel is taking the heat to the air'
+      : 'CONTAINMENT — nothing inside this line gets out',
+  L.zone.x + 22, L.zone.hull + 30,
+  { px: 14, align: 'left', maxW: 430,
+    fill: !p.ctmtIntact ? C.bad : st.sink === 'shell' ? C.ok : C.dim });
+}
+
+// ---------------------------------------------------------------------------
+// the stage: fit both circuits into the band and paint them
+// ---------------------------------------------------------------------------
+export class Cutaway {
+  constructor() { this.focus = 'both'; this.states = []; this.shrunk = []; }
+  setFocus(f) { this.focus = f; }
+
+  bounds() {
+    const one = { x: CONTENT.x, y: CONTENT.y, w: CONTENT.w, h: CONTENT.h };
+    if (this.focus === 'both') return { ...one, w: one.w + W + GAP };
+    return one;
+  }
+
+  // the band the drawing gets, in CSS pixels
+  band(cw, ch) {
+    const narrow = cw < 861;
+    return narrow
+      ? { x: 8, y: 124, w: cw - 16, h: ch - 124 - 226 }
+      : { x: 318, y: 104, w: cw - 318 - 350, h: ch - 104 - 128 };
+  }
+
+  draw(ctx, sim, CW, CH, t) {
+    const dpr = CW / (window.innerWidth || CW);
+    const cw = CW / dpr, ch = CH / dpr;
+    const b = this.band(cw, ch);
+    if (b.w < 40 || b.h < 40) return;
+    SHRUNK.length = 0;
+    const bb = this.bounds();
+    const sc = Math.min(b.w / bb.w, b.h / bb.h);
+    const tx = b.x + (b.w - bb.w * sc) / 2 - bb.x * sc;
+    const ty = b.y + (b.h - bb.h * sc) / 2 - bb.y * sc;
+    this.scale = sc; this.tx = tx; this.ty = ty; this.dpr = dpr;
+
+    const show = sim.plants.filter((p) =>
+      !(this.focus === 'active' && p.mode === MODE.PASSIVE)
+      && !(this.focus === 'passive' && p.mode !== MODE.PASSIVE));
+    this.states = [];
+    show.forEach((p, i) => {
+      const st = circuitState(p);
+      this.states.push({ p, st, ox: i * (W + GAP) });
+      ctx.save();
+      ctx.setTransform(dpr * sc, 0, 0, dpr * sc, dpr * (tx + i * (W + GAP) * sc), dpr * ty);
+      drawCircuit(ctx, p, st, t);
+      drawLabels(ctx, p, st);
+      ctx.restore();
+    });
+
+    // headings, in screen space so they stay crisp at any zoom
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.states.forEach(({ p, st, ox }) => {
+      const cx = tx + (ox + W / 2) * sc;
+      // the headings live above the drawing, but never under the top bar
+      const top = Math.max(78, ty + CONTENT.y * sc);
+      const name = p.mode === MODE.PASSIVE ? 'PASSIVE' : 'ACTIVE';
+      ctx.textAlign = 'center';
+      ctx.font = '800 22px ui-sans-serif, system-ui, sans-serif';
+      ctx.fillStyle = p.mode === MODE.PASSIVE ? '#57d9ff' : '#ff8b5c';
+      ctx.fillText(name, cx, top - 34);
+      ctx.font = '800 14px ui-sans-serif, system-ui, sans-serif';
+      const w = ctx.measureText(st.headline).width + 26;
+      ctx.fillStyle = st.good ? 'rgba(10,44,28,.94)' : 'rgba(56,14,10,.94)';
+      ctx.strokeStyle = st.good ? 'rgba(99,224,138,.6)' : 'rgba(255,110,80,.65)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.roundRect(cx - w / 2, top - 26, w, 24, 7); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = st.good ? '#8ff0b4' : '#ff9c88';
+      ctx.fillText(st.headline, cx, top - 9);
+    });
+    ctx.textAlign = 'left';
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 }

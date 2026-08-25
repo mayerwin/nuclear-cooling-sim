@@ -8,11 +8,9 @@
 <meta name="theme-color" content="#0a1018" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230e1a24'/%3E%3Cg fill='%2364e08a'%3E%3Ccircle cx='32' cy='32' r='6'/%3E%3Cpath d='M32 8a24 24 0 0 1 20.8 12L38 28.5A10 10 0 0 0 32 26z'/%3E%3Cpath d='M52.8 44A24 24 0 0 1 32 56V38.5a10 10 0 0 0 5.2-1.4z'/%3E%3Cpath d='M11.2 44A24 24 0 0 1 11.2 20L26 28.5a10 10 0 0 0 0 7z'/%3E%3C/g%3E%3C/svg%3E" />
 <link rel="stylesheet" href="css/style.css" />
-<script src="vendor/joint.min.js"></script>
 </head>
 <body>
 <canvas id="stage"></canvas>
-<div id="cutwrap"><div id="cutstage" aria-hidden="true"></div></div>
 
 <!-- ======================= TOP BAR ======================= -->
 <header id="topbar">
@@ -33,6 +31,7 @@
   </div>
   <div class="speeds" id="speeds"></div>
   <div class="topActions">
+    <button class="btn ghost" id="btnSound" title="Sound on/off" aria-pressed="true">🔊</button>
     <button class="btn ghost" id="btnHelp" title="What am I looking at?">?</button>
     <button class="btn ghost" id="btnReset" title="Reset simulation">⟲</button>
     <button class="btn ghost only-mobile" id="btnPanels" title="Panels">▤</button>
@@ -132,9 +131,10 @@
         sits — above the reactor on the right, in the basement on the left.</li>
       <li>Follow the water <b>inside</b> the reactor: back down the side, across the bottom, and
         <b>up between the fuel rods</b>, which is where it picks up the heat and turns orange.</li>
-      <li><b>Beads moving along a pipe mean water moving.</b> A plain steel pipe has nothing
-        in it. If the loop is orange all the way round, nothing is taking the heat away — it is
-        carrying the same heat straight back into the fuel.</li>
+      <li><b>Water you can watch.</b> Slugs of fluid travel down the pipes at the speed the
+        model computed; a plain steel pipe has nothing in it. Water heats from blue through a
+        pale scalding colour to orange. If the loop is orange all the way round, nothing is
+        taking the heat away — it is carrying the same heat straight back into the fuel.</li>
       <li>Under the reactor: how much water is left, how hot, and <b>how much heat the fuel is
         still making</b>. That last number is the whole problem: shutting a reactor down stops
         the chain reaction, not the heat.</li>
@@ -182,7 +182,10 @@
           is losing the containment, or turning the passive kit off. Try Beyond-Design Quake,
           Everything At Once and the <b>disable passive systems</b> toggle and watch which one
           actually breaks it.</td></tr>
-        <tr><th>Faked</th><td>The consequence figures (land, evacuees, cost, latent cancers)
+        <tr><th>Faked</th><td>Hot water is drawn <b>orange</b>. Water at 350&nbsp;°C is not
+          orange; it is water. The colour is there so you can see where the heat is without
+          reading a number, and it is the one place the picture chooses legibility over
+          literal truth. The consequence figures (land, evacuees, cost, latent cancers)
           and the evacuation rings drawn on the map are
           scaling laws fitted to <b>two</b> data points — Fukushima ≈15&nbsp;PBq and Chernobyl
           ≈85&nbsp;PBq. They are the right order of magnitude and nothing more. The latent-cancer

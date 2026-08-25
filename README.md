@@ -39,6 +39,21 @@ and **up between the fuel rods**, which is where it turns from blue to orange. W
 drops below the top of the rods they go grey → orange → red, and the headline under each
 title names the step that plant has reached.
 
+The water is drawn rather than diagrammed. Each vessel is a cylinder, so its
+contents get an elliptical surface with a moving crest, bubbles that rise when
+it is boiling, and a sheen down the lit side; pipes carry visible slugs of fluid
+that travel at the speed the model says; water falling from the pool into the
+reactor is a stream that wobbles and splashes where it lands. Water goes from
+blue through a pale scalding colour to orange as it heats — real hot water is
+not red, and the ledger says so, but a blue-to-orange blend in RGB passes
+through brown, which reads as dirty rather than hot.
+
+**Sound.** Every scenario phase has a cue and every failure raises a klaxon; the
+continuous layers — pump hum, water rushing, a core boiling — follow the model,
+so the room sounds like what the plants are doing. It is all synthesised at
+runtime, so there are no audio files to download and it works offline. The
+speaker button in the top bar mutes it.
+
 One caution the drawing is careful about: the big pump is a normal-running machine on *both*
 plants, and when it stops both loops keep creeping round on their own by natural circulation.
 The difference is not that pump — it is whether what happens next needs pumps at all. The
@@ -199,8 +214,10 @@ js/
   world.js       terrain generation, contamination / scorch / flood fields
   props.js       trees, houses, barns, boats — and their burnt, flattened, irradiated states
   plantview.js   the two stations as they appear on the map, emitted as sorted pieces
-  cutaway.js     the circuit schematic: vessels and their insides, pipes, flows,
-                 the containment line (JointJS graph + orthogonal router)
+  cutaway.js     the circuit, painted on canvas: cylindrical vessels, water with
+                 a surface and waves, slugs of fluid moving down the pipes
+  audio.js       every sound in the app, synthesised - oscillators and filtered
+                 noise, no audio files anywhere
   plant.js       the physics: decay heat, boil-off, oxidation, containment, source term
   scenarios.js   the historical initiating events and why each one matters
   fx.js          steam, smoke, fire, debris, shockwaves and the advected radioactive plume
@@ -211,8 +228,8 @@ js/
 tools/
   review.mjs      headless harness: 24 labelled screenshots across scenarios,
                   viewports and pixel ratios, and it fails on any console error
-  determinism.mjs freezes the clock and diffs two frames — the site view to the
-                  subpixel, the cutaway by its serialized SVG
+  determinism.mjs freezes the clock and diffs two frames of both views to the
+                  subpixel
   robustness.mjs  hammers the UI: rapid scenario and view switches, resizes,
                   extreme viewports, and a check that no model number went NaN
   captions.mjs    drives the model through every combination of the flags the

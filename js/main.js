@@ -1,6 +1,7 @@
 // ---------------------------------------------------------------------------
 // main.js — boot, input handling, animation loop
 // ---------------------------------------------------------------------------
+import * as cutaway from './cutaway.js';
 import { Sim } from './sim.js';
 import { Renderer } from './renderer.js';
 import { UI } from './ui.js';
@@ -132,5 +133,6 @@ requestAnimationFrame(frame);
 
 // expose for debugging
 window.__sim = sim;
+window.__cutaway = cutaway;
 window.__r = renderer;
 window.__ui = ui;

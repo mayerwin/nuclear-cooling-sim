@@ -141,8 +141,19 @@ export class UI {
       $('#whyBox').innerHTML = '';
       this.toast('✓ SIMULATION RESET', true);
     };
+    $('#btnSound').onclick = () => {
+      const b = $('#btnSound'), on = b.getAttribute('aria-pressed') !== 'true';
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.textContent = on ? '🔊' : '🔇';
+      this.sim.sound.setMuted(!on);
+    };
     $('#btnHelp').onclick = () => $('#modal').classList.add('open');
-    $('#modalClose').onclick = $('#startBtn').onclick = () => $('#modal').classList.remove('open');
+    // audio needs a gesture before a browser will let it make a sound, and
+    // pressing Start is the only one we are guaranteed
+    $('#modalClose').onclick = $('#startBtn').onclick = () => {
+      $('#modal').classList.remove('open');
+      this.sim.sound.init();
+    };
 
     // ---- mobile panels ----
     $('#btnPanels').onclick = () => this.togglePanel('left');
