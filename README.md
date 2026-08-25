@@ -126,12 +126,16 @@ Run the scenarios and read the numbers off the clock:
 
 | What breaks | Passive unit | Active unit |
 |---|---|---|
-| Fukushima tsunami | still full at 80 h | fuel uncovered 9.6 h, vessel breached 11.0 h |
-| Station blackout, no operators | still full at 80 h | fuel uncovered 13.1 h, breached 14.6 h |
-| Beyond-design quake — **the pool above the reactor cracks and drains** | still full at 80 h | fuel uncovered 13.3 h, breached 14.8 h |
-| Everything at once — pool cracked **and** the passive heat exchanger broken | still full at 80 h | fuel uncovered 3.3 h, breached 4.5 h |
-| Everything at once, **and the containment breached** at 6 h | fuel uncovered 10.8 h, breached 12.3 h | already gone |
-| Everything at once, with *disable passive systems* on | fuel uncovered 2.8 h, breached 3.9 h | already gone |
+| Fukushima tsunami | still full at 80 h | fuel uncovered 8.7 h, vessel breached 11.0 h |
+| Station blackout, no operators | still full at 80 h | fuel uncovered 12.1 h, breached 14.6 h |
+| Beyond-design quake — **the pool above the reactor cracks and drains** | still full at 80 h | fuel uncovered 12.3 h, breached 14.8 h |
+| Everything at once — pool cracked **and** the passive heat exchanger broken | still full at 80 h | fuel uncovered 2.6 h, breached 4.5 h |
+| Everything at once, **and the containment breached** at 6 h | fuel uncovered 9.9 h, breached 12.3 h | already gone |
+| Everything at once, with *disable passive systems* on | fuel uncovered 2.1 h, breached 3.9 h | already gone |
+
+"Uncovered" here is the moment the water falls below the top of the fuel — the same threshold the
+plant's own status line and the drawing's waterline use, so a number in this table is one you can
+read off the clock.
 
 The cracked-tank case is the interesting one, and the answer is not the obvious one: it does
 not melt the reactor down. The water in that tank never leaves the building. It runs onto the
@@ -194,7 +198,8 @@ js/
   world.js       terrain generation, contamination / scorch / flood fields
   props.js       trees, houses, barns, boats — and their burnt, flattened, irradiated states
   plantview.js   the two stations as they appear on the map, emitted as sorted pieces
-  cutaway.js     the cross-section view: vessels, pools, pipes, flows, hydrogen
+  cutaway.js     the circuit schematic: vessels and their insides, pipes, flows,
+                 the containment line (JointJS graph + orthogonal router)
   plant.js       the physics: decay heat, boil-off, oxidation, containment, source term
   scenarios.js   the historical initiating events and why each one matters
   fx.js          steam, smoke, fire, debris, shockwaves and the advected radioactive plume

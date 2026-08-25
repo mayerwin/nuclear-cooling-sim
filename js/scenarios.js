@@ -20,9 +20,10 @@ export const SCENARIOS = [
       The wave took both in ninety seconds. A passive plant rejects decay heat to a tank of
       water sitting above the core and then to the air; there is no pump to drown, no diesel
       to flood, and no seawater intake in the loop for the first 72 hours.`,
-    watch: `In the cutaway: POWER falls to the batteries and then to NONE, the left pump
-      stops, and its reactor starts losing water. On the right the pool begins pouring in
-      <em>because</em> the power died — those valves fail open.`,
+    watch: `In the cutaway: POWER falls to the batteries and then to NONE, and the left
+      pump stops. A steam-driven backup takes over there — it runs on the reactor's own steam
+      rather than the grid, for as long as the steam lasts. On the right the pool starts
+      pouring in <em>because</em> the power died: those valves fail open.`,
     tsunami: { at: 2460, height: 14, speed: 3.2 },
     timeline: [
       { t: 0, msg: 'M9.0 earthquake — automatic scram, all four offsite lines lost', fn: (s, p) => { p.scram('seismic trip + loss of offsite power'); p.grid = false; p.quakeDamage = 0.15; } },
@@ -44,9 +45,10 @@ export const SCENARIOS = [
     why: `A passive plant's safety case does not contain the word "pump". Decay heat moves by
       density difference, gravity head and evaporation — physical processes that cannot be
       switched off, and that get *stronger* as the core gets hotter.`,
-    watch: `In the cutaway: POWER reads NONE on both sides. On the left every dash stops. On
-      the right the water keeps going round on its own, because hot water rises and the boiler
-      is above the reactor.`,
+    watch: `In the cutaway: POWER reads NONE on both sides, and <em>both</em> loops keep
+      creeping round on their own — hot water rises, cool water sinks. The difference is where
+      the heat goes next: the left boiler needs a pump to feed it, the right one hands the heat
+      to the pool above the reactor.`,
     timeline: [
       { t: 0, msg: 'Grid disturbance — turbine trip and reactor scram', fn: (s, p) => { p.scram('turbine trip'); p.grid = false; } },
       { t: 30, msg: 'Diesel A fails to start (fuel-rack fault)', fn: (s, p) => { p.diesels = Math.max(0, p.diesels - 1); } },
@@ -94,7 +96,7 @@ export const SCENARIOS = [
       { t: 15, msg: 'PORV lifts and sticks OPEN — indication in the control room reads CLOSED', fn: (s, p) => { p.leakRate = 26; p.pRPV = 7; } },
       { t: 120, msg: 'Auxiliary feedwater valves found shut (left closed after maintenance)', fn: (s, p) => { if (p.mode === 'active') p.pumpsOk = false; } },
       { t: 300, msg: 'Crew misreads pressuriser level as "solid" and THROTTLES safety injection', fn: (s, p) => { if (p.mode === 'active') { p.operators = false; p.pumpsOk = false; } } },
-      { t: 2400, msg: 'Reactor coolant pumps tripped on vibration — natural circulation lost', fn: (s, p) => { if (p.mode === 'active') p.rcicOk = false; } }
+      { t: 2400, msg: 'Coolant pumps tripped on vibration; the steam-driven backup is lost with them', fn: (s, p) => { if (p.mode === 'active') p.rcicOk = false; } }
     ]
   },
   {
@@ -112,7 +114,7 @@ export const SCENARIOS = [
       water and the chain reaction <em>stops</em>. The void coefficient is strongly negative,
       the rods fall in under gravity, and everything sits inside a full pressure containment.
       The same insertion that destroyed Unit 4 is self-terminating here.`,
-    watch: `In the cutaway: the left fuel goes from grey to white-hot in seconds. The right
+    watch: `In the cutaway: the left fuel goes from grey to red-hot in seconds. The right
       one drops its rods under gravity and stays grey.`,
     timeline: [
       { t: 0, msg: 'Coast-down test begins at 200 MWt with xenon poisoning', fn: (s, p) => { p.powerFrac = 0.06; p.pumpsOk = true; } },
@@ -132,8 +134,9 @@ export const SCENARIOS = [
     why: `The passive answer of last resort is the atmosphere itself: an evaporating water film
       on a steel containment shell plus a natural air chimney. That heat sink cannot dry up,
       warm up, or be blocked by debris.`,
-    watch: `In the cutaway: the 'heat out' line goes grey on both plants. Only the right-hand
-      one has somewhere else to put the heat — first the pool, then the steel shell itself.`,
+    watch: `In the cutaway: the 'heat out, to the sea' line goes grey on both plants. Only
+      the right-hand one has somewhere else to put the heat — first the pool above the reactor,
+      then the steel shell itself.`,
     timeline: [
       { t: 0, msg: 'River temperature exceeds the discharge limit — power reduction ordered', fn: (s, p) => { p.powerFrac = 0.6; } },
       { t: 120, msg: 'Intake screens clog with debris and biofouling', fn: (s, p) => { p.scram('loss of circulating water'); p.uhs = false; } },
@@ -157,7 +160,7 @@ export const SCENARIOS = [
       watching what that does and does not cost.`,
     watch: `In the cutaway: the pool cracks in the first minute and drains — and the reactor
       stays full anyway, because the water lands on the containment floor and gravity feeds it
-      straight back in. The left unit uncovers its fuel at 13 h and breaches at 15 h.`,
+      straight back in. The left unit uncovers its fuel at 12 h and breaches at 15 h.`,
     timeline: [
       { t: 0, msg: 'Ground motion 2.5× design basis — scram, offsite power lost', fn: (s, p) => { p.scram('seismic'); p.grid = false; p.quakeDamage = 0.35; } },
       { t: 20, msg: 'Main transformer fire; onsite fire brigade overwhelmed', fn: (s, p) => { p.fire = 0.5; } },
@@ -204,10 +207,10 @@ export const SCENARIOS = [
       again. That loop needs gravity and cold air, and neither has an off switch. Use the
       <b>disable passive systems</b> toggle to confirm it really is the passive equipment
       doing the work.`,
-    watch: `In the cutaway: every loop on the left has stopped and its fuel is uncovered by
-      3 h. On the right the pool is gone and the heat exchanger is broken, yet the reactor is
-      still full at 80 h — read the containment line, because that closed loop is the one
-      thing this plant cannot lose.`,
+    watch: `In the cutaway: the left loop turns orange all the way round — still moving,
+      nothing taking the heat away — and its fuel is uncovered before 3 h. On the right the pool is
+      gone and the heat exchanger is broken, yet the reactor is still full at 80 h. Read the
+      containment line: that closed loop is the one thing this plant cannot lose.`,
     tsunami: { at: 900, height: 18, speed: 3.6 },
     timeline: [
       { t: 0, msg: 'Extreme seismic event — scram, grid destroyed', fn: (s, p) => { p.scram('extreme seismic'); p.grid = false; p.quakeDamage = 0.6; } },

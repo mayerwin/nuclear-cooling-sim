@@ -25,6 +25,12 @@ const RPV_WATER = 2.6e5;             // kg water covering the core
 const CS137_CORE = 2.6e17;           // Bq Cs-137 in a 1 GWe core (~7 MCi)
 
 export const MODE = { ACTIVE: 'active', PASSIVE: 'passive' };
+// Where the top of the fuel sits in the vessel, as a fraction of the water
+// inventory. Below this the rods are in steam. The cutaway draws its bundle
+// from the same number, so the picture and the state label can never disagree
+// about whether the fuel is covered - which they did: the panel said "core
+// uncovering" at 96% while the drawing still had the rods well under water.
+export const FUEL_TOP = 0.71;
 
 // saturation pressure of water, MPa (fits 100-250 C to a few percent)
 const psat = (T) => 0.1 * Math.exp(13.7 - 5120 / T);
@@ -564,7 +570,8 @@ export class Plant {
     else if (this.meltFrac > 0.01) st = 'FUEL MELTING';
     else if (this.coreDamage > 0.01) st = 'CORE DAMAGE';
     else if (!this.ctmtIntact) st = 'CONTAINMENT FAILURE';
-    else if (this.level < 0.97) st = 'CORE UNCOVERING';
+    else if (this.level < FUEL_TOP) st = 'FUEL UNCOVERED';
+    else if (this.level < 0.97) st = 'LOSING WATER';
     else if (this.Tclad > 700) st = 'CORE HEATING UP';
     else if (!acPower) {
       // Boiling water off and replacing it by gravity is cooling. The margin

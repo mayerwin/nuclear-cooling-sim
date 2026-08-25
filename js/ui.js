@@ -217,8 +217,9 @@ export class UI {
     sim.plants.forEach((p, i) => {
       const c = this.cardEls[i];
       const st = p.state;
-      const kind = /SAFE|RECOV|NORMAL/.test(st) ? 'ok'
-        : /BLACKOUT|DEGRADED/.test(st) ? 'warn' : 'crit';
+      // same three tiers as the site banner, from the same words
+      const kind = /SAFE|RECOV|NORMAL|STABLE/.test(st) ? 'ok'
+        : /BLACKOUT|DEGRADED|LOSING WATER/.test(st) ? 'warn' : 'crit';
       c.state.innerHTML = `<span class="state ${kind}">${st}</span>`;
 
       const pctPow = (p.qDecay / P0) * 100;

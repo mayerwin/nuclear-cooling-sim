@@ -315,7 +315,11 @@ export class Renderer {
         { r: c.exclusionR, col: '255,160,40' },
         { r: c.exclusionR * 1.9, col: '255,232,90' }
       ]) {
-        const rr = rg.r * 1.6;      // km -> tiles, 1 tile ~ 625 m
+        // NOT to scale, and it cannot be: a tile is 25 m, so the whole island
+        // is 1.2 km across and a 20 km ring would be four hundred tiles wide.
+        // The rings say "it reaches outward, well past the fence"; the radius
+        // that goes with each one is written in the key, not measured here.
+        const rr = rg.r * 1.6;
         ctx.strokeStyle = `rgba(${rg.col},0.75)`;
         ctx.lineWidth = 3 / Math.max(0.4, sim.cam.zoom);
         ctx.beginPath();
@@ -414,36 +418,6 @@ export class Renderer {
     const padL = narrow ? 6 : 316, padR = narrow ? 6 : 342;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.font = '700 10px ui-sans-serif, system-ui, sans-serif';
-    for (const v of sim.views) {
-      const c = v.plant.consequences();
-      if (c.pbq < 1e-4) continue;
-      const cx = v.s.x + v.parts.reactor.x, cy = v.s.y + v.parts.reactor.y;
-      const rings = [
-        [c.exclusionR * 0.55, '255,70,60', 'emptied for good'],
-        [c.exclusionR, '255,160,40', 'evacuated'],
-        [c.exclusionR * 1.9, '255,232,90', 'stay indoors']
-      ];
-      for (const [km, col, what] of rings) {
-        const rr = km * 1.6 * 1.414;               // km -> tiles, then the ring radius
-        // Try the four quarters of the ring and take the first that is on
-        // screen, so a label is not lost the moment the camera moves.
-        let sx = 0, sy = 0, ok = false;
-        for (const [ux, uy] of [[0.707, 0.707], [-0.707, 0.707], [0.707, -0.707], [-0.707, -0.707]]) {
-          const sc = cam.toScreen(cx + rr * ux, cy + rr * uy, 0);
-          sx = sc[0] / dpr; sy = sc[1] / dpr;
-          if (sx > padL + 40 && sx < cw - padR - 40 && sy > 56 && sy < ch - 56) { ok = true; break; }
-        }
-        if (!ok) continue;
-        const text = `${km < 10 ? km.toFixed(1) : Math.round(km)} km · ${what}`;
-        const w = ctx.measureText(text).width + 14;
-        ctx.fillStyle = 'rgba(8,14,21,.86)';
-        roundRect(ctx, sx - w / 2, sy - 8, w, 16, 4); ctx.fill();
-        ctx.fillStyle = `rgba(${col},0.95)`;
-        ctx.textAlign = 'center';
-        ctx.fillText(text, sx, sy + 4);
-        ctx.textAlign = 'start';
-      }
-    }
     // The outer rings usually run off the island, so the same three numbers get
     // a fixed key as well: the consequence is the part people came to ask
     // about, and it should never be off-screen.
@@ -462,7 +436,9 @@ export class Renderer {
       ctx.font = '700 10px ui-sans-serif, system-ui, sans-serif';
       let wd = 0;
       for (const r of rows) wd = Math.max(wd, ctx.measureText(r[1]).width);
-      const w = 25 + wn + 10 + wd + 12, h = 16 + rows.length * 15 + 8;
+      ctx.font = '800 9px ui-sans-serif, system-ui, sans-serif';
+      const wh = ctx.measureText('AREA AFFECTED  ·  RINGS NOT TO SCALE').width;
+      const w = Math.max(25 + wn + 10 + wd + 12, wh + 22), h = 16 + rows.length * 15 + 8;
       const x = padL + 8, y = 190;
       ctx.fillStyle = 'rgba(8,14,21,.82)';
       roundRect(ctx, x, y, w, h, 7); ctx.fill();
@@ -470,7 +446,7 @@ export class Renderer {
       roundRect(ctx, x, y, w, h, 7); ctx.stroke();
       ctx.fillStyle = 'rgba(150,172,190,.9)';
       ctx.font = '800 9px ui-sans-serif, system-ui, sans-serif';
-      ctx.fillText('AREA AFFECTED', x + 11, y + 14);
+      ctx.fillText('AREA AFFECTED  ·  RINGS NOT TO SCALE', x + 11, y + 14);
       rows.forEach((r, i) => {
         const ry = y + 28 + i * 15;
         ctx.fillStyle = `rgba(${r[2]},0.95)`;

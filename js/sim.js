@@ -60,9 +60,9 @@ export class Sim {
 
   overview() { this.cam.focus(26, 26, this.fitZoom()); }
 
-  // The cutaway has its own camera: two cross-sections side by side on a wide
-  // screen, one at a time on a phone.
-  // The schematic fits itself; this just says which circuits to show.
+  // The cutaway has its own camera: two circuits side by side on a wide screen,
+  // one at a time on a phone. The schematic fits itself; this only says which
+  // circuits to show.
   fitCut() {
     if (!this.cutStage) return;
     const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;

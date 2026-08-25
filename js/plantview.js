@@ -528,7 +528,7 @@ export class PlantView {
       sub: this.passive ? 'Gen III+ · gravity and convection' : 'Gen II · pumps, diesels, operators',
       state: st,
       tone: /SAFE|RECOV|NORMAL|STABLE/.test(st) ? 'ok'
-        : /BLACKOUT|DEGRADED|UNCOVERING/.test(st) ? 'warn' : 'crit',
+        : /BLACKOUT|DEGRADED|LOSING WATER/.test(st) ? 'warn' : 'crit',
       passive: this.passive
     };
   }

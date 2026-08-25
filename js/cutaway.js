@@ -22,7 +22,7 @@
 // The whole comparison is one thing: when the pump stops, does anything still
 // move, and is there water above the core to fall in.
 // ---------------------------------------------------------------------------
-import { MODE } from './plant.js';
+import { MODE, FUEL_TOP } from './plant.js';
 
 const J = () => window.joint;
 
@@ -242,7 +242,9 @@ const CORE_IN = 110, CORE_OUT = 64, CORE_BOT = 232;
 const CH1 = 128, CH2 = 172;                     // the two coolant channels
 const CORE_COLD = `M ${CORE_W} ${CORE_IN} H 250 V ${CORE_BOT} H ${CH1}`;
 const CORE_HOT = `M ${CH1} ${CORE_BOT} V ${CORE_OUT} H ${CORE_W} M ${CH2} ${CORE_BOT} V ${CORE_OUT - 8}`;
-const FUEL = { y: 98, h: 120 };
+// The rod stacks start exactly where the model says the fuel is uncovered, so
+// the waterline in the drawing and the plant's own state label agree.
+const FUEL = { y: Math.round(38 + 208 * (1 - FUEL_TOP)), h: 120 };
 const RODS = [[88, 32], [136, 28], [180, 32]];  // x, width
 const CORE_TOP = 38, CORE_SPAN = 208;      // the cavity, above the two-line foot
 // And inside the boiler: up one leg of a tube, over, down the other, giving the
@@ -528,7 +530,7 @@ Circuit.prototype.update = function (t) {
     value: { text: steamOnly ? 'running on steam' : injecting ? 'pumping'
       : !live ? 'NO POWER' : !p.pumpsOk ? 'BROKEN' : 'waiting',
       fill: steamOnly ? C.warn : injecting ? C.ink : (live && p.pumpsOk) ? C.dim : C.bad },
-    value2: { text: steamOnly ? 'no electricity needed'
+    value2: { text: steamOnly ? 'runs on steam, not the grid'
       : injecting ? 'lifting water uphill'
         : !live ? 'it needs electricity'
           : !p.pumpsOk ? 'it cannot lift the water' : 'starts if the level falls',
