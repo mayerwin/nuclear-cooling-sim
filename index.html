@@ -63,8 +63,8 @@
       <button class="btn sm" data-cam="both">Both</button>
       <button class="btn sm" data-cam="passive">Passive unit</button>
     </div>
-    <p class="hint" id="viewHint">Switch to <b>Cutaway</b> to watch the water, steam and
-      hydrogen move inside each containment.</p>
+    <p class="hint" id="viewHint">Switch to <b>Cutaway</b> to open the buildings up and watch
+      the water go round inside each one.</p>
   </div>
 </aside>
 
@@ -127,22 +127,28 @@
       <b>turning the passive systems off</b> — and both are in the UI.</p>
     <h3 class="ledgerHead">How to read the diagram</h3>
     <ul class="fine howto">
-      <li>Both plants are drawn <b>the same way</b>. One thing differs: where the spare water
-        sits — above the reactor on the right, in the basement on the left.</li>
-      <li>Follow the water <b>inside</b> the reactor: back down the side, across the bottom, and
-        <b>up between the fuel rods</b>, which is where it picks up the heat and turns orange.</li>
-      <li><b>Water you can watch.</b> Slugs of fluid travel down the pipes at the speed the
-        model computed; a plain steel pipe has nothing in it. Water heats from blue through a
+      <li>Both buildings are <b>cut open</b> the same way — the near quarter of the wall
+        removed, the roof drawn as glass, the top of each vessel sliced off. Nothing has burst;
+        that is just how you get to look in.</li>
+      <li>Both plants are built <b>the same way</b>. One thing differs: where the spare water
+        sits — in a pool held high beside the reactor on the right, in a basement tank behind a
+        pump on the left.</li>
+      <li>The <b>fuel bundle</b> stands inside the reactor, in the water. Watch the level against
+        the top of it: while the fuel is covered it stays grey; uncovered it goes orange, then
+        red, then slumps.</li>
+      <li><b>Water you can watch.</b> Slugs of fluid travel the pipes at the speed the model
+        computed; a plain steel pipe has nothing in it. Water heats from blue through a
         pale scalding colour to orange. If the loop is orange all the way round, nothing is
         taking the heat away — it is carrying the same heat straight back into the fuel.</li>
       <li>Under the reactor: how much water is left, how hot, and <b>how much heat the fuel is
         still making</b>. That last number is the whole problem: shutting a reactor down stops
         the chain reaction, not the heat.</li>
-      <li>Under the big pump: what the cooling behind it is <b>made of</b>. Both plants keep
+      <li>Beside the big pump: what the cooling behind it is <b>made of</b>. Both plants keep
         creeping round on their own when it stops — the difference is whether what happens
         next needs pumps.</li>
-      <li>The boiler stands <b>above</b> the reactor on purpose. Hot water rises and cool water
-        sinks, so the loop keeps turning on its own once the pump stops.</li>
+      <li>The pipe out of the reactor leaves <b>high</b> and climbs into the boiler; the pipe
+        back leaves the boiler lower and runs down to the pump. Hot water rises and cool water
+        sinks, so that loop keeps turning on its own once the pump stops.</li>
       <li>The line under each plant's name is <b>the step it has reached</b>. Watch them
         separate.</li>
     </ul>
@@ -159,12 +165,14 @@
           <b>Every flow animated in the diagram</b> — if dashes are moving, the model is moving
           that water.</td></tr>
         <tr><th>Scaled</th><td>Time: the AUTO clock compresses quiet hours up to 1800× and drops
-          to near real time when a core is coming apart. The diagram is a <b>schematic, not a
-          scale drawing</b>: a handful of boxes, the containment line around them, and the
-          pipes between. It shows what is connected to what and what is moving, not how big
-          anything is or where it sits in the building — the site view is where the plant has a
-          shape. The route drawn inside the reactor is the real one (down the outside, up through
-          the fuel), not the real proportions. Distance: one map tile is about 25&nbsp;m, so
+          to near real time when a core is coming apart. The cutaway is an <b>isometric cutaway,
+          not a scale drawing</b>: the same projection as the site view, so the two are one world
+          at two scales, but the machines are sized to be read rather than measured. The layout
+          is the real arrangement of a loop — reactor, hot leg high, boiler, pump on the cold leg
+          low, and back in — and the passive plant's pool really does sit higher than the reactor,
+          because that height is what makes gravity work. What is not real is the spacing: a
+          containment is far emptier than this, and the vessels are drawn far fatter relative to
+          their height than they are. Distance: one map tile is about 25&nbsp;m, so
           the whole island is 1.2&nbsp;km across — the contamination footprint is a schematic of the plume, not a
           dispersion calculation, and the evacuation rings are indicative rather than measured
           (a 20&nbsp;km ring would be four hundred tiles wide). The radius written against each
@@ -185,7 +193,13 @@
         <tr><th>Faked</th><td>Hot water is drawn <b>orange</b>. Water at 350&nbsp;°C is not
           orange; it is water. The colour is there so you can see where the heat is without
           reading a number, and it is the one place the picture chooses legibility over
-          literal truth. The consequence figures (land, evacuees, cost, latent cancers)
+          literal truth. Three more things are cut or bent for the same reason. The near
+          quarter of the containment wall, and the near half of each vessel head, are
+          <b>cut away</b>, the way a museum model is cut away — nothing has actually opened.
+          The roof is drawn as <b>glass</b>; it is 40&nbsp;mm of steel. And a pressure vessel
+          runs water-solid, with no free surface at all: the level is drawn with headroom
+          under the head so you can watch it fall, and the percentage beside it is the model's
+          own number. The consequence figures (land, evacuees, cost, latent cancers)
           and the evacuation rings drawn on the map are
           scaling laws fitted to <b>two</b> data points — Fukushima ≈15&nbsp;PBq and Chernobyl
           ≈85&nbsp;PBq. They are the right order of magnitude and nothing more. The latent-cancer

@@ -29,15 +29,21 @@ islands are never just two islands. Once something is released, dashed rings sho
 consequences reach, with a key giving each one a radius and a meaning. Picking a camera holds
 it: the event cinematics stop stealing the framing back.
 
-**🔬 Cutaway** — the circuit itself, drawn as a schematic, both plants side by side. This is
-the one that answers *why*. Each side is a section through the containment building: the
-reactor pressure vessel with its fuel rods, the boiler standing beside it, the pump, and the
-spare water — above the reactor on the passive
-unit, in the basement behind a pump on the active one. The water is drawn *inside* the
-reactor on the route it really takes: back down the outside of the core, across the bottom,
-and **up between the fuel rods**, which is where it turns from blue to orange. When the level
-drops below the top of the rods they go grey → orange → red, and the headline under each
-title names the step that plant has reached.
+**🔬 Cutaway** — the buildings opened up, both plants side by side. This is the one that
+answers *why*. It is an isometric cutaway, drawn in the same projection as the site view, so
+the two are one world seen at two scales rather than a picture and a diagram. The near quarter
+of each containment wall is cut away and the roof is drawn as glass, so you look straight in
+at a reactor pressure vessel with its fuel bundle standing in it, the boiler beside it with its
+U-tubes, the pump on the near corner of the loop, and the spare water — a pool held high above
+the reactor on the passive unit, a tank in the basement behind a pump on the active one.
+
+Every vessel is a glass shell over its own contents: clip to the silhouette, draw the water and
+the fuel, then lay the shell back over as glass. So the water level is not a bar on a gauge —
+it is water, with a surface that ripples, bubbles when it boils and turns from blue through
+scalding pale to orange as it heats. Slugs of it travel the whole loop; when the pump stops
+they slow to the crawl of natural circulation rather than stopping. When the level drops below
+the top of the fuel the rods go grey → orange → red and start to slump, and the headline under
+each title names the step that plant has reached.
 
 The water is drawn rather than diagrammed. Each vessel is a cylinder, so its
 contents get an elliptical surface with a moving crest, bubbles that rise when
@@ -214,8 +220,9 @@ js/
   world.js       terrain generation, contamination / scorch / flood fields
   props.js       trees, houses, barns, boats — and their burnt, flattened, irradiated states
   plantview.js   the two stations as they appear on the map, emitted as sorted pieces
-  cutaway.js     the circuit, painted on canvas: cylindrical vessels, water with
-                 a surface and waves, slugs of fluid moving down the pipes
+  cutaway.js     the isometric cutaway: the containment cut open, glass-shelled
+                 vessels you can see into, water with a surface and waves, and
+                 slugs of fluid travelling the pipe runs. One depth-sorted pass
   audio.js       every sound in the app, synthesised - oscillators and filtered
                  noise, no audio files anywhere
   plant.js       the physics: decay heat, boil-off, oxidation, containment, source term
