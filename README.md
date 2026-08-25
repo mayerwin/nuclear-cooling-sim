@@ -30,8 +30,9 @@ consequences reach, with a key giving each one a radius and a meaning. Picking a
 it: the event cinematics stop stealing the framing back.
 
 **🔬 Cutaway** — the circuit itself, drawn as a schematic, both plants side by side. This is
-the one that answers *why*. Each side shows the containment line, the reactor with its fuel
-rods, the boiler above it, the pump, and the spare water — above the reactor on the passive
+the one that answers *why*. Each side is a section through the containment building: the
+reactor pressure vessel with its fuel rods, the boiler standing beside it, the pump, and the
+spare water — above the reactor on the passive
 unit, in the basement behind a pump on the active one. The water is drawn *inside* the
 reactor on the route it really takes: back down the outside of the core, across the bottom,
 and **up between the fuel rods**, which is where it turns from blue to orange. When the level
