@@ -191,8 +191,15 @@ export class Sim {
   cinematic(dur, speed, focus, zoom, prio = 1) {
     if (this.cine && this.cine.prio >= prio && this.cine.t < this.cine.dur) return;
     this.cine = { t: 0, dur, speed, prio };
-    if (focus) this.cam.focus(focus[0], focus[1], zoom || 1.0);
+    // A repeating event - hydrogen bursts come in threes - used to snatch the
+    // camera back every few seconds, so pressing "Both" during the interesting
+    // part did nothing. Choosing a camera now holds it; the slow-motion still
+    // applies, only the framing is left alone.
+    if (focus && !(this.camHold > 0)) this.cam.focus(focus[0], focus[1], zoom || 1.0);
   }
+
+  // called when the reader picks a camera: theirs for a while
+  holdCamera(sec = 14) { this.camHold = sec; }
 
   // AUTO: compress the long quiet stretches, then slow down hard the moment
   // something is actually happening to a core.
@@ -224,6 +231,7 @@ export class Sim {
   update(rdt) {
     rdt = Math.min(rdt, 0.05);
     this.visTime += rdt;
+    if (this.camHold > 0) this.camHold -= rdt;
     this.whiteout *= Math.pow(0.02, rdt);
     this.cam.update(rdt);
     this.cutCam.update(rdt);

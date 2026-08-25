@@ -516,6 +516,23 @@ export class PlantView {
   }
 
   // ---- annotations (screen space, drawn after the sorted pass) ---------
+  // The one caption that is always worth the pixels: which unit is which, and
+  // what step it has reached. Without it the overview is two identical islands
+  // and the reader cannot tell the comparison is even happening.
+  banner() {
+    const S = this.s, pt = this.parts, p = this.plant;
+    const st = p.state;
+    return {
+      x: S.x + pt.reactor.x, y: S.y + pt.reactor.y, z: this.z + (this.passive ? 12.5 : 11),
+      title: this.passive ? 'PASSIVE COOLING' : 'ACTIVE COOLING',
+      sub: this.passive ? 'Gen III+ · gravity and convection' : 'Gen II · pumps, diesels, operators',
+      state: st,
+      tone: /SAFE|RECOV|NORMAL|STABLE/.test(st) ? 'ok'
+        : /BLACKOUT|DEGRADED|UNCOVERING/.test(st) ? 'warn' : 'crit',
+      passive: this.passive
+    };
+  }
+
   tags() {
     const S = this.s, z = this.z, p = this.plant, P_ = this.passive, pt = this.parts;
     const out = [];

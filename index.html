@@ -46,6 +46,9 @@
     <button class="closeBtn only-mobile" data-close="left">×</button>
   </div>
   <div id="scenarioList"></div>
+  <!-- the explanation belongs where the eye already is: right under the
+       scenario that was just clicked, not below the controls off the bottom -->
+  <div class="whyBox" id="whyBox"></div>
   <div class="panelHead"><h2>Controls</h2></div>
   <div class="toggles">
     <label class="tg"><input type="checkbox" id="tgExplain" checked><span>Equipment labels <em>(zoom in)</em></span></label>
@@ -64,7 +67,6 @@
     <p class="hint" id="viewHint">Switch to <b>Cutaway</b> to watch the water, steam and
       hydrogen move inside each containment.</p>
   </div>
-  <div class="whyBox" id="whyBox"></div>
 </aside>
 
 <!-- ======================= RIGHT: TELEMETRY ======================= -->
@@ -119,14 +121,11 @@
         </ul>
       </div>
     </div>
-    <p class="fine"><b>And when is passive <i>not</i> enough?</b> Fair question, and it is
-      built in rather than argued away. Shake the plant hard enough and the pool above the
-      reactor cracks and drains — try <i>Beyond-Design Quake</i>. The reactor rides it out,
-      because the water lands on the containment floor and the same gravity feeds it straight
-      back in; what the core boils off condenses on the cold steel shell and runs back down.
-      It is a closed loop. So the two things that <i>do</i> finish it are the two that break
-      the loop: <b>losing the containment</b>, and <b>turning the passive systems off</b>.
-      Both are in the UI, both melt it down, and the numbers are on the clock.</p>
+    <p class="callout"><b>And when is passive <i>not</i> enough?</b> Shake the plant hard
+      enough and the pool above the reactor cracks and drains — try <i>Beyond-Design Quake</i>.
+      It rides that out: the water lands on the containment floor and gravity feeds it straight
+      back in. Only two things actually finish it — <b>losing the containment</b> and
+      <b>turning the passive systems off</b> — and both are in the UI.</p>
     <h3 class="ledgerHead">How to read the diagram</h3>
     <ul class="fine howto">
       <li>Both plants are drawn <b>the same way</b>. One thing differs: where the spare water
@@ -146,54 +145,57 @@
       <li>The line under each plant's name is <b>the step it has reached</b>. Watch them
         separate.</li>
     </ul>
-    <h3 class="ledgerHead">What is real here, and what is not</h3>
-    <p class="fine">Half the value of a simulation is knowing which numbers to trust. So:</p>
-    <table class="ledger">
-      <tr><th>Computed</th><td>Way–Wigner decay heat. Latent-heat boil-off against the net
-        heat imbalance. Zr–H₂O oxidation above 1100&nbsp;K with its 6.5&nbsp;MJ/kg exotherm and
-        0.044&nbsp;kg H₂ per kg of zircaloy. Saturated-pool containment pressure,
-        <i>p</i>&nbsp;=&nbsp;<i>p</i><sub>air</sub>(T)&nbsp;+&nbsp;<i>p</i><sub>sat</sub>(T)&nbsp;+&nbsp;<i>p</i><sub>H2</sub>.
-        Hydrogen migration and deflagration. Released Cs-137 integrated over time.
-        <b>Every flow animated in the diagram</b> — if dashes are moving, the model is moving
-        that water.</td></tr>
-      <tr><th>Scaled</th><td>Time: the AUTO clock compresses quiet hours up to 1800× and drops
-        to near real time when a core is coming apart. The diagram is a <b>schematic, not a
-        scale drawing</b>: a handful of boxes, the containment line around them, and the
-        pipes between. It shows what is connected to what and what is moving, not how big
-        anything is or where it sits in the building — the site view is where the plant has a
-        shape. The route drawn inside the reactor is the real one (down the outside, up through
-        the fuel), not the real proportions. Distance: one map tile is about 25&nbsp;m,
-        so the contamination footprint is a schematic of the plume, not a dispersion
-        calculation. The site is staged for the camera rather than laid out to a real plant plan.</td></tr>
-      <tr><th>Assumed</th><td>Both units are 3,400&nbsp;MW thermal so the comparison is
-        like-for-like. The Gen-II unit is a large dry PWR containment; a Mark-I BWR is a harder
-        case. The Gen-III+ unit is AP1000-class: PRHR, CMTs, ADS, IRWST gravity injection and a
-        steel shell cooled by air and an evaporating film. 8&nbsp;h of battery against a 72&nbsp;h
-        gravity tank. <b>The passive plant is not invulnerable here</b>: past about 1.5×
-        the seismic design basis the in-containment pool cracks and leaks, and past about 2.5×
-        the heat-exchanger line fails as well. Neither on its own melts it down, because the
-        water is still inside the containment and gravity puts it back; what does melt it down
-        is losing the containment, or turning the passive kit off. Try Beyond-Design Quake,
-        Everything At Once and the <b>disable passive systems</b> toggle and watch which one
-        actually breaks it.</td></tr>
-      <tr><th>Faked</th><td>The consequence figures (land, evacuees, cost, latent cancers) are
-        scaling laws fitted to <b>two</b> data points — Fukushima ≈15&nbsp;PBq and Chernobyl
-        ≈85&nbsp;PBq. They are the right order of magnitude and nothing more. The latent-cancer
-        number is a straight LNT extrapolation, shown because people ask for it, not because the
-        model believes it precisely. The tsunami inundation is cinematic, not hydrodynamic.
-        The condensate loop — water boiled off inside the containment condenses on the
-        cold steel shell and drains back to the pool and the floor — is modelled as closed but
-        not perfect: 6% of what the heat exchanger boils, and 2% of each recirculation pass, is
-        treated as held up and not returned. Those two fractions are a guess, and they are what
-        decides whether the passive unit rides out a total blackout for days or for weeks. With
-        a perfectly closed containment it never runs out; with a leaky one it fails in hours.</td></tr>
-    </table>
-    <p class="fine">Not convinced the passive kit is what does the work? Turn on
-      <b>Disable passive systems</b> and run the same scenario: Unit B melts down too, and faster
-      than Unit A, because it has no steam-driven pump to fall back on. The severe seismic
-      scenarios damage it without any toggle at all. Both are in the UI so the comparison can be
-      falsified rather than just asserted.</p>
     <button class="btn primary big" id="startBtn">Start the simulator</button>
+    <details class="disc">
+      <summary>What is real here, and what is not</summary>
+      <p class="fine">Half the value of a simulation is knowing which numbers to trust. So:</p>
+      <table class="ledger">
+        <tr><th>Computed</th><td>Way–Wigner decay heat. Latent-heat boil-off against the net
+          heat imbalance. Zr–H₂O oxidation above 1100&nbsp;K with its 6.5&nbsp;MJ/kg exotherm and
+          0.044&nbsp;kg H₂ per kg of zircaloy. Saturated-pool containment pressure,
+          <i>p</i>&nbsp;=&nbsp;<i>p</i><sub>air</sub>(T)&nbsp;+&nbsp;<i>p</i><sub>sat</sub>(T)&nbsp;+&nbsp;<i>p</i><sub>H2</sub>.
+          Hydrogen migration and deflagration. Released Cs-137 integrated over time.
+          <b>Every flow animated in the diagram</b> — if dashes are moving, the model is moving
+          that water.</td></tr>
+        <tr><th>Scaled</th><td>Time: the AUTO clock compresses quiet hours up to 1800× and drops
+          to near real time when a core is coming apart. The diagram is a <b>schematic, not a
+          scale drawing</b>: a handful of boxes, the containment line around them, and the
+          pipes between. It shows what is connected to what and what is moving, not how big
+          anything is or where it sits in the building — the site view is where the plant has a
+          shape. The route drawn inside the reactor is the real one (down the outside, up through
+          the fuel), not the real proportions. Distance: one map tile is about 25&nbsp;m,
+          so the contamination footprint is a schematic of the plume, not a dispersion
+          calculation. The site is staged for the camera rather than laid out to a real plant plan.</td></tr>
+        <tr><th>Assumed</th><td>Both units are 3,400&nbsp;MW thermal so the comparison is
+          like-for-like. The Gen-II unit is a large dry PWR containment; a Mark-I BWR is a harder
+          case. The Gen-III+ unit is AP1000-class: PRHR, CMTs, ADS, IRWST gravity injection and a
+          steel shell cooled by air and an evaporating film. 8&nbsp;h of battery against a 72&nbsp;h
+          gravity tank. <b>The passive plant is not invulnerable here</b>: past about 1.5×
+          the seismic design basis the in-containment pool cracks and leaks, and past about 2.5×
+          the heat-exchanger line fails as well. Neither on its own melts it down, because the
+          water is still inside the containment and gravity puts it back; what does melt it down
+          is losing the containment, or turning the passive kit off. Try Beyond-Design Quake,
+          Everything At Once and the <b>disable passive systems</b> toggle and watch which one
+          actually breaks it.</td></tr>
+        <tr><th>Faked</th><td>The consequence figures (land, evacuees, cost, latent cancers)
+          and the evacuation rings drawn on the map are
+          scaling laws fitted to <b>two</b> data points — Fukushima ≈15&nbsp;PBq and Chernobyl
+          ≈85&nbsp;PBq. They are the right order of magnitude and nothing more. The latent-cancer
+          number is a straight LNT extrapolation, shown because people ask for it, not because the
+          model believes it precisely. The tsunami inundation is cinematic, not hydrodynamic.
+          The condensate loop — water boiled off inside the containment condenses on the
+          cold steel shell and drains back to the pool and the floor — is modelled as closed but
+          not perfect: 6% of what the heat exchanger boils, and 2% of each recirculation pass, is
+          treated as held up and not returned. Those two fractions are a guess, and they are what
+          decides whether the passive unit rides out a total blackout for days or for weeks. With
+          a perfectly closed containment it never runs out; with a leaky one it fails in hours.</td></tr>
+      </table>
+      <p class="fine">Not convinced the passive kit is what does the work? Turn on
+        <b>Disable passive systems</b> and run the same scenario: Unit B melts down too, and faster
+        than Unit A, because it has no steam-driven pump to fall back on. The severe seismic
+        scenarios damage it without any toggle at all. Both are in the UI so the comparison can be
+        falsified rather than just asserted.</p>
+    </details>
   </div>
 </div>
 

@@ -178,6 +178,8 @@ export class Renderer {
       ctx.fillStyle = `rgba(255,250,235,${Math.min(0.85, sim.whiteout)})`;
       ctx.fillRect(0, 0, CW, CH);
     }
+    this.drawUnitBanners(ctx, sim, CW, CH);
+    this.drawZoneLabels(ctx, sim, CW, CH);
     this.drawLabels(ctx, sim, CW, CH);
     this.drawCompass(ctx, CW, CH, sim);
   }
@@ -327,6 +329,162 @@ export class Renderer {
     }
   }
 
+  // ---- unit banners ---------------------------------------------------
+  // Always drawn, at every zoom, because "which one is which" is the question
+  // the whole page exists to answer. The equipment plates below come and go
+  // with the zoom; these two do not.
+  drawUnitBanners(ctx, sim, CW, CH) {
+    const cam = sim.cam;
+    const dpr = CW / (window.innerWidth || CW);
+    const cw = CW / dpr, ch = CH / dpr;
+    const narrow = cw < 861;
+    const padL = narrow ? 6 : 316, padR = narrow ? 6 : 342;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const TONE = { ok: ['#63e08a', 'rgba(10,44,28,.92)'], warn: ['#ffc44d', 'rgba(52,38,8,.92)'],
+      crit: ['#ff8b72', 'rgba(56,14,10,.94)'] };
+    this._bannerRects = [];
+    for (const v of sim.views) {
+      const b = v.banner();
+      const sc = cam.toScreen(b.x, b.y, b.z);
+      const sx = sc[0] / dpr, sy = sc[1] / dpr;
+      if (sx < padL - 90 || sx > cw - padR + 90 || sy < -30 || sy > ch - 40) continue;
+      const accent = b.passive ? '#57d9ff' : '#ff8b5c';
+      // On a phone two full banners do not fit side by side, so they lose the
+      // subtitle rather than landing on top of each other.
+      const title = narrow ? b.title.split(' ')[0] : b.title;
+      ctx.font = `800 ${narrow ? 12 : 13}px ui-sans-serif, system-ui, sans-serif`;
+      const wT = ctx.measureText(title).width;
+      ctx.font = '700 10.5px ui-sans-serif, system-ui, sans-serif';
+      const wS = narrow ? 0 : ctx.measureText(b.sub).width;
+      ctx.font = `800 ${narrow ? 10 : 11}px ui-sans-serif, system-ui, sans-serif`;
+      const wV = ctx.measureText(b.state).width;
+      const w = Math.max(wT, wS, wV) + (narrow ? 22 : 26), h = narrow ? 38 : 54;
+      let x = Math.max(padL, Math.min(cw - padR - w, sx - w / 2));
+      let y = Math.max(46, sy - h - 8);
+      // the wind rose owns the top-left corner; slide out from under it
+      if (!narrow && y < 182 && x < padL + 96) x = Math.min(cw - padR - w, padL + 96);
+      // and two banners never sit on top of each other
+      for (let i = 0; i < 4; i++) {
+        const hit = this._bannerRects.some(r =>
+          Math.abs(r.cx - (x + w / 2)) < (r.w + w) / 2 + 6 && Math.abs(r.by - y) < Math.max(r.h, h));
+        if (!hit) break;
+        y += h + 6;
+      }
+      this._bannerRects.push({ cx: x + w / 2, by: y, w, h });
+      ctx.fillStyle = 'rgba(8,14,21,.9)';
+      roundRect(ctx, x, y, w, h, 8); ctx.fill();
+      ctx.strokeStyle = accent + '66'; ctx.lineWidth = 1.2;
+      roundRect(ctx, x, y, w, h, 8); ctx.stroke();
+      ctx.fillStyle = accent;
+      roundRect(ctx, x, y + 6, 3, h - 12, 1.5); ctx.fill();
+      ctx.textAlign = 'left';
+      ctx.font = `800 ${narrow ? 12 : 13}px ui-sans-serif, system-ui, sans-serif`;
+      ctx.fillStyle = accent;
+      ctx.fillText(title, x + (narrow ? 11 : 13), y + (narrow ? 15 : 17));
+      if (!narrow) {
+        ctx.font = '700 10.5px ui-sans-serif, system-ui, sans-serif';
+        ctx.fillStyle = 'rgba(160,186,205,.95)';
+        ctx.fillText(b.sub, x + 13, y + 31);
+      }
+      const [fg, bg] = TONE[b.tone] || TONE.crit;
+      ctx.font = `800 ${narrow ? 10 : 11}px ui-sans-serif, system-ui, sans-serif`;
+      ctx.fillStyle = bg;
+      roundRect(ctx, x + (narrow ? 9 : 11), y + (narrow ? 20 : 36), wV + 14, 15, 4); ctx.fill();
+      ctx.fillStyle = fg;
+      ctx.fillText(b.state, x + (narrow ? 16 : 18), y + (narrow ? 31 : 47));
+      ctx.textAlign = 'start';
+      // a hairline down to the building it names
+      if (sy > y + h) {
+        ctx.strokeStyle = accent + '55'; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.moveTo(sx, y + h); ctx.lineTo(sx, sy); ctx.stroke();
+      }
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  // ---- what the rings mean --------------------------------------------
+  // Three dashed ovals with no words are decoration. With a radius and a
+  // consequence on each they are the part of the picture people actually came
+  // to ask about.
+  drawZoneLabels(ctx, sim, CW, CH) {
+    const cam = sim.cam;
+    const dpr = CW / (window.innerWidth || CW);
+    const cw = CW / dpr, ch = CH / dpr;
+    const narrow = cw < 861;
+    const padL = narrow ? 6 : 316, padR = narrow ? 6 : 342;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.font = '700 10px ui-sans-serif, system-ui, sans-serif';
+    for (const v of sim.views) {
+      const c = v.plant.consequences();
+      if (c.pbq < 1e-4) continue;
+      const cx = v.s.x + v.parts.reactor.x, cy = v.s.y + v.parts.reactor.y;
+      const rings = [
+        [c.exclusionR * 0.55, '255,70,60', 'emptied for good'],
+        [c.exclusionR, '255,160,40', 'evacuated'],
+        [c.exclusionR * 1.9, '255,232,90', 'stay indoors']
+      ];
+      for (const [km, col, what] of rings) {
+        const rr = km * 1.6 * 1.414;               // km -> tiles, then the ring radius
+        // Try the four quarters of the ring and take the first that is on
+        // screen, so a label is not lost the moment the camera moves.
+        let sx = 0, sy = 0, ok = false;
+        for (const [ux, uy] of [[0.707, 0.707], [-0.707, 0.707], [0.707, -0.707], [-0.707, -0.707]]) {
+          const sc = cam.toScreen(cx + rr * ux, cy + rr * uy, 0);
+          sx = sc[0] / dpr; sy = sc[1] / dpr;
+          if (sx > padL + 40 && sx < cw - padR - 40 && sy > 56 && sy < ch - 56) { ok = true; break; }
+        }
+        if (!ok) continue;
+        const text = `${km < 10 ? km.toFixed(1) : Math.round(km)} km · ${what}`;
+        const w = ctx.measureText(text).width + 14;
+        ctx.fillStyle = 'rgba(8,14,21,.86)';
+        roundRect(ctx, sx - w / 2, sy - 8, w, 16, 4); ctx.fill();
+        ctx.fillStyle = `rgba(${col},0.95)`;
+        ctx.textAlign = 'center';
+        ctx.fillText(text, sx, sy + 4);
+        ctx.textAlign = 'start';
+      }
+    }
+    // The outer rings usually run off the island, so the same three numbers get
+    // a fixed key as well: the consequence is the part people came to ask
+    // about, and it should never be off-screen.
+    const worst = sim.views
+      .map(v => v.plant.consequences()).sort((a, b) => b.pbq - a.pbq)[0];
+    if (worst && worst.pbq >= 1e-4) {
+      const rows = [
+        [worst.exclusionR * 0.55, '255,70,60', 'emptied for good'],
+        [worst.exclusionR, '255,160,40', 'evacuated'],
+        [worst.exclusionR * 1.9, '255,232,90', 'stay indoors']
+      ].map(([km, col, what]) =>
+        [`${km < 10 ? km.toFixed(1) : Math.round(km)} km`, what, col]);
+      ctx.font = '800 10px ui-sans-serif, system-ui, sans-serif';
+      let wn = 0;
+      for (const r of rows) wn = Math.max(wn, ctx.measureText(r[0]).width);
+      ctx.font = '700 10px ui-sans-serif, system-ui, sans-serif';
+      let wd = 0;
+      for (const r of rows) wd = Math.max(wd, ctx.measureText(r[1]).width);
+      const w = 25 + wn + 10 + wd + 12, h = 16 + rows.length * 15 + 8;
+      const x = padL + 8, y = 190;
+      ctx.fillStyle = 'rgba(8,14,21,.82)';
+      roundRect(ctx, x, y, w, h, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(120,170,210,.16)'; ctx.lineWidth = 1;
+      roundRect(ctx, x, y, w, h, 7); ctx.stroke();
+      ctx.fillStyle = 'rgba(150,172,190,.9)';
+      ctx.font = '800 9px ui-sans-serif, system-ui, sans-serif';
+      ctx.fillText('AREA AFFECTED', x + 11, y + 14);
+      rows.forEach((r, i) => {
+        const ry = y + 28 + i * 15;
+        ctx.fillStyle = `rgba(${r[2]},0.95)`;
+        ctx.fillRect(x + 11, ry - 7, 8, 8);
+        ctx.font = '800 10px ui-sans-serif, system-ui, sans-serif';
+        ctx.fillText(r[0], x + 25, ry);
+        ctx.font = '700 10px ui-sans-serif, system-ui, sans-serif';
+        ctx.fillStyle = 'rgba(200,216,230,.88)';
+        ctx.fillText(r[1], x + 25 + wn + 10, ry);
+      });
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
   // ---- screen-space labels -------------------------------------------
   // Plates are placed with the dpr transform, sat on their bottom edge above
   // the anchor, and de-collided highest priority first.
@@ -357,7 +515,9 @@ export class Renderer {
     plates.sort((a, b) => b.prio - a.prio);
     if (narrow) plates.length = Math.min(plates.length, 5);
     ctx.font = '600 11px ui-sans-serif, system-ui, sans-serif';
-    const placed = [];
+    // Seeded with the unit banners, which are already on screen and outrank
+    // every equipment plate.
+    const placed = (this._bannerRects || []).map(r => ({ ...r, seed: true }));
     for (const pl of plates) {
       const w = ctx.measureText(pl.text).width + 16;
       // The anchor is where the thing *is*; the plate goes wherever it fits.
@@ -366,19 +526,21 @@ export class Renderer {
       const ax = pl.sx, ay = pl.sy;
       let cx = Math.max(padL + w / 2, Math.min(cw - padR - w / 2, ax));
       let by = ay - 30;
-      for (let tries = 0; tries < 18; tries++) {
+      for (let tries = 0; tries < 22; tries++) {
         let hit = false;
         for (const q of placed) {
-          if (Math.abs(q.cx - cx) < (q.w + w) / 2 + 6 && Math.abs(q.by - by) < 21) { hit = true; break; }
+          if (Math.abs(q.cx - cx) < (q.w + w) / 2 + 6
+            && by < q.by + (q.h || 18) + 3 && q.by < by + 21) { hit = true; break; }
         }
         if (!hit) break;
         by -= 21;
       }
-      placed.push({ cx, by, w, ax, ay, text: pl.text, danger: pl.danger });
+      placed.push({ cx, by, w, h: 18, ax, ay, text: pl.text, danger: pl.danger });
     }
     // leaders first, plates second, so a leader can never be drawn across the
     // face of a caption
     for (const q of placed) {
+      if (q.seed) continue;
       ctx.strokeStyle = q.danger ? 'rgba(255,120,90,0.75)' : 'rgba(150,220,255,0.55)';
       ctx.lineWidth = 1.2;
       const bx = q.cx - q.w / 2, mid = q.by + 9;
@@ -395,6 +557,7 @@ export class Renderer {
       ctx.fill();
     }
     for (const q of placed) {
+      if (q.seed) continue;
       const bx = q.cx - q.w / 2;
       ctx.fillStyle = q.danger ? 'rgba(52,15,11,0.94)' : 'rgba(10,20,30,0.92)';
       roundRect(ctx, bx, q.by, q.w, 18, 5); ctx.fill();

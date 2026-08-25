@@ -24,6 +24,11 @@ sits at 347 °C with a water level of 100% and nobody on site.
 **🏭 Site** — the isometric map: both stations, the coastline, the river, the town and the
 farmland downwind. This is where the hazard arrives and where the consequences land.
 
+Each unit carries a banner naming it and the step it has reached, at every zoom, so the two
+islands are never just two islands. Once something is released, dashed rings show how far the
+consequences reach, with a key giving each one a radius and a meaning. Picking a camera holds
+it: the event cinematics stop stealing the framing back.
+
 **🔬 Cutaway** — the circuit itself, drawn as a schematic, both plants side by side. This is
 the one that answers *why*. Each side shows the containment line, the reactor with its fuel
 rods, the boiler above it, the pump, and the spare water — above the reactor on the passive
@@ -198,8 +203,15 @@ js/
   ui.js          control-room panels, gauges, event feed
   main.js        boot, input, animation loop
 tools/
-  review.mjs     headless harness: 24 labelled screenshots across scenarios,
-                 viewports and pixel ratios, and it fails on any console error
+  review.mjs      headless harness: 24 labelled screenshots across scenarios,
+                  viewports and pixel ratios, and it fails on any console error
+  determinism.mjs freezes the clock and diffs two frames — the site view to the
+                  subpixel, the cutaway by its serialized SVG
+  robustness.mjs  hammers the UI: rapid scenario and view switches, resizes,
+                  extreme viewports, and a check that no model number went NaN
+  captions.mjs    drives the model through every combination of the flags the
+                  cutaway's wording reads from and measures each caption against
+                  the box it sits in
 ```
 
 ### The one rule that makes an isometric scene behave

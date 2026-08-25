@@ -432,17 +432,23 @@ Circuit.prototype.update = function (t) {
 
   // ---- pumps and power ----------------------------------------------------
   const live = !!(s.grid || s.diesel);
+  // The Gen-II last-resort pump runs on steam from the reactor itself, so it
+  // works with no electricity at all - for as long as the steam lasts. It is
+  // why Fukushima Unit 3 took three days rather than one, and it was invisible
+  // here: the headline named it while the whole side looked dead.
+  const steamOnly = !P && !!s.rcic && !s.aux;
   // Two lines: what the pump is doing, and what the cooling depends on.
   // Careful with the second line - this pump is a normal-running machine on
   // both plants, and when it stops the loop keeps creeping round on both by
   // natural circulation. The honest difference is not this pump, it is whether
   // the cooling behind it is built out of pumps at all.
   const pumpTx = s.rcp
-    ? (P ? ['spinning', 'the cooling needs no pump at all']
-      : ['spinning', 'the cooling needs pumps like this'])
-    : (P ? ['stopped', 'and the cooling carries on anyway']
-      : ['STOPPED', live ? 'and the backups must take over'
-        : 'and the backup pumps have no power']);
+    ? (P ? ['spinning', 'cooling needs no pump']
+      : ['spinning', 'cooling is made of pumps'])
+    : (P ? ['stopped', 'cooling carries on']
+      : ['STOPPED', steamOnly ? 'the steam pump covers it'
+        : live ? 'the backups must take over'
+          : 'the backups have no power']);
   this.pump.attr({ tri: { fill: s.rcp ? '#7fc6f0' : '#49535d' },
     body: { stroke: s.rcp ? '#8497a6' : (P ? C.ok : C.bad) },
     value: { text: pumpTx[0], fill: s.rcp ? C.ink : (P ? C.ok : C.bad) },
@@ -484,7 +490,11 @@ Circuit.prototype.update = function (t) {
   // Reading it as still full made the box claim the pool was pouring in hours
   // after it had drained onto the containment floor.
   const onFloor = P && p.irwst < 1.6e5 && floorFrac > 0.05;
-  const injecting = P ? !!(s.cmt || s.gravity || s.accum) : !!s.aux;
+  const injecting = P ? !!(s.cmt || s.gravity || s.accum) : !!(s.aux || s.rcic);
+  // The pool is a natural-circulation loop, not a one-way street: hot water
+  // rises into it and cooled water comes back down. Animating only the way up
+  // left the reader watching water leave and never return.
+  const poolLoop = P && sink === 'pool';
   const cracked = P && p.irwstCracked;
   const lost = P && onFloor && !p.ctmtIntact;
   level(this.supply, store, 36, 120 - 68,
@@ -494,25 +504,35 @@ Circuit.prototype.update = function (t) {
     value: { text: P ? (lost ? 'ESCAPING as steam'
       : onFloor ? 'still gets back in'
         : cracked ? 'CRACKED — draining'
-          : injecting ? 'falling into the reactor' : 'ready — no pump needed')
+          : injecting ? 'falling into the reactor'
+            : poolLoop ? 'taking the heat from the reactor'
+              : 'ready — no pump needed')
       : (injecting ? 'being pumped up'
         : !live ? 'CANNOT REACH THE REACTOR'
           : !p.pumpsOk ? 'THE PUMPS HAVE FAILED' : 'waiting down here'),
       fill: lost ? C.bad : onFloor ? C.ok : cracked ? C.warn : P ? C.ok
-        : (live && p.pumpsOk ? C.dim : C.bad) } });
+        : injecting ? C.ink : (live && p.pumpsOk ? C.dim : C.bad) } });
   if (P) this.supply.attr('name/text',
     onFloor ? 'WATER ON THE FLOOR' : 'POOL ABOVE THE REACTOR');
-  setFlow(this.inject, injecting, 1);
+  if (P) {
+    this.inject.attr('bore/stroke', injecting ? C.water : C.cold);
+    this.inject.prop('labels/0/attrs/labelText/text',
+      injecting ? 'falls in' : 'comes back cooled');
+    this.inject.prop('labels/0/attrs/labelText/fill', injecting ? C.water : C.cold);
+  }
+  setFlow(this.inject, injecting || poolLoop, 1);
   if (this.inject2) setFlow(this.inject2, injecting, 1);
   if (this.eccs) this.eccs.attr({ tri: { fill: injecting ? '#7fc6f0' : '#49535d' },
-    body: { stroke: injecting ? '#8497a6' : (live && p.pumpsOk ? '#39424c' : C.bad) },
-    value: { text: injecting ? 'pumping'
+    body: { stroke: steamOnly ? C.warn : injecting ? '#8497a6'
+      : (live && p.pumpsOk ? '#39424c' : C.bad) },
+    value: { text: steamOnly ? 'running on steam' : injecting ? 'pumping'
       : !live ? 'NO POWER' : !p.pumpsOk ? 'BROKEN' : 'waiting',
-      fill: injecting ? C.ink : (live && p.pumpsOk) ? C.dim : C.bad },
-    value2: { text: injecting ? 'lifting water up to the reactor'
-      : !live ? 'without electricity it cannot run'
-        : !p.pumpsOk ? 'the water cannot be lifted' : 'starts if the level falls',
-      fill: injecting || (live && p.pumpsOk) ? C.dim : C.bad } });
+      fill: steamOnly ? C.warn : injecting ? C.ink : (live && p.pumpsOk) ? C.dim : C.bad },
+    value2: { text: steamOnly ? 'no electricity needed'
+      : injecting ? 'lifting water uphill'
+        : !live ? 'it needs electricity'
+          : !p.pumpsOk ? 'it cannot lift the water' : 'starts if the level falls',
+      fill: steamOnly ? C.warn : injecting || (live && p.pumpsOk) ? C.dim : C.bad } });
 
   // ---- the wall ------------------------------------------------------------
   const shell = sink === 'shell';
@@ -642,6 +662,37 @@ export class CutStage {
     }
   }
 
+  // A caption that runs off its own box is the defect this view keeps growing
+  // back, because the strings change with the plant's state and no reviewer
+  // sees every state. Rather than police the wording, measure it: anything too
+  // wide for the box it sits in is stepped down until it fits. Same text gives
+  // the same size every time, so the frozen-frame check stays happy.
+  fitCaptions() {
+    for (const c of this.circuits) {
+      for (const cell of c.cells) {
+        if (!cell.isElement()) continue;
+        const view = this.paper.findViewByModel(cell);
+        if (!view || !view.el || view.el.style.display === 'none') continue;
+        const box = cell.size().width - 16;
+        for (const node of view.el.querySelectorAll('text')) {
+          const txt = node.textContent;
+          if (!txt || node.dataset.fitFor === txt) continue;
+          node.dataset.fitFor = txt;
+          if (!node.dataset.fitBase) {
+            node.dataset.fitBase = node.style.fontSize
+              || node.getAttribute('font-size') || '13';
+          }
+          const base = parseFloat(node.dataset.fitBase);
+          node.style.fontSize = base + 'px';
+          const w = node.getBBox().width;
+          if (w > box && w > 0) {
+            node.style.fontSize = Math.max(8.5, base * (box / w)).toFixed(2) + 'px';
+          }
+        }
+      }
+    }
+  }
+
   update(t) {
     if (!this.built) return;
     let changed = false;
@@ -663,6 +714,6 @@ export class CutStage {
       el.dataset.tone = c.good ? 'ok' : 'bad';
       changed = true;
     }
-    if (changed) this.placeHeads();
+    if (changed) { this.placeHeads(); this.fitCaptions(); }
   }
 }

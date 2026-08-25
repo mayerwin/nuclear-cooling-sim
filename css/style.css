@@ -201,6 +201,10 @@ body.viewcut #cutwrap{display:block}
   position:relative}
 .modal h2{margin:0 0 10px;font-size:20px;display:flex;align-items:center;gap:9px}
 .modal .lede{font-size:13px;line-height:1.65;color:#c5d8e6;margin:0 0 16px}
+/* the way in stays reachable: on a phone the whole briefing is three screens
+   long, and the button used to be at the bottom of all of it */
+.modal #startBtn{position:sticky;bottom:0;z-index:3;margin-top:16px;
+  box-shadow:0 -10px 24px 10px var(--panel-solid)}
 .modalClose{position:absolute;top:12px;right:14px;background:transparent;border:0;color:var(--dim);
   font-size:26px;cursor:pointer;line-height:1}
 .cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -289,11 +293,13 @@ body.cutmode #left .toggles .slider,body.cutmode #left .tg:nth-child(2){opacity:
   .viewSwitch button{padding:6px 8px;font-size:10px;gap:4px}
 }
 
-.whyBox .watch{margin-top:8px;padding:8px 9px;border-radius:8px;font-size:11px;line-height:1.5;
+.whyBox .watch{margin:8px 0 9px;padding:8px 9px;border-radius:8px;font-size:11px;line-height:1.5;
   background:rgba(255,196,77,.09);border:1px solid rgba(255,196,77,.28);color:#f2ddb4;
   display:flex;gap:7px;align-items:flex-start}
-.whyBox .watch span{flex:none;font-size:12px}
+.whyBox .watch span{flex:none;font-size:9px;font-weight:800;letter-spacing:1px;
+  color:#ffd35c;background:rgba(255,196,77,.16);border-radius:4px;padding:2px 5px;margin-top:1px}
 .whyBox .watch em{color:#fff;font-style:normal;font-weight:650}
+.whyBox .watch i{font-style:normal}
 
 .ledgerHead{margin:18px 0 6px;font-size:14px;color:var(--txt)}
 .ledger{width:100%;border-collapse:collapse;font-size:11px;line-height:1.6;margin-top:6px}
@@ -324,6 +330,20 @@ body.cutmode #cutSwitch{display:flex}
 @media (max-width:860px){ #cutSwitch .wide-only{display:none} #cutSwitch{bottom:120px} }
 @media (min-width:861px){ body.cutmode #cutSwitch{bottom:96px} }
 
-.howto{margin:6px 0 14px;padding-left:18px}
+/* the one paragraph a worried reader is looking for: marked, and short */
+.callout{margin:16px 0 4px;padding:11px 13px 12px;border-radius:9px;font-size:11.5px;
+  line-height:1.65;color:#c9dae7;background:rgba(24,44,60,.55);
+  border:1px solid rgba(120,190,255,.22);border-left:3px solid #57d9ff}
+.callout b{color:var(--txt)}
+/* the fine print folds away: the button should not be a scroll away on arrival */
+.disc{margin:16px 0 0;border-top:1px solid var(--line);padding-top:10px}
+.disc>summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--txt);
+  list-style:none;display:flex;align-items:center;gap:8px;padding:4px 0}
+.disc>summary::-webkit-details-marker{display:none}
+.disc>summary::before{content:'▸';color:var(--dim);font-size:11px;transition:transform .15s}
+.disc[open]>summary::before{transform:rotate(90deg)}
+.disc>summary:hover{color:#9fd4ff}
+
+.howto{margin:6px 0 14px;padding-left:18px;font-size:11px}
 .howto li{margin:4px 0}
 .howto b{color:var(--txt)}

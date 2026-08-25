@@ -91,6 +91,7 @@ export class UI {
       b.onclick = () => {
         const sim = this.sim, s = sim.world.sites, m = b.dataset.cam;
         sim.cine = null;
+        sim.holdCamera();
         if (sim.view === 'cut') {
           sim.cutFocus = m === 'both' ? 'both' : m;
           sim.fitCut();
@@ -170,8 +171,13 @@ export class UI {
   closePanels() { document.querySelectorAll('.panel').forEach(x => x.classList.remove('show')); }
 
   showWhy(s) {
-    $('#whyBox').innerHTML = `<h4>${s.icon} ${s.name} — why passive wins</h4>
-      <p class="lede">${s.lede}</p><p>${s.detail}</p><p><b>${s.why}</b></p>`;
+    // `watch` is the line that tells a reader where to point their eyes. It was
+    // written for every scenario, styled in the stylesheet, and then never put
+    // on the page. It goes second, right after the one-line summary.
+    $('#whyBox').innerHTML = `<h4>${s.icon} ${s.name} — what happens, and why</h4>
+      <p class="lede">${s.lede}</p>
+      <p class="watch"><span>WATCH</span><i>${s.watch}</i></p>
+      <p>${s.detail}</p><p><b>${s.why}</b></p>`;
   }
 
   toast(msg, ok) {
