@@ -453,10 +453,13 @@ export class Unit {
     const markMat = new THREE.MeshStandardMaterial({ color: 0xffa23c, roughness: 0.4, metalness: 0.5 });
     for (let i = 0; i < 7; i++) {
       const a = (i / 7) * Math.PI * 2;
+      // Backward-curved, which means the tip trails the root in the direction
+      // the wheel is turning. The wheel turns with the angle increasing, so
+      // the vane has to sweep the other way as it goes out.
       const curve = new THREE.CatmullRomCurve3([
         V(Math.cos(a) * 0.45, 0, Math.sin(a) * 0.45),
-        V(Math.cos(a + 0.5) * 1.05, 0, Math.sin(a + 0.5) * 1.05),
-        V(Math.cos(a + 1.0) * 1.6, 0, Math.sin(a + 1.0) * 1.6)]);
+        V(Math.cos(a - 0.5) * 1.05, 0, Math.sin(a - 0.5) * 1.05),
+        V(Math.cos(a - 1.0) * 1.6, 0, Math.sin(a - 1.0) * 1.6)]);
       const vane = new THREE.Mesh(new THREE.TubeGeometry(curve, 20, 0.17, 8, false),
         i === 0 ? markMat : vaneMat);
       this.impeller.add(vane);
@@ -555,7 +558,13 @@ export class Unit {
     this.turbLen = X1 - X0;
     const casMat = this.stage.mat.painted.clone();
     casMat.side = THREE.DoubleSide;
-    casMat.clippingPlanes = [new THREE.Plane(new THREE.Vector3(0, -1, 0), AX + 0.9)];
+    // Cut open the way the building is: the top comes off and the near side
+    // with it, so the wheels are seen standing inside the machine instead of
+    // being a row of teeth on the lid of a drum.
+    casMat.clippingPlanes = [
+      new THREE.Plane(new THREE.Vector3(0, -1, 0), AX + 1.1),
+      new THREE.Plane(new THREE.Vector3(0, 0, -1), t.z + 0.2)
+    ];
     this.turbCut = casMat.clippingPlanes;
     const cas = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 3.6, X1 - X0, 44, 1, true), casMat);
     cas.rotation.z = Math.PI / 2;
@@ -1033,7 +1042,7 @@ Object.assign(Unit.prototype, {
       const tm = this.turbSteam.material;
       tm.normalMap.offset.x -= v * dt / 2.4;
       tm.alphaMap.offset.x -= v * dt * 0.18;
-      tm.opacity = on ? 0.8 : 0.05;
+      tm.opacity = on ? 0.62 : 0.04;
       tm.emissiveIntensity = on ? 0.42 : 0.03;
       this.turbSteam.visible = on;
       this.turbWisp.advance(dt, v, this.turbLen, on ? 1.0 : 0.0001);
@@ -1083,7 +1092,7 @@ Object.assign(Unit.prototype, {
         // Vapour scatters instead of refracting, so it is a body you look at
         // rather than through: pale, torn, and moving fast enough to see.
         mat.alphaMap.offset.x -= v * dt * 0.25;
-        mat.opacity = moving ? 0.88 : 0.14;
+        mat.opacity = moving ? 0.72 : 0.12;
         mat.emissiveIntensity = moving ? 0.42 : 0.05;
       } else {
         // Everything downstream of a heat exchanger is drawn cold, everything
