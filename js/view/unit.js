@@ -109,7 +109,9 @@ export class Unit {
     // The wall is built in bands so that one sector of the middle band can be
     // taken out when the containment fails. A colour change is not damage; a
     // hole is.
-    const bA = 0.62, halfW = 0.30;
+    // On the far wall, so you see it through the opening with the night
+    // behind it. A hole against a lit wall reads as more wall.
+    const bA = 4.2, halfW = 0.62;
     const band = (r, y0, y1, mat, t0, tl) => {
       const mesh = new THREE.Mesh(
         new THREE.CylinderGeometry(r, r, y1 - y0, 72, 1, true, t0, tl), mat);
@@ -120,20 +122,46 @@ export class Unit {
     };
     const TAU = Math.PI * 2;
     for (const [r, mat] of [[R_IN + WALL, m.concrete], [R_IN, m.liner]]) {
-      band(r, 0, 10, mat, 0, TAU);
-      band(r, 21, SHELL_H, mat, 0, TAU);
-      band(r, 10, 21, mat, bA + halfW, TAU - halfW * 2);
+      band(r, 0, 9, mat, 0, TAU);
+      band(r, 22, SHELL_H, mat, 0, TAU);
+      band(r, 9, 22, mat, bA + halfW, TAU - halfW * 2);
     }
     this.plug = new THREE.Group();
     for (const [r, mat] of [[R_IN + WALL, m.concrete], [R_IN, m.liner]]) {
       const mesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(r, r, 11, 24, 1, true, bA - halfW, halfW * 2), mat);
+        new THREE.CylinderGeometry(r, r, 13, 24, 1, true, bA - halfW, halfW * 2), mat);
       mesh.position.y = 15.5;
       mesh.castShadow = true;
       this.plug.add(mesh);
     }
     g.add(this.plug);
     this.breachAz = bA;
+    this.tear = new THREE.Group();
+    const tearMat = new THREE.MeshStandardMaterial({
+      color: 0x2b1a14, roughness: 0.9, emissive: 0x120806, side: THREE.DoubleSide });
+    for (let i = 0; i <= 14; i++) {
+      const a = bA - halfW + (i / 14) * halfW * 2;
+      for (const yy of [9, 22]) {
+        const j = 0.5 + hash1(i * 7 + yy) * 1.6;
+        const spike = new THREE.Mesh(new THREE.ConeGeometry(0.45, j * 2.4, 5), tearMat);
+        spike.position.set(Math.sin(a) * (R_IN + WALL / 2),
+          yy + (yy > 15 ? -j : j), Math.cos(a) * (R_IN + WALL / 2));
+        spike.rotation.x = yy > 15 ? Math.PI : 0;
+        this.tear.add(spike);
+      }
+    }
+    // rubble at the foot of it
+    for (let i = 0; i < 22; i++) {
+      const a = bA + (hash1(i * 13) - 0.5) * 1.5;
+      const rr = R_IN + WALL + 1 + hash1(i * 5) * 9;
+      const sz = 0.4 + hash1(i * 3) * 1.3;
+      const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(sz, 0), this.stage.mat.deck);
+      rock.position.set(Math.sin(a) * rr, sz * 0.4, Math.cos(a) * rr);
+      rock.rotation.set(hash1(i) * 3, hash1(i + 1) * 3, hash1(i + 2) * 3);
+      rock.castShadow = true;
+      this.tear.add(rock);
+    }
+    g.add(this.tear);
 
     const dome = new THREE.Mesh(
       new THREE.SphereGeometry(DOME_R, 96, 40, 0, Math.PI * 2, 0, Math.PI / 2), m.concrete);
@@ -663,8 +691,30 @@ Object.assign(Unit.prototype, {
     // ---- the fuel ----
     const hot = clamp((p.Tclad - 620) / 900, 0, 1);
     this.fuelMat.emissive.copy(tempColor(p.Tclad));
-    this.fuelMat.emissiveIntensity = hot * 2.6;
+    this.fuelMat.emissiveIntensity = hot * 0.9;
     this.fuelMat.color.copy(tempColor(p.Tclad)).lerp(new THREE.Color(0x6f7d88), 1 - hot);
+    // what is left of a melted core is a pool of it on the bottom head
+    const dam = clamp(p.coreDamage, 0, 1);
+    if (!this.melt) {
+      this.melt = new THREE.Mesh(
+        new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.5),
+        new THREE.MeshStandardMaterial({
+          color: 0x2a0d05, emissive: 0xff5a1e, emissiveIntensity: 1.0, roughness: 0.5,
+          clippingPlanes: this.mHalfRpv.clippingPlanes
+        }));
+      this.melt.position.set(L.rpv.x, L.rpv.base + 1.3, L.rpv.z);
+      this.root.add(this.melt);
+    }
+    this.melt.visible = dam > 0.3;
+    if (this.melt.visible) {
+      const rr = 1.2 + dam * 1.6;
+      this.melt.scale.set(rr, 0.55 + dam * 0.5, rr);
+      this.melt.material.emissive.copy(tempColor(Math.max(p.Tclad, 2100)));
+      this.melt.material.emissiveIntensity = 0.8 + dam * 0.7;
+    }
+    // rods shorten as they slump
+    this.fuelInst.scale.y = 1 - dam * 0.55;
+    this.fuelInst.position.y = -(FUEL_Y1 - FUEL_Y0) * dam * 0.275;
 
     // ---- the boiler ----
     const carrying = st.carried && (st.s.feed || st.s.aux || st.s.rcic);
@@ -700,6 +750,7 @@ Object.assign(Unit.prototype, {
 
     // ---- damage ----
     if (this.plug) this.plug.visible = p.ctmtIntact;
+    if (this.tear) this.tear.visible = !p.ctmtIntact;
     const brokenTint = p.ctmtIntact ? 0x9aa0a6 : 0xa2837a;
     m.concrete.color.setHex(brokenTint);
 

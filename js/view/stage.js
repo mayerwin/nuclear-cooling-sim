@@ -68,7 +68,7 @@ export class Stage {
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.42, 0.75, 0.9);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.26, 0.55, 1.05);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
 

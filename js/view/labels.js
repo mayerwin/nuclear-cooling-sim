@@ -89,9 +89,11 @@ export class Labels {
       set('turb', `<b>Turbine</b><span>${u.spin > 4 ? 'steam is turning it'
         : u.spin > 0.6 ? 'running down' : 'stopped'}</span>`);
       const mwe = u.spin > 12 ? Math.round((u.qSec || 0) / 1e6 * 0.33) : 0;
+      const steaming = (u.secondary.mdot || 0) > 1;
       set('gen', `<b>Generator</b><span class="${mwe ? 'power' : ''}">${mwe
         ? mwe.toLocaleString('en-US') + ' MW of electricity'
-        : u.spin > 1 ? 'running up to speed' : 'no electricity'}</span>`);
+        : u.spin > 1 ? (steaming ? 'running up to speed' : 'coasting down, no load')
+          : 'no electricity'}</span>`);
       if (u.passive) {
         set('store', `<b>${st.onFloor ? 'Water on the floor' : 'The pool, higher than the reactor'}</b>`
           + `<span class="${st.lost ? 'bad' : st.cracked ? 'warn' : 'ok'}">${st.lost ? 'escaping as steam'
