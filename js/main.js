@@ -67,22 +67,28 @@ function usable() {
 function setFocus(f) {
   sim.focus = f;
   const u = usable();
+  // A phone is tall and narrow. Framing a wide row of buildings on it leaves
+  // the plant in a thin band with sky above and grass below, so the camera
+  // climbs and the frame closes in until the building fills the screen.
+  const narrow = window.innerWidth < 700;
   // Only the station that is being looked at is drawn. Its neighbour standing
   // half in frame is scenery competing with the subject.
   units.forEach((x, i) => { x.root.visible = f === 'both' || (f === 'active') === (i === 0); });
   if (f === 'both') {
     // The two buildings and their turbine halls, not the line leaving the
     // site: framing to everything drawn puts the reactors in the far distance.
-    stage.frameBox(new THREE.Box3(
-      new THREE.Vector3(-SPAN - 27, -3, -20), new THREE.Vector3(SPAN + 44, 49, 20)),
-    { azimuth: 1.30, elev: 0.28, snap: firstFocus, fill: 0.94, ...u });
+    stage.frameBox(narrow
+      ? new THREE.Box3(new THREE.Vector3(-SPAN - 18, -3, -17), new THREE.Vector3(SPAN + 18, 46, 17))
+      : new THREE.Box3(new THREE.Vector3(-SPAN - 23, -3, -19), new THREE.Vector3(SPAN + 36, 48, 19)),
+    { azimuth: 1.30, elev: narrow ? 0.62 : 0.24, snap: firstFocus, fill: 0.92, ...u });
   } else {
     // On one station the frame is the reactor building and the turbine hall.
     // Framing the whole site puts the interesting part in the middle distance.
     const x = units[f === 'active' ? 0 : 1].worldX;
-    stage.frameBox(new THREE.Box3(
-      new THREE.Vector3(x - 21, -2, -18), new THREE.Vector3(x + 38, 40, 18)),
-    { azimuth: 1.02, elev: 0.24, snap: firstFocus, fill: 0.96, ...u });
+    stage.frameBox(narrow
+      ? new THREE.Box3(new THREE.Vector3(x - 19, -2, -17), new THREE.Vector3(x + 23, 42, 17))
+      : new THREE.Box3(new THREE.Vector3(x - 21, -2, -18), new THREE.Vector3(x + 38, 40, 18)),
+    { azimuth: 1.02, elev: narrow ? 0.46 : 0.24, snap: firstFocus, fill: 0.96, ...u });
   }
   firstFocus = false;
   labels.setFocus(f);

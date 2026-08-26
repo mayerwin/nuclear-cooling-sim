@@ -75,7 +75,24 @@ export class Plume {
     this.life[i] = (o.life || 4) * (0.7 + 0.6 * s);
     this.seed[i] = s;
   }
+  // A plume that has just been switched on has to look like a plume already:
+  // a scenario can be jumped to at nine hundred times speed, and three frames
+  // of emission is six puffs and reads as nothing at all.
   step(dt, rate, x, y, z, o = {}) {
+    if (rate > 0 && !this.running) {
+      this.running = true;
+      const L = o.life || 4;
+      for (let k = 0; k < 20; k++) this.advance(L / 20, rate, x, y, z, o);
+    }
+    if (rate <= 0) this.running = false;
+    this.advance(dt, rate, x, y, z, o);
+    this.geo.attributes.position.needsUpdate = true;
+    this.geo.attributes.aScale.needsUpdate = true;
+    this.geo.attributes.aAlpha.needsUpdate = true;
+    this.geo.setDrawRange(0, this.n);
+  }
+
+  advance(dt, rate, x, y, z, o = {}) {
     if (dt > 0) {
       for (let i = 0; i < this.n; i++) {
         if (this.age[i] >= this.life[i]) { this.aAlpha[i] = 0; continue; }
@@ -99,9 +116,5 @@ export class Plume {
         }
       }
     }
-    this.geo.attributes.position.needsUpdate = true;
-    this.geo.attributes.aScale.needsUpdate = true;
-    this.geo.attributes.aAlpha.needsUpdate = true;
-    this.geo.setDrawRange(0, this.n);
   }
 }

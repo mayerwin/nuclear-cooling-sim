@@ -46,6 +46,7 @@ export class Labels {
       // columns down the edges of the picture and reach their part with a
       // leader, because a plate sitting on the machine it names hides it.
       add('title', 'title', 0, 50, 0, 'C');
+      add('rpv', 'part', L.rpv.x + 1, 15, L.rpv.z + 3, 'L');
       add('sg', 'part', L.sg.x, 24, L.sg.z, 'L');
       add('pump', 'part', L.rcp.x, 11.5, L.rcp.z + 2, 'L');
       add('store', 'part',
@@ -53,7 +54,6 @@ export class Labels {
         u.passive ? L.pool.y + 3.5 : 2.5,
         u.passive ? L.pool.z : L.tank.z, 'L');
       if (!u.passive) add('eccs', 'part', L.eccs.x, 5.2, L.eccs.z, 'L');
-      add('rpv', 'part', L.rpv.x + 1, 15, L.rpv.z + 3, 'R');
       add('turb', 'part', L.turb.x - 7, 12.5, L.turb.z, 'R');
       add('gen', 'part', L.turb.x + 1.5, 12, L.turb.z, 'R');
       add('vent', 'part', L.stack.x, L.stack.h + 1.5, L.stack.z, 'R');
@@ -76,7 +76,7 @@ export class Labels {
       x0: (wide ? l.right : 0) + 10,
       x1: (wide ? r.left : w) - 10,
       y0: bar + 10,
-      y1: (feed.height ? feed.top : h) - 10
+      y1: (feed.height ? feed.top : h) - 16
     };
   }
 
@@ -88,14 +88,16 @@ export class Labels {
         || (this.focus === 'passive' && u.passive);
       const detail = on && this.focus !== 'both';
       // Side by side there is no room for a running commentary on both
-      // stations at once. The name and the verdict, nothing else.
-      const KEY = ['title'];
+      // stations at once, and on a phone there is no room for one at all: the
+      // name, the verdict, and the one number that matters.
+      const narrow = window.innerWidth < 700;
+      const KEY = narrow && detail ? ['title', 'rpv'] : ['title'];
       const S = u.labels;
       const set = (k, html) => {
         const t = S[k]; if (!t) return;
         // In the comparison view only the things that differ are named, or the
         // two sets of captions land on each other.
-        t.o.visible = on && (detail || KEY.includes(k));
+        t.o.visible = on && ((detail && !narrow) || KEY.includes(k));
         if (!t.o.visible) return;
         if (t.box.innerHTML !== html) t.box.innerHTML = html;
       };
@@ -202,6 +204,17 @@ export class Labels {
       const py = Math.max(R.y0 + it.bh / 2, Math.min(it.sy, R.y1 - it.bh / 2));
       place(it, Math.min(Math.max(it.sx, R.x0 + it.bw / 2), R.x1 - it.bw / 2), py);
       topY = Math.max(topY, py + it.bh / 2 + 10);
+    }
+    if (narrow) {
+      // No margin to park anything in: the one caption there is room for sits
+      // along the bottom, out of the way of the building.
+      let yy = R.y1;
+      for (const it of cols.L.concat(cols.R)) {
+        yy -= it.bh / 2;
+        place(it, Math.min(Math.max(it.sx, R.x0 + it.bw / 2), R.x1 - it.bw / 2), yy);
+        yy -= it.bh / 2 + 8;
+      }
+      return;
     }
     for (const side of ['L', 'R']) {
       const list = cols[side];

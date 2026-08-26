@@ -278,9 +278,9 @@ export class Unit {
   buildVessels() {
     const g = this.root, m = this.m, r = L.rpv;
 
-    const skirt = tube(r.r * 0.85, r.r * 0.95, r.base, this.stage.mat.painted, 40);
-    skirt.position.set(r.x, r.base / 2, r.z);
-    g.add(skirt);
+    this.skirt = tube(r.r * 0.85, r.r * 0.95, r.base, this.stage.mat.painted, 40);
+    this.skirt.position.set(r.x, r.base / 2, r.z);
+    g.add(this.skirt);
 
     this.rpvShell = vessel(RPV_PROFILE, this.mShellRpv);
     this.rpvShell.position.set(r.x, r.base, r.z);
@@ -317,6 +317,37 @@ export class Unit {
     this.fuel.add(inst);
     this.fuelInst = inst;
     g.add(this.fuel);
+
+    // The route the water takes: in at the nozzle, down the gap between the
+    // barrel and the wall, round the bottom and up through the fuel. Two
+    // columns of carried bubbles going down and the boiling column going up
+    // are what make that route, and its speed, something you can watch.
+    const RD = Math.SQRT1_2;
+    this.downFlow = [];
+    for (const sgn of [1, -1]) {
+      const px = r.x + RD * 2.58 * sgn, pz = r.z - RD * 2.58 * sgn;
+      const fr = frameOf(roundedPath([V(px, W_HI - 0.4, pz), V(px, W_LO + 0.6, pz)], 0.2), 40);
+      const b = new Bubbles(fr, 0.16, 26, m.bubble);
+      g.add(b.mesh);
+      this.downFlow.push(b);
+    }
+    // the line the water level stands at, which is what the number means
+    this.levelRing = new THREE.Mesh(
+      new THREE.TorusGeometry(3.05, 0.08, 6, 40), this.stage.mat.rail);
+    this.levelRing.rotation.x = Math.PI / 2;
+    this.levelRing.material = new THREE.MeshStandardMaterial({
+      color: 0xdfeaf2, emissive: 0x6f8ea6, emissiveIntensity: 0.5,
+      roughness: 0.4, metalness: 0.3, clippingPlanes: this.mHalfRpv.clippingPlanes });
+    g.add(this.levelRing);
+    // and the mark on the vessel that says where the top of the fuel is
+    const fuelMark = new THREE.Mesh(
+      new THREE.TorusGeometry(3.26, 0.1, 6, 40),
+      new THREE.MeshStandardMaterial({ color: 0xffb03a, emissive: 0x542f00,
+        emissiveIntensity: 0.7, roughness: 0.5, metalness: 0.2,
+        clippingPlanes: this.mHalfRpv.clippingPlanes }));
+    fuelMark.rotation.x = Math.PI / 2;
+    fuelMark.position.set(r.x, FUEL_Y1, r.z);
+    g.add(fuelMark);
 
     // the water, and its free surface
     this.coreWater = tube(2.94, 2.94, 1, m.water, 48);
@@ -857,10 +888,52 @@ import { Plume } from './plume.js';
 
 Object.assign(Unit.prototype, {
 
+  // What a breached vessel leaves behind: a hole in the bottom head, a pool of
+  // melt on the floor under it, and the pit that pool is eating into the
+  // concrete.
+  buildBreach() {
+    const r = L.rpv, g = new THREE.Group();
+    const tornMat = new THREE.MeshStandardMaterial({
+      color: 0x1d0c07, roughness: 0.9, emissive: 0x30100a, emissiveIntensity: 0.22,
+      side: THREE.DoubleSide, clippingPlanes: this.mHalfRpv.clippingPlanes });
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2;
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.34, 1.5, 5), tornMat);
+      spike.position.set(r.x + Math.sin(a) * 1.5, r.base - 0.3, r.z + Math.cos(a) * 1.5);
+      spike.rotation.x = Math.PI;
+      spike.rotation.z = Math.sin(a) * 0.5;
+      g.add(spike);
+    }
+    // the stream still running out of it
+    const drip = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.7, r.base - 0.2, 12),
+      new THREE.MeshStandardMaterial({ color: 0x3a1204, emissive: 0xd8400f, emissiveIntensity: 0.6,
+        roughness: 0.55 }));
+    drip.position.set(r.x, (r.base - 0.2) / 2 + 0.1, r.z);
+    g.add(drip);
+    // the scar it burns into the floor, spreading as it goes
+    const pit = new THREE.Mesh(new THREE.CylinderGeometry(1, 1.06, 1, 32),
+      new THREE.MeshStandardMaterial({ color: 0x1b1512, roughness: 0.98 }));
+    pit.position.set(r.x, 0.09, r.z);
+    g.add(pit);
+    const pool = new THREE.Mesh(
+      new THREE.CylinderGeometry(1, 0.86, 1, 32),
+      new THREE.MeshStandardMaterial({ color: 0x2a0d05, emissive: 0xd8400f,
+        emissiveIntensity: 0.6, roughness: 0.5 }));
+    pool.position.set(r.x, 0.2, r.z);
+    g.add(pool);
+    const glow = new THREE.PointLight(0xff7a2a, 90, 34, 2);
+    glow.position.set(r.x, 1.6, r.z);
+    g.add(glow);
+    g.visible = false;
+    this.root.add(g);
+    return { group: g, pit, pool, glow };
+  },
+
   addPlumes() {
     this.plumes = {
       vent: new Plume(140, 0xd6dee4, 34),
       breach: new Plume(200, 0xd2c6bc, 46),
+      corium: new Plume(120, 0x8d7f74, 34),
       air: new Plume(120, 0xa9d8ee, 30)
     };
     for (const k in this.plumes) this.root.add(this.plumes[k].points);
@@ -1001,6 +1074,14 @@ Object.assign(Unit.prototype, {
     // little; when it boils in earnest the column of bubbles fills the vessel.
     this.riseCore.step(dt, W_LO - 0.5, Math.max(0.4, wy - W_LO + 0.5),
       st.lvl > 0.02 ? clamp(0.12 + (st.s.boil || 0) * 1.4, 0, 1) : 0, L.rpv.x, L.rpv.z, 0.5);
+    // down the outside at the downcomer's own speed, hidden above the surface
+    for (const b of this.downFlow) {
+      b.advance(dt, this.legDown.v, W_HI - W_LO - 1.0,
+        Math.abs(this.legDown.v) > 0.02 ? 1 : 0.0001, wy - 0.25);
+      b.mesh.visible = st.lvl > 0.06 && Math.abs(this.legDown.v) > 0.02;
+    }
+    this.levelRing.position.set(L.rpv.x, wy, L.rpv.z);
+    this.levelRing.visible = st.lvl > 0.01 && st.lvl < 0.995;
     ripple(this.coreTop, this.surfCore, 2.94);
     waterColor(mean, cTmp);
     tintWater(this.coreWater.material, cTmp, dt);
@@ -1026,14 +1107,35 @@ Object.assign(Unit.prototype, {
     }
     this.melt.visible = dam > 0.3;
     if (this.melt.visible) {
-      const rr = 1.2 + dam * 1.6;
+      // some of it always stays in the vessel; the rest is on the floor
+      const rr = (1.2 + dam * 1.6) * (p.vesselBreach ? 0.72 : 1);
       this.melt.scale.set(rr, 0.55 + dam * 0.5, rr);
       this.melt.material.emissive.copy(tempColor(Math.max(p.Tclad, 2100)));
       this.melt.material.emissiveIntensity = 0.8 + dam * 0.7;
     }
-    // rods shorten as they slump
-    this.fuelInst.scale.y = 1 - dam * 0.55;
-    this.fuelInst.position.y = -(FUEL_Y1 - FUEL_Y0) * dam * 0.275;
+    // The rods slump as they melt, and once the core is destroyed there are no
+    // rods left to draw: what is left of it is the pool.
+    this.fuelInst.scale.y = Math.max(0.04, 1 - dam * 0.97);
+    this.fuelInst.position.y = -(FUEL_Y1 - FUEL_Y0) * dam * 0.485;
+    this.fuelInst.visible = dam < 0.97;
+
+    // When the vessel goes, the melt is out on the floor of the building and
+    // starts eating the concrete. That is the containment being damaged, and
+    // the model already tracks how far it has got.
+    if (!this.breachKit) this.breachKit = this.buildBreach();
+    const out = !!p.vesselBreach;
+    this.breachKit.group.visible = out;
+    if (out) {
+      const mc = clamp(p.mcci / 3.5, 0, 1);
+      const rr = 3.4 + mc * 4.0;
+      this.breachKit.pool.scale.set(rr, 0.45 + mc * 0.6, rr);
+      this.breachKit.pool.material.emissive.copy(tempColor(Math.max(p.Tclad, 1900)));
+      this.breachKit.pool.material.emissiveIntensity = 0.5 + mc * 0.35;
+      this.breachKit.pit.scale.set(rr * 1.22, 0.14, rr * 1.22);
+      this.breachKit.glow.intensity = 90 + mc * 130;
+    }
+    // the skirt is in the way of the one thing worth seeing here
+    this.skirt.visible = !out;
 
     // ---- the boiler ----
     const carrying = st.carried && (st.s.feed || st.s.aux || st.s.rcic);
@@ -1068,7 +1170,7 @@ Object.assign(Unit.prototype, {
       this.surfPool.step(dt, { boil: (st.s.prhr || 0) > 0 ? 0.4 : 0.02 });
       this.risePool.step(dt, L.pool.y + 0.5, Math.max(0.4, ph),
         (st.s.prhr || 0) > 0 ? 0.75 : 0.03, L.pool.x, L.pool.z, 0.55);
-      const warm = (st.s.prhr || 0) > 0 ? 0.35 : 0.05;
+      const warm = (st.s.prhr || 0) > 0 ? 0.2 : 0.04;
       waterColor(warm, cTmp);
       tintWater(this.poolWater.material, cTmp, dt);
     }
@@ -1086,8 +1188,9 @@ Object.assign(Unit.prototype, {
     // ---- damage ----
     if (this.plug) this.plug.visible = p.ctmtIntact;
     if (this.tear) this.tear.visible = !p.ctmtIntact;
-    const brokenTint = p.ctmtIntact ? 0x9aa0a6 : 0xa2837a;
-    m.concrete.color.setHex(brokenTint);
+    // Scorched, not repainted: a building that changes colour reads as a
+    // different building, and what happened to it is the hole.
+    m.concrete.color.setHex(p.ctmtIntact ? 0x9aa0a6 : 0x8a8078);
 
     // ---- plumes ----
     const st2 = L.stack;
@@ -1097,6 +1200,8 @@ Object.assign(Unit.prototype, {
     this.plumes.breach.step(dt, p.ctmtIntact ? 0 : 34,
       Math.sin(bA) * (R_IN + 1), 16, Math.cos(bA) * (R_IN + 1),
       { spread: 5, vy: 7, vx: 4, life: 6, grow: 4, alpha: 0.5, buoy: 1.4 });
+    this.plumes.corium.step(dt, p.vesselBreach ? 20 : 0, L.rpv.x, 2.0, L.rpv.z,
+      { spread: 5, vy: 4.5, vx: 1.6, life: 5, grow: 3.4, alpha: 0.34, buoy: 1.6 });
     // nothing steams out of a surface condenser: what leaves it is warm water
     const pccs = st.sink === 'shell' ? 1 : clamp(st.s.pccs || 0, 0, 1);
     this.plumes.air.step(dt, pccs > 0.06 ? 16 : 0, 0, SHELL_H + 4, 0,

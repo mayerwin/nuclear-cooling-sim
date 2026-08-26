@@ -183,6 +183,7 @@ export function surfaceMaterial(depth = 4) {
 // Air carried in the stream. They are what makes the speed legible: the tint of
 // a moving liquid tells you nothing, a bubble going past tells you everything.
 const BUBBLE_GEO = new THREE.IcosahedronGeometry(1, 1);
+const _tan = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
 
 export class Bubbles {
   // frame: {pts, nrm, bnm} sampled along the pipe centreline.
@@ -212,9 +213,13 @@ export class Bubbles {
   }
 
   // len is the pipe length in metres, v the velocity in metres per second.
-  advance(dt, v, len, scale = 1) {
+  // Fast water smears what is carried in it into streaks and slow water does
+  // not, so the stretch is how the speed reads in a still frame as well as in
+  // a moving one. clipY hides anything that has risen above a free surface.
+  advance(dt, v, len, scale = 1, clipY = Infinity) {
     const f = this.frame, n = f.pts.length;
     const du = (v * dt) / Math.max(0.001, len);
+    const stretch = 1 + Math.min(3.2, Math.abs(v) * 0.09);
     for (let i = 0; i < this.u.length; i++) {
       let u = this.u[i] + du;
       u -= Math.floor(u);
@@ -226,8 +231,10 @@ export class Bubbles {
       const rr = this.r[i];
       this._p.addScaledVector(f.nrm[j], Math.cos(this.th[i]) * rr)
         .addScaledVector(f.bnm[j], Math.sin(this.th[i]) * rr);
-      const s = this.sz[i] * scale;
-      this._s.set(s, s, s);
+      const s = this._p.y > clipY ? 0 : this.sz[i] * scale;
+      _tan.copy(f.pts[j + 1]).sub(f.pts[j]).normalize();
+      this._q.setFromUnitVectors(_up, _tan);
+      this._s.set(s, s * stretch, s);
       this._m.compose(this._p, this._q, this._s);
       this.mesh.setMatrixAt(i, this._m);
     }
