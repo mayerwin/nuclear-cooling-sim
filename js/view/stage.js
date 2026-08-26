@@ -152,6 +152,9 @@ export class Stage {
       o.updateWorldMatrix(true, true);
       o.traverse((n) => {
         if (!n.isMesh || !n.visible || !n.geometry) return;
+        // Things that are drawn but must not drag the frame out: the line
+        // leaving the site, the plume, anything marked as scenery.
+        if (n.userData.noFrame) return;
         if (!n.geometry.boundingBox) n.geometry.computeBoundingBox();
         b.copy(n.geometry.boundingBox).applyMatrix4(n.matrixWorld);
         box.union(b);

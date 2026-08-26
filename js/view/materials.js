@@ -89,11 +89,19 @@ export function tempColor(K) {
   return c.setHex(RAMP[RAMP.length - 1][1]);
 }
 
-// Blue, then pale scalding, then orange. Straight from blue to orange passes
-// through brown, and brown water reads as dirty rather than hot.
-const COLD = new THREE.Color(0x2b8fd8), MID = new THREE.Color(0xd6ecf7), HOT = new THREE.Color(0xff6a33);
+// Blue, then warm, then orange. Straight from blue to orange passes through
+// brown, and brown water reads as dirty rather than hot, so the midpoint is a
+// warm cream that both ends can reach without going muddy.
+const COLD = new THREE.Color(0x2b8fd8), MID = new THREE.Color(0xffd2a0), HOT = new THREE.Color(0xff6a33);
 export function waterColor(u0, out = new THREE.Color()) {
   const u = Math.max(0, Math.min(1, u0));
   return u < 0.5 ? out.copy(COLD).lerp(MID, u * 2) : out.copy(MID).lerp(HOT, (u - 0.5) * 2);
 }
 export const heatOf = (K) => (K - 660) / 400;
+
+// Loop colour. Hot water is not really red, but the one thing the picture has
+// to say about the primary circuit is that it goes into the boiler hot and
+// comes out cold, and 35 degrees of real difference is invisible. So the ramp
+// is steep across the operating band: the cold leg sits in the blue, the hot
+// leg in the warm, and anything hotter than normal runs on into orange.
+export const loopHeat = (K) => (K - 579.6) / 53.85;

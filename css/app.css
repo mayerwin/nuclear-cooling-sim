@@ -20,18 +20,31 @@ body:not(.viewplant) #focusSeg{display:none}
 .labelLayer{position:absolute;inset:0;pointer-events:none}
 
 /* ---- labels on the model ---- */
-.tag{transform:translate(-50%,-50%);text-align:center;pointer-events:none;
+/* The anchor is the 3-D point; the plate is offset from it by the layout pass
+   and joined back to it by a leader. */
+.anchor{width:0;height:0}
+.lead{position:absolute;left:0;top:0;height:1px;transform-origin:0 50%;
+  background:linear-gradient(90deg,rgba(150,200,235,.85),rgba(150,200,235,.25));
+  opacity:0;transition:opacity .2s}
+.lead::before{content:"";position:absolute;left:-2px;top:-2px;width:5px;height:5px;
+  border-radius:50%;background:rgba(180,220,245,.9)}
+.tag{position:absolute;left:0;top:0;transform:translate(-50%,-50%);
+  text-align:center;pointer-events:none;
   font-size:12.5px;line-height:1.35;white-space:nowrap;
-  text-shadow:0 1px 3px #000,0 0 10px rgba(0,0,0,.9)}
+  padding:5px 10px;border-radius:9px;
+  background:rgba(8,14,21,.72);border:1px solid rgba(150,190,225,.20);
+  backdrop-filter:blur(4px);
+  text-shadow:0 1px 2px rgba(0,0,0,.85)}
 .tag b{display:block;font-weight:800;letter-spacing:.04em;font-size:13px}
-.tag span{display:block;color:var(--dim);font-weight:600}
+.tag span{display:block;color:#b7c8d6;font-weight:600}
 .tag em{display:block;font-style:normal;font-size:11.5px;color:#8ea3b5;font-weight:500}
 .tag i{font-style:normal;margin-left:.5em}
 .tag .ok{color:var(--ok)} .tag .bad{color:var(--bad)} .tag .warn{color:var(--warn)}
 .tag .power{color:var(--power)}
+.tag.title{background:rgba(6,11,17,.78);padding:7px 14px}
 .tag.title b{font-size:22px;letter-spacing:.10em}
 .tag.title .bAct{color:var(--act)} .tag.title .bPass{color:var(--pass)}
-.tag .chip{display:inline-block;margin-top:6px;padding:4px 12px;border-radius:999px;
+.tag .chip{display:inline-block;margin-top:5px;padding:4px 12px;border-radius:999px;
   font-size:12px;font-weight:800;letter-spacing:.02em;color:#8ff0b4;
   background:rgba(10,44,28,.9);border:1px solid rgba(99,224,138,.55)}
 .tag .chip.bad{color:#ffb2a2;background:rgba(56,14,10,.92);border-color:rgba(255,110,80,.6)}

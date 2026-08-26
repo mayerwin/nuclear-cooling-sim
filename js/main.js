@@ -28,7 +28,7 @@ const renderer = new Renderer(siteCanvas, sim.world);
 renderer.buildOcean();
 
 const stage = new Stage(host, labelHost);
-const SPAN = 43;
+const SPAN = 38;
 const units = sim.plants.map((p, i) => new Unit(p, stage, i === 0 ? -SPAN : SPAN));
 for (const u of units) stage.scene.add(u.root);
 const labels = new Labels(stage, units);
@@ -67,15 +67,21 @@ function usable() {
 function setFocus(f) {
   sim.focus = f;
   const u = usable();
+  // Only the station that is being looked at is drawn. Its neighbour standing
+  // half in frame is scenery competing with the subject.
+  units.forEach((x, i) => { x.root.visible = f === 'both' || (f === 'active') === (i === 0); });
   if (f === 'both') {
-    stage.frame(units.map((x) => x.root),
-      { azimuth: 1.30, elev: 0.28, snap: firstFocus, fill: 0.94, ...u });
+    // The two buildings and their turbine halls, not the line leaving the
+    // site: framing to everything drawn puts the reactors in the far distance.
+    stage.frameBox(new THREE.Box3(
+      new THREE.Vector3(-SPAN - 27, -3, -20), new THREE.Vector3(SPAN + 44, 49, 20)),
+    { azimuth: 1.30, elev: 0.28, snap: firstFocus, fill: 0.94, ...u });
   } else {
     // On one station the frame is the reactor building and the turbine hall.
     // Framing the whole site puts the interesting part in the middle distance.
     const x = units[f === 'active' ? 0 : 1].worldX;
     stage.frameBox(new THREE.Box3(
-      new THREE.Vector3(x - 20, -2, -19), new THREE.Vector3(x + 40, 36, 19)),
+      new THREE.Vector3(x - 21, -2, -18), new THREE.Vector3(x + 38, 40, 18)),
     { azimuth: 1.02, elev: 0.24, snap: firstFocus, fill: 0.96, ...u });
   }
   firstFocus = false;
@@ -123,9 +129,9 @@ function frame(now) {
   last = now;
   sim.update(dt);
   if (sim.view === 'plant') {
-    for (const u of units) u.update(state(u.plant), dt);
-    labels.update();
+    for (const u of units) if (u.root.visible) u.update(state(u.plant), dt);
     stage.update(dt);
+    labels.update();
     stage.render();
   } else {
     renderer.draw(sim);

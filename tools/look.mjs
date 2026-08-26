@@ -27,17 +27,24 @@ await page.waitForTimeout(1500);
 if (scen) await page.evaluate((x) => { window.__sim.run(x); window.__sim.speedIdx = 4; }, scen);
 await page.waitForTimeout(secs * 1000);
 
+const A = -38, B = 38;   // where the two units stand, matching main.js
 const CAMS = {
-  loop:   { t: [-43 - 2, 12, 6], d: 34, a: 0.9, e: 0.20 },
-  pump:   { t: [-43 - 6, 8, 7], d: 18, a: 1.1, e: 0.18 },
-  rpv:    { t: [-43 + 5.5, 10, 5], d: 24, a: 0.85, e: 0.16 },
-  steam:  { t: [-43 + 20, 16, 6], d: 40, a: 1.0, e: 0.20 },
-  turbine:{ t: [-43 + 30, 8, 6], d: 26, a: 1.15, e: 0.18 },
-  pool:   { t: [43 + 3.5, 22, -9], d: 28, a: 1.0, e: 0.30 },
-  passive:{ t: [43 - 10, 16, 20], d: 46, a: 1.15, e: 0.24 },
-  breach: { t: [-43, 16, 14], d: 60, a: 1.55, e: 0.28 },
-  power:  { t: [-43 + 40, 9, 4], d: 44, a: 1.25, e: 0.22 }
+  loop:   { t: [A - 1, 11, 3], d: 30, a: 0.9, e: 0.20 },
+  pump:   { t: [A - 6, 9.5, 6.5], d: 13, a: 1.05, e: 0.18 },
+  rpv:    { t: [A + 5.5, 9, 5], d: 20, a: 0.85, e: 0.16 },
+  core:   { t: [A + 5.5, 7, 5], d: 12, a: 0.85, e: 0.10 },
+  sg:     { t: [A - 6.5, 13, -5.5], d: 22, a: 0.80, e: 0.18 },
+  steam:  { t: [A + 14, 20, 0], d: 38, a: 1.0, e: 0.20 },
+  turbine:{ t: [A + 22, 9, 6], d: 22, a: 1.15, e: 0.20 },
+  power:  { t: [A + 38, 9, -4], d: 30, a: 1.25, e: 0.22 },
+  unit:   { t: [A + 6, 16, 0], d: 66, a: 1.02, e: 0.24 },
+  pool:   { t: [B + 3.5, 23, -9], d: 24, a: 1.0, e: 0.26 },
+  prhr:   { t: [B + 1, 18, -2], d: 34, a: 1.0, e: 0.26 },
+  passive:{ t: [B + 6, 16, 0], d: 66, a: 1.02, e: 0.24 },
+  breach: { t: [A, 16, 12], d: 58, a: 1.55, e: 0.28 },
+  floor:  { t: [A + 5.5, 3, 5], d: 18, a: 0.95, e: 0.12 }
 };
+
 const c = CAMS[shot] || CAMS.loop;
 await page.evaluate((c) => {
   const s = window.__stage, T = window.__THREE;

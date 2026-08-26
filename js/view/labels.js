@@ -1,54 +1,84 @@
 // ---------------------------------------------------------------------------
 // labels.js - the writing on the picture.
 //
-// Real HTML, positioned by a 3-D anchor. Typography is CSS, so nothing has to
-// be shrunk to fit and nothing is drawn twice.
+// Real HTML, anchored to a 3-D point by CSS2DRenderer, then laid out in screen
+// space: every caption is pushed inside the part of the window the panels
+// leave free, pushed off any caption it lands on, and joined back to the thing
+// it names by a leader line. A caption that is clipped, or sitting on another
+// caption, is not a caption.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { L, FUEL_TOP_FRAC } from './unit.js';
+import { L } from './unit.js';
 import { state } from './state.js';
 
 function tag(cls) {
   const el = document.createElement('div');
-  el.className = 'tag ' + cls;
+  el.className = 'anchor';
+  const lead = document.createElement('i');
+  lead.className = 'lead';
+  const box = document.createElement('div');
+  box.className = 'tag ' + cls;
+  el.append(lead, box);
   const o = new CSS2DObject(el);
-  o.center.set(0.5, 0.5);
-  return { el, o };
+  o.center.set(0, 0);
+  return { el, box, lead, o };
 }
+
+const _v = new THREE.Vector3();
 
 export class Labels {
   constructor(stage, units) {
+    this.stage = stage;
     this.units = units;
     this.items = [];
     this.focus = 'both';
     for (const u of units) {
       const set = {};
-      const add = (key, cls, x, y, z) => {
+      const add = (key, cls, x, y, z, bias) => {
         const t = tag(cls);
         t.o.position.set(x, y, z);
         u.root.add(t.o);
         set[key] = t;
-        this.items.push({ u, key, ...t });
+        this.items.push({ u, key, bias: bias || [0, 0], ...t });
       };
-      add('title', 'title', 0, 52, 0);
-      add('rpv', 'part', L.rpv.x + 1, 24, L.rpv.z + 4);
-      add('sg', 'part', L.sg.x - 5, 30, L.sg.z - 6);
-      add('pump', 'part', L.rcp.x - 7, 10, L.rcp.z + 7);
-      add('turb', 'part', L.turb.x - 8, 13, L.turb.z + 3);
-      add('gen', 'part', L.turb.x + 9, 12, L.turb.z + 4);
+      // bias is where the caption prefers to sit relative to its anchor, in
+      // pixels, so that a name does not cover the thing it names.
+      add('title', 'title', 0, 50, 0, [0, -6]);
+      add('rpv', 'part', L.rpv.x + 1, 21, L.rpv.z + 3, [86, -50]);
+      add('sg', 'part', L.sg.x, 29, L.sg.z, [-96, -46]);
+      add('pump', 'part', L.rcp.x, 12.5, L.rcp.z + 2, [-88, 34]);
+      add('turb', 'part', L.turb.x - 7, 13.5, L.turb.z, [-10, -58]);
+      add('gen', 'part', L.turb.x + 1.5, 12, L.turb.z, [76, -34]);
       add('store', 'part',
         u.passive ? L.pool.x : L.tank.x,
-        u.passive ? L.pool.y + 6 : 11,
-        u.passive ? L.pool.z - 3 : L.tank.z);
-      add('power', 'part', L.turb.x + 24, 20, L.turb.z - 2);
-      if (!u.passive) add('eccs', 'part', L.eccs.x + 3, 2, L.eccs.z);
-      add('vent', 'part', L.stack.x, L.stack.h + 3, L.stack.z);
+        u.passive ? L.pool.y + 6.5 : 2.5,
+        u.passive ? L.pool.z : L.tank.z,
+        u.passive ? [0, -34] : [-40, 46]);
+      add('power', 'part', L.turb.x + 13, 15.5, L.turb.z - 11, [64, -30]);
+      if (!u.passive) add('eccs', 'part', L.eccs.x, 5.2, L.eccs.z, [-30, 44]);
+      add('vent', 'part', L.stack.x, L.stack.h + 1.5, L.stack.z, [46, -18]);
       u.labels = set;
     }
   }
 
   setFocus(f) { this.focus = f; }
+
+  // The rectangle of the window that is not under a panel or the log.
+  freeRect() {
+    const w = window.innerWidth, h = window.innerHeight;
+    const bar = document.getElementById('bar').getBoundingClientRect().height;
+    const feed = document.getElementById('feed').getBoundingClientRect();
+    const wide = w > 980;
+    const l = document.getElementById('left').getBoundingClientRect();
+    const r = document.getElementById('right').getBoundingClientRect();
+    return {
+      x0: (wide ? l.right : 0) + 10,
+      x1: (wide ? r.left : w) - 10,
+      y0: bar + 10,
+      y1: (feed.height ? feed.top : h) - 10
+    };
+  }
 
   update() {
     for (const u of this.units) {
@@ -67,7 +97,7 @@ export class Labels {
         // two sets of captions land on each other.
         t.o.visible = on && (detail || KEY.includes(k));
         if (!t.o.visible) return;
-        if (t.el.innerHTML !== html) t.el.innerHTML = html;
+        if (t.box.innerHTML !== html) t.box.innerHTML = html;
       };
       const MW = (p.qDecay || 0) / 1e6;
       set('title', `<b class="${u.passive ? 'bPass' : 'bAct'}">${u.passive ? 'PASSIVE' : 'ACTIVE'}</b>`
@@ -79,7 +109,8 @@ export class Labels {
           : `running, making ${Math.round(MW).toLocaleString('en-US')} MW of heat`}</em>`);
       set('sg', `<b>Boiler</b><span>${st.sink === 'turbine' ? 'taking the heat away'
         : st.sink === 'pool' ? 'not needed, the pool has it'
-          : st.sink === 'shell' ? 'not needed, the shell has it' : 'not taking any heat'}</span>`);
+          : st.sink === 'shell' ? 'not needed, the shell has it' : 'not taking any heat'}</span>`
+        + '<em>two circuits, never mixing</em>');
       const pumpTx = st.s.rcp
         ? (st.P ? 'the cooling needs no pump at all' : 'the cooling needs pumps like this')
         : (st.P ? (st.flow > 0 ? 'water still creeps round on its own, far slower'
@@ -125,8 +156,65 @@ export class Labels {
         : st.s.battery > 0 ? `batteries, ${(st.s.battery * p.batteryHours).toFixed(0)} h left` : 'none';
       set('power', `<b>Power</b><span class="${st.live ? 'power' : st.s.battery > 0 ? 'warn' : 'bad'}">${src}</span>`);
       set('vent', st.s.vent
-        ? '<b class="warn">Vent open</b><em>opened on purpose, to stop the containment bursting</em>'
+        ? '<b class="warn">Vent open</b><em>the way pressure is let out on purpose</em>'
         : '<b>Vent</b><span>closed</span>');
+    }
+    this.layout();
+  }
+
+  // ---- screen-space layout ------------------------------------------------
+  layout() {
+    const cam = this.stage.camera;
+    const w = window.innerWidth, h = window.innerHeight;
+    const R = this.freeRect();
+    const placed = [];
+    const live = [];
+    for (const it of this.items) {
+      if (!it.o.visible || !it.u.root.visible) { it.box.style.opacity = '0'; continue; }
+      it.o.getWorldPosition(_v).project(cam);
+      if (_v.z < -1 || _v.z > 1) { it.box.style.opacity = '0'; continue; }
+      it.sx = (_v.x * 0.5 + 0.5) * w;
+      it.sy = (-_v.y * 0.5 + 0.5) * h;
+      const r = it.box.getBoundingClientRect();
+      it.bw = r.width || 120;
+      it.bh = r.height || 34;
+      live.push(it);
+    }
+    // Titles first, then the rest from the top down, so the important one gets
+    // the spot it asked for and the others move round it.
+    live.sort((a, b) => (a.key === 'title' ? -1 : b.key === 'title' ? 1 : 0)
+      || (a.sy + a.bias[1]) - (b.sy + b.bias[1]));
+    for (const it of live) {
+      const hw = it.bw / 2, hh = it.bh / 2;
+      let px = it.sx + it.bias[0], py = it.sy + it.bias[1];
+      px = Math.min(Math.max(px, R.x0 + hw), Math.max(R.x0 + hw, R.x1 - hw));
+      py = Math.min(Math.max(py, R.y0 + hh), Math.max(R.y0 + hh, R.y1 - hh));
+      // push off anything already down, downwards first, upwards if there is
+      // no room left below
+      for (let pass = 0; pass < 24; pass++) {
+        let hit = null;
+        for (const q of placed) {
+          if (Math.abs(px - q.x) < hw + q.hw + 6 && Math.abs(py - q.y) < hh + q.hh + 5) { hit = q; break; }
+        }
+        if (!hit) break;
+        const down = hit.y + hit.hh + hh + 6;
+        const up = hit.y - hit.hh - hh - 6;
+        py = (down + hh <= R.y1) ? down : up;
+        py = Math.min(Math.max(py, R.y0 + hh), Math.max(R.y0 + hh, R.y1 - hh));
+      }
+      placed.push({ x: px, y: py, hw, hh });
+      const dx = px - it.sx, dy = py - it.sy;
+      it.box.style.opacity = '1';
+      it.box.style.transform = `translate(-50%,-50%) translate(${dx.toFixed(1)}px,${dy.toFixed(1)}px)`;
+      // the leader, so a caption that had to move still points at its part
+      const d = Math.hypot(dx, dy);
+      if (d > 26) {
+        it.lead.style.opacity = '1';
+        it.lead.style.width = (d - 4) + 'px';
+        it.lead.style.transform = `rotate(${Math.atan2(dy, dx).toFixed(3)}rad)`;
+      } else {
+        it.lead.style.opacity = '0';
+      }
     }
   }
 }

@@ -101,14 +101,67 @@ export function liquidMaterial(dia) {
     attenuationDistance: dia * 2.4,
     normalMap: n,
     normalScale: new THREE.Vector2(0.42, 0.42),
-    clearcoat: 1,
-    clearcoatRoughness: 0.05,
+    // A mirror-smooth clearcoat turns every pipe into one blown-out highlight
+    // under the key light, and the bloom pass then eats the machine behind it.
+    clearcoat: 0.35,
+    clearcoatRoughness: 0.28,
     emissive: new THREE.Color(0x081d33),
     emissiveIntensity: 0.3,
     transparent: true,
     opacity: 1,
     side: THREE.DoubleSide,
     depthWrite: true
+  });
+}
+
+// --- vapour -----------------------------------------------------------------
+// Steam is not a body you look through, it is a body you look at: it scatters
+// instead of refracting. What makes it read as steam rushing down a pipe is
+// torn streaks that run along the bore, so it gets an alpha map of streamwise
+// tears that scrolls at the leg's own metres per second.
+let STREAK = null;
+function streakTexture(N = 256) {
+  if (STREAK) return STREAK;
+  const r = rnd(30111981), waves = [];
+  for (let i = 0; i < 7; i++) {
+    waves.push([1 + ((r() * 5) | 0), (r() * 3) | 0, (0.45 + r() * 0.55) / (1 + i * 0.5), r() * 6.283]);
+  }
+  const data = new Uint8Array(N * N * 4);
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      let v = 0;
+      for (const [fx, fy, amp, ph] of waves) {
+        v += amp * Math.sin(2 * Math.PI * (fx * x / N + fy * y / N) + ph);
+      }
+      // torn, not a smooth gradient
+      const a = Math.min(1, Math.pow(Math.max(0, v * 0.42 + 0.5), 1.8));
+      const i = (y * N + x) * 4;
+      const g = (26 + 229 * a) | 0;
+      data[i] = data[i + 1] = data[i + 2] = g;
+      data[i + 3] = 255;
+    }
+  }
+  const t = new THREE.DataTexture(data, N, N, THREE.RGBAFormat);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.magFilter = THREE.LinearFilter;
+  t.generateMipmaps = true;
+  t.needsUpdate = true;
+  STREAK = t;
+  return t;
+}
+
+export function steamMaterial() {
+  const n = flowNormal().clone();
+  n.needsUpdate = true;
+  const a = streakTexture().clone();
+  a.needsUpdate = true;
+  return new THREE.MeshStandardMaterial({
+    color: 0xdfeefb, roughness: 0.95, metalness: 0,
+    emissive: new THREE.Color(0x7fa9c8), emissiveIntensity: 0.35,
+    normalMap: n, normalScale: new THREE.Vector2(0.8, 0.8),
+    alphaMap: a, transparent: true, opacity: 0.9,
+    depthWrite: false, side: THREE.DoubleSide
   });
 }
 
@@ -120,7 +173,7 @@ export function surfaceMaterial(depth = 4) {
     ior: 1.333, thickness: depth * 0.22,
     attenuationColor: new THREE.Color(LIQUID.COLD), attenuationDistance: depth * 2.6,
     normalMap: n, normalScale: new THREE.Vector2(0.16, 0.16),
-    clearcoat: 0.3, clearcoatRoughness: 0.08,
+    clearcoat: 0.25, clearcoatRoughness: 0.22,
     emissive: new THREE.Color(0x08243d), emissiveIntensity: 0.12,
     transparent: true, side: THREE.DoubleSide
   });

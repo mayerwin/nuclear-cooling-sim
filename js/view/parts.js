@@ -2,7 +2,7 @@
 // parts.js - the reusable pieces of plant, as real geometry.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { liquidMaterial, Bubbles, frameOf } from './fluid.js';
+import { liquidMaterial, steamMaterial, Bubbles, frameOf } from './fluid.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -61,19 +61,23 @@ export function pipe(pts, dia, mats, opts = {}) {
 
   // The liquid fills the bore. A thin thread down the middle of a pipe is a
   // diagram; a full bore is what water in a pipe looks like.
-  const mat = liquidMaterial(dia);
-  const bore = dia * 0.46;
+  const steam = !!opts.steam;
+  const mat = steam ? steamMaterial() : liquidMaterial(dia);
+  const bore = dia * (steam ? 0.48 : 0.46);
   const core = new THREE.Mesh(
     new THREE.TubeGeometry(path, seg, bore, 14, false), mat);
-  // The normal map has to tile at the pipe's own scale or the ripples stretch.
-  mat.normalMap.repeat.set(Math.max(2, len / 2.4), Math.max(1, Math.round(dia * 3)));
+  // The maps have to tile at the pipe's own scale or the streaks stretch.
+  const rx = Math.max(2, len / 2.4), ry = Math.max(1, Math.round(dia * 3));
+  mat.normalMap.repeat.set(rx, ry);
+  if (mat.alphaMap) mat.alphaMap.repeat.set(rx * 0.6, Math.max(1, Math.round(dia * 1.6)));
+  if (steam) core.renderOrder = 3;
   group.add(core);
 
   const count = Math.max(10, Math.min(90, Math.round(len * 2.4)));
-  const bub = new Bubbles(frame, bore * 0.34, count, mats.bubble);
+  const bub = new Bubbles(frame, bore * (steam ? 0.22 : 0.34), count, mats.bubble);
   group.add(bub.mesh);
 
-  return { group, casing, core, bub, len, path, mat, dia, bore, tint: mat };
+  return { group, casing, core, bub, len, path, mat, dia, bore, steam, tint: mat };
 }
 
 // A vessel of revolution from a profile, with a cut so the near half comes off.
