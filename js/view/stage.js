@@ -73,6 +73,20 @@ export class Stage {
     this.composer.addPass(new OutputPass());
 
     this.mat = buildMaterials();
+
+    // Ground, so the buildings stand on something and the shadows land.
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(1600, 1600).rotateX(-Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: 0x1a2229, roughness: 0.96, metalness: 0.04 }));
+    ground.position.y = -3;
+    ground.receiveShadow = true;
+    this.scene.add(ground);
+    const grid = new THREE.GridHelper(1600, 80, 0x2c3b47, 0x222d36);
+    grid.position.y = -2.96;
+    grid.material.transparent = true;
+    grid.material.opacity = 0.5;
+    this.scene.add(grid);
+
     this.resize();
   }
 

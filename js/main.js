@@ -29,8 +29,8 @@ function setFocus(f) {
   if (f === 'both') { t.set(10, 26, 0); stage.focusOn(t, 445, 1.32, 0.235, firstFocus); }
   else {
     const u = units[f === 'active' ? 0 : 1];
-    t.set(u.worldX + 10, 20, 3);
-    stage.focusOn(t, 150, 0.92, 0.26, firstFocus);
+    t.set(u.worldX + 9, 24, 3);
+    stage.focusOn(t, 158, 0.92, 0.24, firstFocus);
   }
   firstFocus = false;
   labels.setFocus(f);

@@ -31,16 +31,16 @@ export class Labels {
         set[key] = t;
         this.items.push({ u, key, ...t });
       };
-      add('title', 'title', 0, 56, 0);
-      add('rpv', 'part', L.rpv.x, 22, L.rpv.z);
-      add('sg', 'part', L.sg.x, 29, L.sg.z);
-      add('pump', 'part', L.rcp.x, 15.5, L.rcp.z);
-      add('turb', 'part', L.turb.x - 6, 12, L.turb.z);
-      add('gen', 'part', L.turb.x + 8, 12, L.turb.z);
+      add('title', 'title', 0, 52, 0);
+      add('rpv', 'part', L.rpv.x + 1, 24, L.rpv.z + 4);
+      add('sg', 'part', L.sg.x - 5, 30, L.sg.z - 6);
+      add('pump', 'part', L.rcp.x - 4, 15, L.rcp.z + 4);
+      add('turb', 'part', L.turb.x - 8, 13, L.turb.z + 3);
+      add('gen', 'part', L.turb.x + 9, 12, L.turb.z + 4);
       add('store', 'part',
         u.passive ? L.pool.x : L.tank.x,
-        u.passive ? L.pool.y + 9 : 5,
-        u.passive ? L.pool.z : L.tank.z);
+        u.passive ? L.pool.y + 6 : 5,
+        u.passive ? L.pool.z - 3 : L.tank.z);
       add('power', 'part', L.turb.x + 24, 20, L.turb.z - 2);
       if (!u.passive) add('eccs', 'part', L.eccs.x, 8, L.eccs.z);
       add('vent', 'part', L.stack.x, L.stack.h + 3, L.stack.z);

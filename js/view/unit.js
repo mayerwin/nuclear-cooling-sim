@@ -145,6 +145,25 @@ export class Unit {
     g.add(domeIn);
     this.dome = dome; this.domeIn = domeIn;
 
+    // buttresses up the wall, and the ring where the dome springs from it.
+    // A smooth white capsule reads as a toy; a real containment is ribbed.
+    for (let i = 0; i < 28; i++) {
+      const a = (i / 28) * Math.PI * 2;
+      if (a > bA - halfW && a < bA + halfW) continue;
+      const rib = new THREE.Mesh(new THREE.BoxGeometry(0.55, SHELL_H, 1.5), m.concrete);
+      rib.position.set(Math.cos(a) * (R_IN + WALL), SHELL_H / 2, Math.sin(a) * (R_IN + WALL));
+      rib.rotation.y = -a;
+      rib.castShadow = rib.receiveShadow = true;
+      g.add(rib);
+    }
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(R_IN + WALL + 0.4, 0.55, 8, 96), m.concrete);
+    ring.rotation.x = Math.PI / 2; ring.position.y = SHELL_H - 0.4;
+    ring.castShadow = true;
+    g.add(ring);
+    const plinthRing = new THREE.Mesh(new THREE.TorusGeometry(R_IN + WALL + 0.6, 0.8, 8, 96), m.concrete);
+    plinthRing.rotation.x = Math.PI / 2; plinthRing.position.y = 1.0;
+    g.add(plinthRing);
+
     // the rim of the cut, so the slice reads as deliberate
     const rimGeo = new THREE.TorusGeometry(R_IN + WALL / 2, WALL / 2, 8, 96);
     const rim = new THREE.Mesh(rimGeo, this.stage.mat.painted);
@@ -194,7 +213,7 @@ export class Unit {
     g.add(this.rpvShell);
 
     // the core barrel and the fuel standing in it
-    const bar = tube(2.6, 2.6, 12.0, this.stage.mat.dark, 32);
+    const bar = tube(2.15, 2.15, 12.0, this.stage.mat.dark, 32);
     bar.position.set(r.x, r.base + 7.2, r.z);
     bar.material = new THREE.MeshStandardMaterial({
       color: 0x2a333c, roughness: 0.7, metalness: 0.6, side: THREE.DoubleSide,
@@ -349,7 +368,11 @@ export class Unit {
 
     // one turbine on one shaft turning one generator
     this.turbine = new THREE.Group();
-    const cas = new THREE.Mesh(new THREE.CylinderGeometry(3.0, 3.9, 8, 40), this.stage.mat.painted);
+    const casMat = this.stage.mat.painted.clone();
+    casMat.side = THREE.DoubleSide;
+    // the top of the casing is lifted off, so you look down at the blades
+    casMat.clippingPlanes = [new THREE.Plane(new THREE.Vector3(0, -1, 0), 6.6)];
+    const cas = new THREE.Mesh(new THREE.CylinderGeometry(3.0, 3.9, 8, 40, 1, true), casMat);
     cas.rotation.z = Math.PI / 2;
     cas.position.set(t.x - 6, 5.4, t.z);
     cas.castShadow = true;

@@ -1,4 +1,4 @@
-# ☢ Passive vs Active Nuclear Cooling — an isometric accident simulator
+# Passive vs active nuclear cooling
 
 Two nuclear power stations, side by side, taken through the same accidents. One
 keeps its core cool with pumps and needs electricity to run them. The other uses
