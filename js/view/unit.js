@@ -623,7 +623,9 @@ export class Unit {
     this.gen.position.set(t.x + 1.2, AX, t.z);
     g.add(this.gen);
     for (let i = 0; i < 3; i++) {
-      const band = new THREE.Mesh(new THREE.BoxGeometry(0.4, 5.5, 5.5), this.stage.mat.dark);
+      // copper, because it is the one machine in the building whose job is
+      // electricity, and the bars leaving it are the same metal
+      const band = new THREE.Mesh(new THREE.BoxGeometry(0.4, 5.5, 5.5), this.stage.mat.copper);
       band.position.set(t.x - 0.6 + i * 1.8, AX, t.z);
       g.add(band);
     }
@@ -972,7 +974,8 @@ Object.assign(Unit.prototype, {
       vent: new Plume(140, 0xd6dee4, 34),
       breach: new Plume(200, 0xd2c6bc, 46),
       corium: new Plume(120, 0x8d7f74, 34),
-      air: new Plume(120, 0xa9d8ee, 30)
+      dump: new Plume(160, 0xc3d3de, 26),
+      air: new Plume(120, 0x9ed6f2, 26)
     };
     for (const k in this.plumes) this.root.add(this.plumes[k].points);
   },
@@ -1262,12 +1265,22 @@ Object.assign(Unit.prototype, {
     this.plumes.breach.step(dt, p.ctmtIntact ? 0 : 34,
       Math.sin(bA) * (R_IN + 1), 16, Math.cos(bA) * (R_IN + 1),
       { spread: 5, vy: 7, vx: 4, life: 6, grow: 4, alpha: 0.5, buoy: 1.4 });
+    // Steam the turbine is not taking has to go somewhere, and in a real plant
+    // it goes to atmosphere through the relief valves. Drawing it says where
+    // the water in the boiler is going.
+    this.plumes.dump.step(dt, (this.secondary.mdot || 0) > 1 && this.spin < 4 ? 34 : 0,
+      L.turb.x - 11, 20, L.turb.z,
+      { spread: 1.6, vy: 5.5, vx: 1.4, life: 3.0, grow: 2.2, alpha: 0.62, buoy: 1.2 });
     this.plumes.corium.step(dt, p.vesselBreach ? 20 : 0, L.rpv.x, 2.0, L.rpv.z,
       { spread: 5, vy: 4.5, vx: 1.6, life: 5, grow: 3.4, alpha: 0.34, buoy: 1.6 });
     // nothing steams out of a surface condenser: what leaves it is warm water
+    // Warm air off the outside of the steel shell. It is deliberately a faint
+    // blue shimmer and not a cloud: beside a station that is releasing caesium
+    // through a hole in its wall, a white plume over the safe one reads as the
+    // same thing happening twice.
     const pccs = st.sink === 'shell' ? 1 : clamp(st.s.pccs || 0, 0, 1);
-    this.plumes.air.step(dt, pccs > 0.06 ? 16 : 0, 0, SHELL_H + 4, 0,
-      { spread: 34, vy: 6, vx: 1, life: 4.5, grow: 2.4, alpha: 0.22 });
+    this.plumes.air.step(dt, pccs > 0.25 ? 9 : 0, 0, SHELL_H + 3, 0,
+      { spread: 30, vy: 5, vx: 0.8, life: 3.6, grow: 2.0, alpha: 0.13 });
   }
 });
 

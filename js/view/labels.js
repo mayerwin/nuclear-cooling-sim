@@ -57,6 +57,7 @@ export class Labels {
       add('turb', 'part', L.turb.x - 7, 12.5, L.turb.z, 'R');
       add('gen', 'part', L.turb.x + 1.5, 12, L.turb.z, 'R');
       add('vent', 'part', L.stack.x, L.stack.h + 1.5, L.stack.z, 'R');
+      add('sea', 'part', L.turb.x - 4, 4.2, L.turb.z - 4.5, 'R');
       add('power', 'part', L.turb.x + 13, 15.5, L.turb.z - 11, 'R');
       u.labels = set;
     }
@@ -109,10 +110,13 @@ export class Labels {
         + `<em>${p.scrammed
           ? `shut down, still making ${MW < 10 ? MW.toFixed(1) : Math.round(MW)} MW of heat`
           : `running, making ${Math.round(MW).toLocaleString('en-US')} MW of heat`}</em>`);
-      set('sg', `<b>Boiler</b><span>${st.sink === 'turbine' ? 'taking the heat away'
+      set('sg', `<b>Boiler</b><span>${st.sink === 'turbine'
+        ? (u.spin > 4 ? 'taking the heat away' : 'boiling the heat off')
         : st.sink === 'pool' ? 'not needed, the pool has it'
           : st.sink === 'shell' ? 'not needed, the shell has it' : 'not taking any heat'}</span>`
-        + '<em>two circuits, never mixing</em>');
+        + `<em>${st.sink === 'turbine' && u.spin <= 4
+          ? 'the steam is let straight out, and the water goes with it'
+          : 'two circuits, never mixing'}</em>`);
       const pumpTx = st.s.rcp
         ? (st.P ? 'the cooling needs no pump at all' : 'the cooling needs pumps like this')
         : (st.P ? (st.flow > 0 ? 'water still creeps round on its own, far slower'
@@ -154,6 +158,12 @@ export class Labels {
               : !st.live ? 'it needs electricity'
                 : !p.pumpsOk ? 'it cannot lift the water' : 'starts if the level falls'}</em>`);
       }
+      const cwOn = Math.abs(u.legCw ? u.legCw.v : 0) > 0.02;
+      set('sea', `<b>Sea water</b><span class="${cwOn || p.uhs ? '' : 'bad'}">${cwOn
+        ? 'carrying the heat away' : p.uhs ? 'standing still' : 'gone'}</span>`
+        + `<em>${cwOn ? 'through the condenser and back to the sea'
+          : p.uhs ? 'no steam to condense just now'
+            : 'the intake is lost, the heat has nowhere to go'}</em>`);
       const src = st.s.grid ? 'grid' : st.s.diesel ? 'diesels'
         : st.s.battery > 0 ? `batteries, ${(st.s.battery * p.batteryHours).toFixed(0)} h left` : 'none';
       set('power', `<b>Power</b><span class="${st.live ? 'power' : st.s.battery > 0 ? 'warn' : 'bad'}">${src}</span>`);
