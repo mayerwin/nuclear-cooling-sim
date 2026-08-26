@@ -29,8 +29,11 @@ export function build() {
     color: 0x5a5f66, roughness: 0.97, metalness: 0.02,
     clippingPlanes: CUT, clipIntersection: true, side: THREE.DoubleSide
   }));
+  // The inside face of the containment. A dark polished liner turns the whole
+  // interior into a cavern and the machinery in it into silhouettes, and the
+  // interior is the entire point of the picture.
   m.liner = new THREE.MeshStandardMaterial(P({
-    color: 0x8fa3b5, roughness: 0.38, metalness: 0.9,
+    color: 0xb9c6d0, roughness: 0.62, metalness: 0.28,
     clippingPlanes: CUT, clipIntersection: true, side: THREE.DoubleSide
   }));
   m.deck = new THREE.MeshStandardMaterial({ color: 0x4d545b, roughness: 0.92, metalness: 0.05 });
@@ -48,6 +51,12 @@ export function build() {
     side: THREE.DoubleSide, envMapIntensity: 1.4
   });
   m.glassHot = m.glass.clone(); m.glassHot.color = new THREE.Color(0xf0c6b4);
+
+  // The far half of a vessel that has had its near half taken off: steel,
+  // pale on the inside so the water and the fuel read against it.
+  m.shell = new THREE.MeshStandardMaterial({
+    color: 0x93a1ad, roughness: 0.42, metalness: 0.72, side: THREE.DoubleSide
+  });
 
   // Pipe casing, cut away like a museum model: only the far wall is drawn, so
   // you look straight down the bore at the water. A fully transparent tube

@@ -35,29 +35,29 @@ export class Labels {
     this.focus = 'both';
     for (const u of units) {
       const set = {};
-      const add = (key, cls, x, y, z, bias) => {
+      const add = (key, cls, x, y, z, side) => {
         const t = tag(cls);
         t.o.position.set(x, y, z);
         u.root.add(t.o);
         set[key] = t;
-        this.items.push({ u, key, bias: bias || [0, 0], ...t });
+        this.items.push({ u, key, side: side || 'L', ...t });
       };
-      // bias is where the caption prefers to sit relative to its anchor, in
-      // pixels, so that a name does not cover the thing it names.
-      add('title', 'title', 0, 50, 0, [0, -6]);
-      add('rpv', 'part', L.rpv.x + 1, 21, L.rpv.z + 3, [86, -50]);
-      add('sg', 'part', L.sg.x, 29, L.sg.z, [-96, -46]);
-      add('pump', 'part', L.rcp.x, 12.5, L.rcp.z + 2, [-88, 34]);
-      add('turb', 'part', L.turb.x - 7, 13.5, L.turb.z, [-10, -58]);
-      add('gen', 'part', L.turb.x + 1.5, 12, L.turb.z, [76, -34]);
+      // side is which margin the caption is parked in. Captions live in two
+      // columns down the edges of the picture and reach their part with a
+      // leader, because a plate sitting on the machine it names hides it.
+      add('title', 'title', 0, 50, 0, 'C');
+      add('sg', 'part', L.sg.x, 24, L.sg.z, 'L');
+      add('pump', 'part', L.rcp.x, 11.5, L.rcp.z + 2, 'L');
       add('store', 'part',
         u.passive ? L.pool.x : L.tank.x,
-        u.passive ? L.pool.y + 6.5 : 2.5,
-        u.passive ? L.pool.z : L.tank.z,
-        u.passive ? [0, -34] : [-40, 46]);
-      add('power', 'part', L.turb.x + 13, 15.5, L.turb.z - 11, [64, -30]);
-      if (!u.passive) add('eccs', 'part', L.eccs.x, 5.2, L.eccs.z, [-30, 44]);
-      add('vent', 'part', L.stack.x, L.stack.h + 1.5, L.stack.z, [46, -18]);
+        u.passive ? L.pool.y + 3.5 : 2.5,
+        u.passive ? L.pool.z : L.tank.z, 'L');
+      if (!u.passive) add('eccs', 'part', L.eccs.x, 5.2, L.eccs.z, 'L');
+      add('rpv', 'part', L.rpv.x + 1, 15, L.rpv.z + 3, 'R');
+      add('turb', 'part', L.turb.x - 7, 12.5, L.turb.z, 'R');
+      add('gen', 'part', L.turb.x + 1.5, 12, L.turb.z, 'R');
+      add('vent', 'part', L.stack.x, L.stack.h + 1.5, L.stack.z, 'R');
+      add('power', 'part', L.turb.x + 13, 15.5, L.turb.z - 11, 'R');
       u.labels = set;
     }
   }
@@ -163,57 +163,72 @@ export class Labels {
   }
 
   // ---- screen-space layout ------------------------------------------------
+  // Two columns down the edges of the free area, each caption at the height of
+  // the thing it names, pushed apart just enough not to touch, and joined to
+  // its part by a leader. Nothing lands on the machinery.
   layout() {
     const cam = this.stage.camera;
     const w = window.innerWidth, h = window.innerHeight;
     const R = this.freeRect();
-    const placed = [];
-    const live = [];
+    const narrow = R.x1 - R.x0 < 620;
+    const cols = { L: [], R: [], C: [] };
     for (const it of this.items) {
-      if (!it.o.visible || !it.u.root.visible) { it.box.style.opacity = '0'; continue; }
+      if (!it.o.visible || !it.u.root.visible) { it.box.style.opacity = '0'; it.lead.style.opacity = '0'; continue; }
       it.o.getWorldPosition(_v).project(cam);
-      if (_v.z < -1 || _v.z > 1) { it.box.style.opacity = '0'; continue; }
+      if (_v.z < -1 || _v.z > 1) { it.box.style.opacity = '0'; it.lead.style.opacity = '0'; continue; }
       it.sx = (_v.x * 0.5 + 0.5) * w;
       it.sy = (-_v.y * 0.5 + 0.5) * h;
       const r = it.box.getBoundingClientRect();
       it.bw = r.width || 120;
       it.bh = r.height || 34;
-      live.push(it);
+      cols[narrow && it.side === 'R' ? 'L' : it.side].push(it);
     }
-    // Titles first, then the rest from the top down, so the important one gets
-    // the spot it asked for and the others move round it.
-    live.sort((a, b) => (a.key === 'title' ? -1 : b.key === 'title' ? 1 : 0)
-      || (a.sy + a.bias[1]) - (b.sy + b.bias[1]));
-    for (const it of live) {
-      const hw = it.bw / 2, hh = it.bh / 2;
-      let px = it.sx + it.bias[0], py = it.sy + it.bias[1];
-      px = Math.min(Math.max(px, R.x0 + hw), Math.max(R.x0 + hw, R.x1 - hw));
-      py = Math.min(Math.max(py, R.y0 + hh), Math.max(R.y0 + hh, R.y1 - hh));
-      // push off anything already down, downwards first, upwards if there is
-      // no room left below
-      for (let pass = 0; pass < 24; pass++) {
-        let hit = null;
-        for (const q of placed) {
-          if (Math.abs(px - q.x) < hw + q.hw + 6 && Math.abs(py - q.y) < hh + q.hh + 5) { hit = q; break; }
-        }
-        if (!hit) break;
-        const down = hit.y + hit.hh + hh + 6;
-        const up = hit.y - hit.hh - hh - 6;
-        py = (down + hh <= R.y1) ? down : up;
-        py = Math.min(Math.max(py, R.y0 + hh), Math.max(R.y0 + hh, R.y1 - hh));
-      }
-      placed.push({ x: px, y: py, hw, hh });
+    const place = (it, px, py) => {
       const dx = px - it.sx, dy = py - it.sy;
       it.box.style.opacity = '1';
       it.box.style.transform = `translate(-50%,-50%) translate(${dx.toFixed(1)}px,${dy.toFixed(1)}px)`;
-      // the leader, so a caption that had to move still points at its part
       const d = Math.hypot(dx, dy);
-      if (d > 26) {
+      if (d > 30) {
         it.lead.style.opacity = '1';
-        it.lead.style.width = (d - 4) + 'px';
+        it.lead.style.width = (d - 6) + 'px';
         it.lead.style.transform = `rotate(${Math.atan2(dy, dx).toFixed(3)}rad)`;
       } else {
         it.lead.style.opacity = '0';
+      }
+    };
+    // the two titles keep the spot over their own building
+    let topY = R.y0;
+    for (const it of cols.C) {
+      const py = Math.max(R.y0 + it.bh / 2, Math.min(it.sy, R.y1 - it.bh / 2));
+      place(it, Math.min(Math.max(it.sx, R.x0 + it.bw / 2), R.x1 - it.bw / 2), py);
+      topY = Math.max(topY, py + it.bh / 2 + 10);
+    }
+    for (const side of ['L', 'R']) {
+      const list = cols[side];
+      if (!list.length) continue;
+      list.sort((a, b) => a.sy - b.sy);
+      const gap = 9;
+      // first pass: everyone at the height of their own part, in order
+      let y = topY;
+      for (const it of list) {
+        y = Math.max(y + it.bh / 2, it.sy);
+        it.py = y;
+        y += it.bh / 2 + gap;
+      }
+      // if that runs off the bottom, pull the whole column back up
+      const over = (list[list.length - 1].py + list[list.length - 1].bh / 2) - R.y1;
+      if (over > 0) {
+        let yy = R.y1;
+        for (let i = list.length - 1; i >= 0; i--) {
+          const it = list[i];
+          yy = Math.min(yy - it.bh / 2, it.py);
+          it.py = Math.max(yy, topY + it.bh / 2);
+          yy -= it.bh / 2 + gap;
+        }
+      }
+      for (const it of list) {
+        const px = side === 'L' ? R.x0 + it.bw / 2 : R.x1 - it.bw / 2;
+        place(it, px, it.py);
       }
     }
   }

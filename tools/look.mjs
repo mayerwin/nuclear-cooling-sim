@@ -33,30 +33,39 @@ const CAMS = {
   pump:   { t: [A - 6, 9.5, 6.5], d: 13, a: 1.05, e: 0.18 },
   rpv:    { t: [A + 5.5, 9, 5], d: 20, a: 0.85, e: 0.16 },
   core:   { t: [A + 5.5, 7, 5], d: 12, a: 0.85, e: 0.10 },
-  sg:     { t: [A - 6.5, 13, -5.5], d: 22, a: 0.80, e: 0.18 },
+  sg:     { t: [A - 6.5, 11, -5.5], d: 30, a: 1.00, e: 0.22 },
   steam:  { t: [A + 14, 20, 0], d: 38, a: 1.0, e: 0.20 },
-  turbine:{ t: [A + 22, 9, 6], d: 22, a: 1.15, e: 0.20 },
+  turbine:{ t: [A + 22, 8, 6], d: 34, a: 1.15, e: 0.20 },
   power:  { t: [A + 38, 9, -4], d: 30, a: 1.25, e: 0.22 },
   unit:   { t: [A + 6, 16, 0], d: 66, a: 1.02, e: 0.24 },
-  pool:   { t: [B + 3.5, 23, -9], d: 24, a: 1.0, e: 0.26 },
+  pool:   { t: [B + 3.5, 22, -9], d: 44, a: 1.0, e: 0.26 },
   prhr:   { t: [B + 1, 18, -2], d: 34, a: 1.0, e: 0.26 },
   passive:{ t: [B + 6, 16, 0], d: 66, a: 1.02, e: 0.24 },
   breach: { t: [A, 16, 12], d: 58, a: 1.55, e: 0.28 },
   floor:  { t: [A + 5.5, 3, 5], d: 18, a: 0.95, e: 0.12 }
 };
 
+// The three shots the app itself frames: no camera override, just the button.
+const FOCUS = { focusA: 'active', focusB: 'passive', focusAB: 'both' };
+if (FOCUS[shot]) {
+  await page.evaluate((f) => document.querySelector(`[data-focus=${f}]`).click(), FOCUS[shot]);
+  await page.waitForTimeout(4000);
+}
 const c = CAMS[shot] || CAMS.loop;
-await page.evaluate((c) => {
-  const s = window.__stage, T = window.__THREE;
+if (!FOCUS[shot]) await page.evaluate((c) => {
+  const s = window.__stage;
   s.want = null;
+  s.controls.minDistance = 0.5;   // the app clamps to 40; a close look needs closer
   s.controls.target.set(c.t[0], c.t[1], c.t[2]);
   const dir = [Math.cos(c.a) * Math.cos(c.e), Math.sin(c.e), Math.sin(c.a) * Math.cos(c.e)];
   s.camera.position.set(c.t[0] + dir[0] * c.d, c.t[1] + dir[1] * c.d, c.t[2] + dir[2] * c.d);
   s.controls.update();
 }, c);
 if (process.env.NOBLOOM) await page.evaluate(() => { window.__stage.bloom.enabled = false; });
-await page.waitForTimeout(2500);
-await page.screenshot({ path: `${out}/${shot}${scen ? '-' + scen : ''}.png`, timeout: 180000, animations: 'disabled' });
+// Software rendering: a close, busy frame can take many seconds, and a
+// screenshot taken before the first one lands comes back empty.
+await page.waitForTimeout(Number(process.env.SETTLE || 9000));
+await page.screenshot({ path: `${out}/${shot}${scen ? '-' + scen : ''}.png`, timeout: 180000 });
 if (errs.length) console.log(errs.slice(0, 6).join('\n'));
 console.log(`${out}/${shot}${scen ? '-' + scen : ''}.png`);
 await browser.close();
