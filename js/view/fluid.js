@@ -1,0 +1,263 @@
+// ---------------------------------------------------------------------------
+// fluid.js - what the water actually looks like.
+//
+// The liquid is a real refractive body, not a coloured line. It is a solid of
+// revolution filling the bore, given to Three's MeshPhysicalMaterial with
+// transmission, an index of refraction of 1.333 and an attenuation colour, so
+// the renderer bends the background through it the way water does. On top of
+// that goes a tiling normal map that scrolls at the leg's own velocity in
+// metres per second, and a string of instanced bubbles carried along at the
+// same speed, so you can see how fast it is going and which way.
+// ---------------------------------------------------------------------------
+import * as THREE from 'three';
+
+// --- tiling normal maps -----------------------------------------------------
+// Sum of sines on integer frequencies, so the pattern wraps exactly. Central
+// differences turn the height field into a normal map.
+function normalMap(N, waves, strength) {
+  const h = new Float32Array(N * N);
+  for (const w of waves) {
+    const [fx, fy, amp, ph] = w;
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        h[y * N + x] += amp * Math.sin(2 * Math.PI * (fx * x / N + fy * y / N) + ph);
+      }
+    }
+  }
+  const data = new Uint8Array(N * N * 4);
+  const at = (x, y) => h[((y + N) % N) * N + ((x + N) % N)];
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const dx = (at(x + 1, y) - at(x - 1, y)) * strength;
+      const dy = (at(x, y + 1) - at(x, y - 1)) * strength;
+      let nx = -dx, ny = -dy, nz = 1;
+      const inv = 1 / Math.hypot(nx, ny, nz);
+      const i = (y * N + x) * 4;
+      data[i] = (nx * inv * 0.5 + 0.5) * 255;
+      data[i + 1] = (ny * inv * 0.5 + 0.5) * 255;
+      data[i + 2] = (nz * inv * 0.5 + 0.5) * 255;
+      data[i + 3] = 255;
+    }
+  }
+  const t = new THREE.DataTexture(data, N, N, THREE.RGBAFormat);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.magFilter = THREE.LinearFilter;
+  t.generateMipmaps = true;
+  t.needsUpdate = true;
+  return t;
+}
+
+// A deterministic little generator, so the same pattern comes out every load.
+function rnd(seed) {
+  let s = seed >>> 0;
+  return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+}
+
+let FLOW = null, RIPPLE = null;
+
+// Streamwise: features stretched along the pipe, because that is how water
+// moving down a bore actually looks.
+export function flowNormal() {
+  if (!FLOW) {
+    const r = rnd(20110311), waves = [];
+    for (let i = 0; i < 9; i++) {
+      waves.push([1 + ((r() * 3) | 0), 2 + ((r() * 7) | 0),
+        (0.5 + r() * 0.5) / (1 + i * 0.55), r() * 6.283]);
+    }
+    FLOW = normalMap(256, waves, 5.5);
+  }
+  return FLOW;
+}
+
+// Isotropic: a free surface with wind on it.
+export function rippleNormal() {
+  if (!RIPPLE) {
+    const r = rnd(19790328), waves = [];
+    for (let i = 0; i < 10; i++) {
+      waves.push([1 + ((r() * 6) | 0), 1 + ((r() * 6) | 0),
+        (0.5 + r() * 0.5) / (1 + i * 0.5), r() * 6.283]);
+    }
+    RIPPLE = normalMap(256, waves, 4.5);
+  }
+  return RIPPLE;
+}
+
+// --- the liquid itself ------------------------------------------------------
+export const LIQUID = { COLD: 0x1f6fa8, HOT: 0xd8571e, STEAM: 0xdcecf8 };
+
+// One material per pipe: they scroll at different speeds, so they cannot share.
+export function liquidMaterial(dia) {
+  const n = flowNormal().clone();
+  n.needsUpdate = true;
+  return new THREE.MeshPhysicalMaterial({
+    color: 0xffffff,
+    roughness: 0.045,
+    metalness: 0,
+    transmission: 1,
+    ior: 1.333,
+    thickness: dia * 0.9,
+    attenuationColor: new THREE.Color(LIQUID.COLD),
+    attenuationDistance: dia * 2.4,
+    normalMap: n,
+    normalScale: new THREE.Vector2(0.42, 0.42),
+    clearcoat: 1,
+    clearcoatRoughness: 0.05,
+    emissive: new THREE.Color(0x081d33),
+    emissiveIntensity: 0.3,
+    transparent: true,
+    opacity: 1,
+    side: THREE.DoubleSide,
+    depthWrite: true
+  });
+}
+
+export function surfaceMaterial(depth = 4) {
+  const n = rippleNormal().clone();
+  n.needsUpdate = true;
+  return new THREE.MeshPhysicalMaterial({
+    color: 0xffffff, roughness: 0.05, metalness: 0, transmission: 1,
+    ior: 1.333, thickness: depth * 0.22,
+    attenuationColor: new THREE.Color(LIQUID.COLD), attenuationDistance: depth * 2.6,
+    normalMap: n, normalScale: new THREE.Vector2(0.16, 0.16),
+    clearcoat: 0.3, clearcoatRoughness: 0.08,
+    emissive: new THREE.Color(0x08243d), emissiveIntensity: 0.12,
+    transparent: true, side: THREE.DoubleSide
+  });
+}
+
+// --- bubbles ----------------------------------------------------------------
+// Air carried in the stream. They are what makes the speed legible: the tint of
+// a moving liquid tells you nothing, a bubble going past tells you everything.
+const BUBBLE_GEO = new THREE.IcosahedronGeometry(1, 1);
+
+export class Bubbles {
+  // frame: {pts, nrm, bnm} sampled along the pipe centreline.
+  constructor(frame, radius, count, material) {
+    this.frame = frame;
+    this.mesh = new THREE.InstancedMesh(BUBBLE_GEO, material, count);
+    this.mesh.frustumCulled = false;
+    this.mesh.castShadow = false;
+    this.mesh.receiveShadow = false;
+    this.u = new Float32Array(count);
+    this.r = new Float32Array(count);
+    this.th = new Float32Array(count);
+    this.sz = new Float32Array(count);
+    this.wob = new Float32Array(count);
+    const g = rnd(count * 7919 + 13);
+    for (let i = 0; i < count; i++) {
+      this.u[i] = g();
+      this.r[i] = Math.sqrt(g()) * radius * 1.9;
+      this.th[i] = g() * 6.283;
+      this.sz[i] = radius * (0.28 + g() * 0.62);
+      this.wob[i] = (g() - 0.5) * 2.4;
+    }
+    this._m = new THREE.Matrix4();
+    this._p = new THREE.Vector3();
+    this._q = new THREE.Quaternion();
+    this._s = new THREE.Vector3();
+  }
+
+  // len is the pipe length in metres, v the velocity in metres per second.
+  advance(dt, v, len, scale = 1) {
+    const f = this.frame, n = f.pts.length;
+    const du = (v * dt) / Math.max(0.001, len);
+    for (let i = 0; i < this.u.length; i++) {
+      let u = this.u[i] + du;
+      u -= Math.floor(u);
+      this.u[i] = u;
+      this.th[i] += this.wob[i] * dt;
+      const t = u * (n - 1);
+      const j = Math.min(n - 2, t | 0), fr = t - j;
+      this._p.copy(f.pts[j]).lerp(f.pts[j + 1], fr);
+      const rr = this.r[i];
+      this._p.addScaledVector(f.nrm[j], Math.cos(this.th[i]) * rr)
+        .addScaledVector(f.bnm[j], Math.sin(this.th[i]) * rr);
+      const s = this.sz[i] * scale;
+      this._s.set(s, s, s);
+      this._m.compose(this._p, this._q, this._s);
+      this.mesh.setMatrixAt(i, this._m);
+    }
+    this.mesh.instanceMatrix.needsUpdate = true;
+  }
+}
+
+// Sample a curve into points plus a stable perpendicular frame, once, at build
+// time. Doing this per frame is what makes particle trails cost money.
+export function frameOf(path, n = 220) {
+  const pts = path.getSpacedPoints(n);
+  const nrm = [], bnm = [];
+  const up = new THREE.Vector3(0, 1, 0), alt = new THREE.Vector3(1, 0, 0);
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+    const t = b.clone().sub(a).normalize();
+    const ref = Math.abs(t.y) > 0.92 ? alt : up;
+    const nv = new THREE.Vector3().crossVectors(t, ref).normalize();
+    const bv = new THREE.Vector3().crossVectors(t, nv).normalize();
+    nrm.push(nv); bnm.push(bv);
+  }
+  return { pts, nrm, bnm };
+}
+
+// Bubbles are small and there are a lot of them, so they get a cheap material
+// rather than another refractive body: a bright shell with a hard highlight,
+// which is what a bubble in water looks like at this size anyway.
+export function bubbleMaterial() {
+  return new THREE.MeshStandardMaterial({
+    color: 0xeaf6ff, roughness: 0.06, metalness: 0.1,
+    transparent: true, opacity: 0.5,
+    emissive: new THREE.Color(0x9fd0ee), emissiveIntensity: 0.35,
+    depthWrite: false
+  });
+}
+
+// --- bubbles rising in a body of water --------------------------------------
+// A column of water with nothing moving in it is a block of blue plastic. Heat
+// it and it should fizz.
+export class Riser {
+  constructor(radius, count, material) {
+    this.mesh = new THREE.InstancedMesh(BUBBLE_GEO, material, count);
+    this.mesh.frustumCulled = false;
+    this.n = count;
+    this.x = new Float32Array(count);
+    this.z = new Float32Array(count);
+    this.y = new Float32Array(count);
+    this.sz = new Float32Array(count);
+    this.sp = new Float32Array(count);
+    const g = rnd(count * 104729 + 7);
+    for (let i = 0; i < count; i++) {
+      const a = g() * 6.283, r = Math.sqrt(g()) * radius;
+      this.x[i] = Math.cos(a) * r; this.z[i] = Math.sin(a) * r;
+      this.y[i] = g();
+      this.sz[i] = 0.05 + g() * 0.16;
+      this.sp[i] = 0.5 + g() * 0.9;
+    }
+    this._m = new THREE.Matrix4();
+    this._p = new THREE.Vector3();
+    this._q = new THREE.Quaternion();
+    this._s = new THREE.Vector3();
+  }
+
+  // base is the floor of the water, height how deep it is, rate how hard it is
+  // boiling from 0 to 1.
+  step(dt, base, height, rate, cx = 0, cz = 0, scale = 1) {
+    const on = rate > 0.005;
+    this.mesh.visible = on;
+    if (!on) return;
+    const t = performance.now() * 0.001;
+    for (let i = 0; i < this.n; i++) {
+      this.y[i] += dt * this.sp[i] * (0.35 + rate * 1.9) / Math.max(0.5, height);
+      if (this.y[i] > 1) this.y[i] -= 1;
+      const yy = base + this.y[i] * height;
+      // a bubble wanders as it climbs
+      const w = Math.sin(t * 1.7 + i) * 0.12 * (1 - this.y[i] * 0.4);
+      this._p.set(cx + this.x[i] + w, yy, cz + this.z[i] + w * 0.7);
+      // and grows as the pressure over it drops
+      const sc = this.sz[i] * (0.55 + this.y[i] * 0.9) * scale * (0.4 + rate * 0.9);
+      this._s.set(sc, sc, sc);
+      this._m.compose(this._p, this._q, this._s);
+      this.mesh.setMatrixAt(i, this._m);
+    }
+    this.mesh.instanceMatrix.needsUpdate = true;
+  }
+}

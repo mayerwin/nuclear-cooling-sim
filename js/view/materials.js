@@ -2,6 +2,7 @@
 // materials.js - one place where every surface in the plant is defined.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
+import { surfaceMaterial, bubbleMaterial } from './fluid.js';
 
 export const CUT = [
   new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0),
@@ -48,21 +49,24 @@ export function build() {
   });
   m.glassHot = m.glass.clone(); m.glassHot.color = new THREE.Color(0xf0c6b4);
 
-  // Pipe casing: see-through, so what is in the pipe is water rather than a
-  // line that means water.
-  m.pipe = new THREE.MeshPhysicalMaterial({
-    color: 0xbfcad6, roughness: 0.18, metalness: 0.35, transmission: 0.72,
-    thickness: 0.5, ior: 1.3, transparent: true, side: THREE.DoubleSide,
-    envMapIntensity: 1.2
+  // Pipe casing, cut away like a museum model: only the far wall is drawn, so
+  // you look straight down the bore at the water. A fully transparent tube
+  // washes out into whatever is behind it and the water disappears with it.
+  m.pipe = new THREE.MeshStandardMaterial({
+    color: 0x9fb0bf, roughness: 0.52, metalness: 0.25,
+    side: THREE.BackSide, envMapIntensity: 0.7
+  });
+  // The outside of the pipe, so it still reads as a manufactured object: a
+  // ring every few metres where a real run would have a flange.
+  m.flange = new THREE.MeshStandardMaterial({
+    color: 0x8b98a4, roughness: 0.42, metalness: 0.7
   });
 
-  m.water = new THREE.MeshPhysicalMaterial({
-    color: 0x2b8fd8, roughness: 0.08, metalness: 0.0, transmission: 0.55,
-    thickness: 2.5, ior: 1.33, transparent: true, side: THREE.DoubleSide,
-    emissive: 0x0b3a63, emissiveIntensity: 0.35
-  });
-  m.poolWater = m.water.clone();
-  m.poolWater.transmission = 0.5;
+  // Free surfaces: the same refractive body as the pipes, with an isotropic
+  // ripple on it instead of a streamwise one.
+  m.water = surfaceMaterial(5);
+  m.poolWater = surfaceMaterial(4);
+  m.bubble = bubbleMaterial();
 
   m.fuel = new THREE.MeshStandardMaterial({
     color: 0x6f7d88, roughness: 0.6, metalness: 0.5,

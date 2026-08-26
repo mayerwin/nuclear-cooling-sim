@@ -79,7 +79,7 @@ export function fmtTime(sec) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 export function fmtNum(v, unit = '', dec = 0) {
-  if (!isFinite(v)) return '—';
+  if (!isFinite(v)) return '-';
   const abs = Math.abs(v);
   let s;
   if (abs >= 1e9) s = (v / 1e9).toFixed(2) + 'G';

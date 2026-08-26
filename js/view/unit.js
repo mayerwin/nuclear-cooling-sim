@@ -8,6 +8,7 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js';
+import { liquidMaterial, Riser } from './fluid.js';
 import { tempColor, waterColor, heatOf } from './materials.js';
 import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js';
 import { Machines } from '../machines.js';
@@ -22,10 +23,10 @@ export const L = {
   sg:   { x: -6.5, z: -5.5 },
   rcp:  { x: -6.0, z: 6.5 },
   pool: { x: 3.5, z: -9.0, w: 9, d: 9, h: 5, y: 21 },
-  turb: { x: 36, z: 6 },
-  tank: { x: -26, z: 28, w: 15, d: 9, h: 6 },
-  eccs: { x: -12, z: 33 },
-  stack:{ x: 24, z: -24, h: 44 }
+  turb: { x: 30, z: 6 },
+  tank: { x: -23, z: 24, w: 15, d: 9, h: 6 },
+  eccs: { x: -12, z: 27 },
+  stack:{ x: 21, z: -20, h: 40 }
 };
 const HOT_Y = 13.0, COLD_Y = 8.2, SG_IN = 17.0, SG_OUT = 8.0;
 const W_LO = L.rpv.base + 1.0, W_HI = L.rpv.base + 12.2;
@@ -42,6 +43,27 @@ const SG_PROFILE = [
   [0, 0], [1.4, 0.2], [2.4, 1.2], [2.7, 2.7], [2.7, 12.0],
   [3.1, 14.2], [4.0, 16.6], [4.0, 22.0], [3.4, 23.6], [1.8, 24.6], [0, 25.1]
 ];
+
+// A body of water takes its colour from what the light loses on the way
+// through it, not from a coat of paint on the outside. Its surface ripples
+// drift, because still water in a lit room never looks perfectly still.
+function ownWater(src) {
+  const c = src.clone();
+  c.normalMap = src.normalMap.clone();
+  c.normalMap.needsUpdate = true;
+  c.normalMap.repeat.set(7, 7);
+  return c;
+}
+const WHITE = new THREE.Color(0xffffff);
+function tintWater(mat, colour, dt) {
+  mat.attenuationColor.copy(colour);
+  // Three multiplies the refracted light by the base colour as well as by the
+  // attenuation, and the base colour is what actually carries at this scale.
+  mat.color.copy(colour).lerp(WHITE, 0.62);
+  mat.normalMap.offset.x += dt * 0.035;
+  mat.normalMap.offset.y += dt * 0.021;
+  mat.emissive.copy(colour).multiplyScalar(0.14);
+}
 
 export class Unit {
   constructor(plant, stage, worldX) {
@@ -64,11 +86,16 @@ export class Unit {
       return c;
     };
     this.m = {
+      // Only the building shell takes the wedge. The wedge is a hole in the
+      // wall so you can see in; it is not a saw through everything standing
+      // inside, and a pipe or a body of water that stops in mid air reads as
+      // broken rather than as opened up.
       concrete: clip(m.concrete), inner: clip(m.concreteInner), liner: clip(m.liner),
-      glass: clip(m.glass), glassHot: clip(m.glassHot), water: clip(m.water),
-      pipe: clip(m.pipe), fuel: clip(m.fuel),
+      glass: m.glass, glassHot: m.glassHot, water: m.water,
+      pipe: m.pipe, fuel: m.fuel,
       steel: m.steel, painted: m.painted, deck: m.deck, dark: m.dark,
-      poolWater: m.poolWater.clone(), copper: m.copper, rail: m.rail, lamp: m.lamp.clone()
+      poolWater: ownWater(m.poolWater), copper: m.copper, rail: m.rail, lamp: m.lamp.clone(),
+      bubble: m.bubble, flange: m.flange
     };
     // Vessels are cut in half on their own axis, not by the building's wedge.
     const halfPlane = (x, z) => {
@@ -85,6 +112,13 @@ export class Unit {
     this.buildLoop();
     this.buildSteamSide();
     this.buildSafety();
+
+    this.riseCore = new Riser(2.1, 90, stage.mat.bubble);
+    this.root.add(this.riseCore.mesh);
+    this.riseSg = new Riser(2.2, 70, stage.mat.bubble);
+    this.root.add(this.riseSg.mesh);
+    this.risePool = new Riser(3.4, 70, stage.mat.bubble);
+    this.root.add(this.risePool.mesh);
 
     this.surfCore = new Surface(30, { c: 3.4, damp: 1.4 });
     this.surfSg = new Surface(22, { c: 3.0, damp: 1.6 });
@@ -109,9 +143,10 @@ export class Unit {
     // The wall is built in bands so that one sector of the middle band can be
     // taken out when the containment fails. A colour change is not damage; a
     // hole is.
-    // On the far wall, so you see it through the opening with the night
-    // behind it. A hole against a lit wall reads as more wall.
-    const bA = 4.2, halfW = 0.62;
+    // In the quarter facing the viewer that the cutaway leaves standing, so
+    // when the containment goes you are looking straight at the hole. A breach
+    // on the far wall is a breach nobody sees.
+    const bA = 5.5, halfW = 0.75;
     const band = (r, y0, y1, mat, t0, tl) => {
       const mesh = new THREE.Mesh(
         new THREE.CylinderGeometry(r, r, y1 - y0, 72, 1, true, t0, tl), mat);
@@ -179,8 +214,9 @@ export class Unit {
       const a = (i / 28) * Math.PI * 2;
       if (a > bA - halfW && a < bA + halfW) continue;
       const rib = new THREE.Mesh(new THREE.BoxGeometry(0.55, SHELL_H, 1.5), m.concrete);
-      rib.position.set(Math.cos(a) * (R_IN + WALL), SHELL_H / 2, Math.sin(a) * (R_IN + WALL));
-      rib.rotation.y = -a;
+      // same angle convention as the wall bands: theta 0 is +z, turning to +x
+      rib.position.set(Math.sin(a) * (R_IN + WALL), SHELL_H / 2, Math.cos(a) * (R_IN + WALL));
+      rib.rotation.y = a;
       rib.castShadow = rib.receiveShadow = true;
       g.add(rib);
     }
@@ -244,7 +280,7 @@ export class Unit {
     const bar = tube(2.15, 2.15, 12.0, this.stage.mat.dark, 32);
     bar.position.set(r.x, r.base + 7.2, r.z);
     bar.material = new THREE.MeshStandardMaterial({
-      color: 0x2a333c, roughness: 0.7, metalness: 0.6, side: THREE.DoubleSide,
+      color: 0x7b8896, roughness: 0.5, metalness: 0.6, side: THREE.FrontSide,
       clippingPlanes: this.mHalfRpv.clippingPlanes
     });
     g.add(bar);
@@ -274,7 +310,9 @@ export class Unit {
 
     // the water, and its free surface
     this.coreWater = tube(2.94, 2.94, 1, m.water, 48);
-    this.coreWater.material = m.water.clone();
+    // The water is cut on the same plane as the vessel, so you look straight in
+    // at the fuel standing in it rather than through five metres of blue.
+    this.coreWater.material = ownWater(m.water);
     this.coreWater.material.clippingPlanes = this.mHalfRpv.clippingPlanes;
     g.add(this.coreWater);
     this.coreTop = new THREE.Mesh(new THREE.CircleGeometry(2.94, 48, 0, Math.PI * 2)
@@ -290,9 +328,8 @@ export class Unit {
     this.sgShell.position.set(s.x, 2.0, s.z);
     g.add(this.sgShell);
     this.sgWater = tube(2.5, 2.5, 1, m.water, 40);
-    this.sgWater.material = m.water.clone();
+    this.sgWater.material = ownWater(m.water);
     this.sgWater.material.clippingPlanes = this.mHalfSg.clippingPlanes;
-    this.sgWater.material.color.set(0x2f9ad8);
     g.add(this.sgWater);
     this.sgTop = new THREE.Mesh(new THREE.CircleGeometry(2.5, 40).rotateX(-Math.PI / 2),
       this.sgWater.material);
@@ -332,10 +369,17 @@ export class Unit {
     this.impeller.add(new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.5, 16), vaneMat));
     this.impeller.position.set(p.x, COLD_Y, p.z);
     g.add(this.impeller);
+    // The volute is full of water, and the impeller turns in it. A pump that
+    // shows a dry impeller is a fan.
+    this.pumpWater = tube(1.72, 1.72, 2.0, liquidMaterial(1.7), 40);
+    this.pumpWater.material.normalMap.repeat.set(6, 2);
+    // shallow enough to see the impeller turning in it
+    this.pumpWater.material.attenuationDistance = 9;
+    this.pumpWater.position.set(p.x, COLD_Y, p.z);
+    g.add(this.pumpWater);
     const casing = tube(1.9, 1.9, 2.2, null, 40);
-    casing.material = new THREE.MeshPhysicalMaterial({
-      color: 0xc9d5df, roughness: 0.12, metalness: 0.2, transmission: 0.86,
-      thickness: 0.6, ior: 1.3, transparent: true, side: THREE.DoubleSide });
+    casing.material = new THREE.MeshStandardMaterial({
+      color: 0xa8b6c2, roughness: 0.45, metalness: 0.4, side: THREE.BackSide });
     casing.position.set(p.x, COLD_Y, p.z);
     g.add(casing);
     this.pumpCase.visible = false;
@@ -399,10 +443,10 @@ export class Unit {
     const casMat = this.stage.mat.painted.clone();
     casMat.side = THREE.DoubleSide;
     // the top of the casing is lifted off, so you look down at the blades
-    casMat.clippingPlanes = [new THREE.Plane(new THREE.Vector3(0, -1, 0), 6.6)];
+    casMat.clippingPlanes = [new THREE.Plane(new THREE.Vector3(0, -1, 0), 9.6)];
     const cas = new THREE.Mesh(new THREE.CylinderGeometry(3.0, 3.9, 8, 40, 1, true), casMat);
     cas.rotation.z = Math.PI / 2;
-    cas.position.set(t.x - 6, 5.4, t.z);
+    cas.position.set(t.x - 6, 8.4, t.z);
     cas.castShadow = true;
     g.add(cas);
     this.rotor = new THREE.Group();
@@ -416,20 +460,20 @@ export class Unit {
     }
     this.rotor.add(new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.9, 20)
       .rotateZ(Math.PI / 2), bladeMat));
-    this.rotor.position.set(t.x - 1.6, 5.4, t.z);
+    this.rotor.position.set(t.x - 1.6, 8.4, t.z);
     g.add(this.rotor);
 
     const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 22, 20)
       .rotateZ(Math.PI / 2), this.stage.mat.steel);
-    shaft.position.set(t.x + 1, 5.4, t.z);
+    shaft.position.set(t.x + 1, 8.4, t.z);
     g.add(shaft);
 
     this.gen = slab(9, 6, 6, this.stage.mat.painted);
-    this.gen.position.set(t.x + 8, 5.4, t.z);
+    this.gen.position.set(t.x + 8, 8.4, t.z);
     g.add(this.gen);
     for (let i = 0; i < 4; i++) {
       const band = new THREE.Mesh(new THREE.BoxGeometry(0.5, 6.3, 6.3), this.stage.mat.copper);
-      band.position.set(t.x + 5 + i * 2, 5.4, t.z);
+      band.position.set(t.x + 5 + i * 2, 8.4, t.z);
       g.add(band);
     }
     this.cond = slab(9, 5, 9, this.stage.mat.dark);
@@ -450,12 +494,25 @@ export class Unit {
       g.add(arm);
     }
 
+    // Boiler, over the containment, down beside the turbine hall and in
+    // through the end of the casing. It has to arrive somewhere or the steam
+    // is going nowhere.
     this.steam = pipe([
       V(s.x, 2 + 24.0, s.z), V(s.x, 28, s.z), V(s.x, 28, s.z - 8),
-      V(t.x - 10, 28, s.z - 8), V(t.x - 10, 28, t.z), V(t.x - 10, 9.2, t.z)
+      V(t.x - 14, 28, s.z - 8), V(t.x - 14, 28, t.z), V(t.x - 14, 8.4, t.z),
+      V(t.x - 10.4, 8.4, t.z)
     ], 1.2, m, { bend: 3.0 });
     this.steam.leg = this.legSteam;
     g.add(this.steam.group);
+
+    // What comes out of the turbine has to go somewhere: down the neck into
+    // the condenser, where it turns back into water.
+    this.legExh = new Leg('to the condenser', 2.6, 1, { rho: 12, kind: 'steam' });
+    this.exh = pipe([
+      V(t.x - 6, 6.0, t.z), V(t.x - 6, 2.0, t.z)
+    ], 2.6, m, { bend: 0.8 });
+    this.exh.leg = this.legExh;
+    g.add(this.exh.group);
 
     this.feed = pipe([
       V(t.x - 6, -1.0, t.z + 4.6), V(t.x - 6, 1.4, t.z + 9),
@@ -464,7 +521,8 @@ export class Unit {
     ], 0.7, m, { bend: 2.2 });
     this.feed.leg = this.legFeed;
     g.add(this.feed.group);
-    this.pipes.push(this.steam, this.feed);
+    this.secondary.legs.push(this.legExh);
+    this.pipes.push(this.steam, this.exh, this.feed);
 
     // the stack the containment can be vented through
     const st = L.stack;
@@ -644,6 +702,9 @@ Object.assign(Unit.prototype, {
       auxTarget: 22
     });
     this.impeller.rotation.y = this.mach.impeller.angle;
+    // the water in the volute is dragged round with the impeller
+    this.pumpWater.material.normalMap.offset.x = this.mach.impeller.angle / 6.283;
+    tintWater(this.pumpWater.material, waterColor(heatOf(p.Tclad) - 0.16, new THREE.Color()), 0);
     this.rotor.rotation.x = this.mach.shaft.angle;
     this.spin = Math.abs(this.mach.shaft.speed);
 
@@ -655,21 +716,50 @@ Object.assign(Unit.prototype, {
     for (const q of this.pipes) {
       const leg = q.leg;
       if (!leg) continue;
-      q.tex.offset.x -= leg.v * dt / 3.2;
-      const moving = Math.abs(leg.v) > 0.02;
+      const v = leg.v;
+      const moving = Math.abs(v) > 0.02;
+      const mat = q.mat;
+      // The ripples on the liquid travel with it, at the leg's real velocity.
+      mat.normalMap.offset.x -= v * dt / 2.4;
+      // and so do the bubbles in it
+      // In steam the carried droplets are the whole story, so they are drawn
+      // big; in water they are bubbles and stay small.
+      q.bub.advance(dt, v, q.len, moving ? (leg.kind === 'steam' ? 2.6 : 1) : 0.0001);
+      q.bub.mesh.visible = moving;
+
       if (leg.kind === 'steam') {
-        q.tint.color.setHex(0xffffff);
-        q.tint.emissive.setHex(0xdff0ff);
-        q.tint.emissiveIntensity = moving ? 1.1 : 0.12;
-        q.tint.opacity = 1;
+        // Vapour: it scatters instead of refracting, so it goes pale and rough
+        // and you see the droplets it is dragging along rather than a body.
+        // Vapour does not refract, it scatters. Clear glass with white
+        // attenuation is invisible; what reads as steam is a pale translucent
+        // body with fast structure running through it.
+        mat.attenuationColor.setHex(0xffffff);
+        mat.color.setHex(0xf6fbff);
+        mat.attenuationDistance = 60;
+        mat.transmission = 0.12;
+        mat.roughness = 0.85;
+        mat.thickness = q.dia * 0.15;
+        mat.ior = 1.02;
+        mat.opacity = moving ? 0.82 : 0.1;
+        mat.emissive.setHex(0xa9d3f2);
+        mat.emissiveIntensity = moving ? 0.85 : 0.04;
+        mat.normalScale.set(1.1, 1.1);
       } else {
         const u = leg.name === 'feedwater' || leg.name === 'back from the pool'
           || leg.name === 'suction' || leg.name === 'injection' || leg.name === 'gravity'
           ? 0.06 : leg.name === 'cold leg' ? heat - 0.16 : heat;
         waterColor(u, cTmp);
-        q.tint.color.copy(cTmp);
-        q.tint.emissive.copy(cTmp);
-        q.tint.emissiveIntensity = moving ? 0.55 : 0.16;
+        mat.attenuationColor.copy(cTmp);
+        mat.color.copy(cTmp).lerp(WHITE, 0.25);
+        mat.transmission = 1;
+        mat.attenuationDistance = q.dia * 2.4;
+        mat.roughness = 0.045;
+        mat.thickness = q.dia * 0.9;
+        mat.ior = 1.333;
+        mat.opacity = 1;
+        mat.emissive.copy(cTmp).multiplyScalar(0.10);
+        mat.emissiveIntensity = moving ? 0.32 : 0.14;
+        mat.normalScale.set(moving ? 0.42 : 0.14, moving ? 0.42 : 0.14);
       }
       q.core.visible = moving || leg.kind !== 'steam';
     }
@@ -681,10 +771,13 @@ Object.assign(Unit.prototype, {
     this.coreWater.position.set(L.rpv.x, W_LO - 0.6 + hgt / 2, L.rpv.z);
     this.coreTop.position.set(L.rpv.x, wy, L.rpv.z);
     this.surfCore.step(dt, { boil: st.s.boil || 0, pour: st.injecting ? 0.6 : 0, pourAt: 0.4 });
+    // The core is always driving heat into the water, so it always fizzes a
+    // little; when it boils in earnest the column of bubbles fills the vessel.
+    this.riseCore.step(dt, W_LO - 0.5, Math.max(0.4, wy - W_LO + 0.5),
+      st.lvl > 0.02 ? clamp(0.12 + (st.s.boil || 0) * 1.4, 0, 1) : 0, L.rpv.x, L.rpv.z);
     ripple(this.coreTop, this.surfCore, 2.94);
     waterColor(heat, cTmp);
-    this.coreWater.material.color.copy(cTmp);
-    this.coreWater.material.emissive.copy(cTmp).multiplyScalar(0.25);
+    tintWater(this.coreWater.material, cTmp, dt);
     this.coreWater.visible = st.lvl > 0.01;
     this.coreTop.visible = st.lvl > 0.01;
 
@@ -724,7 +817,9 @@ Object.assign(Unit.prototype, {
     this.sgWater.position.set(L.sg.x, 2 + 1.2 + sgH / 2, L.sg.z);
     this.sgTop.position.set(L.sg.x, 2 + 1.2 + sgH, L.sg.z);
     this.surfSg.step(dt, { boil: carrying ? 0.5 : 0.05 });
+    this.riseSg.step(dt, 3.2, Math.max(0.4, sgH), carrying ? 0.85 : 0.08, L.sg.x, L.sg.z);
     ripple(this.sgTop, this.surfSg, 2.5);
+    tintWater(this.sgWater.material, waterColor(carrying ? 0.42 : 0.1, cTmp), dt);
 
     // ---- the store of water ----
     if (this.poolWater) {
@@ -733,9 +828,11 @@ Object.assign(Unit.prototype, {
       this.poolWater.scale.y = ph;
       this.poolWater.position.set(L.pool.x, L.pool.y + 0.5 + ph / 2, L.pool.z);
       this.surfPool.step(dt, { boil: (st.s.prhr || 0) > 0 ? 0.4 : 0.02 });
+      this.risePool.step(dt, L.pool.y + 0.5, Math.max(0.4, ph),
+        (st.s.prhr || 0) > 0 ? 0.75 : 0.03, L.pool.x, L.pool.z);
       const warm = (st.s.prhr || 0) > 0 ? 0.35 : 0.05;
       waterColor(warm, cTmp);
-      this.poolWater.material.color.copy(cTmp);
+      tintWater(this.poolWater.material, cTmp, dt);
     }
 
     // ---- lamps ----

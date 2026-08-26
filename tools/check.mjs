@@ -37,26 +37,42 @@ const readout = (page) => page.evaluate(() => {
 });
 
 const page = await open(1600, 950);
+await page.screenshot({ path: `${out}/00-site.png`, timeout: 120000 });
+notes.push('00-site.png  idle');
+await page.evaluate(() => document.querySelector('[data-view=plant]').click());
+await page.waitForTimeout(3000);
 for (const f of ['both', 'active', 'passive']) {
   await page.evaluate((x) => document.querySelector(`[data-focus=${x}]`).click(), f);
   await page.waitForTimeout(5000);
-  await page.screenshot({ path: `${out}/00-${f}.png` });
+  await page.screenshot({ path: `${out}/00-${f}.png`, timeout: 120000 });
   notes.push(`00-${f}.png  idle`);
 }
+await page.evaluate(() => document.querySelector('[data-focus=both]').click());
+await page.waitForTimeout(2500);
 const RUNS = [['tsunami', 26], ['sbo', 22], ['loca', 20], ['tmi', 20],
   ['chernobyl', 14], ['uhs', 16], ['quake', 20], ['fire', 16], ['total', 24]];
 for (const [id, secs] of RUNS) {
-  await page.evaluate((x) => { window.__sim.run(x); window.__sim.speedIdx = 4; }, id);
-  await page.waitForTimeout(secs * 1000);
-  await page.screenshot({ path: `${out}/${id}.png` });
+  // Software rendering runs at about a frame a second, so the clock is driven
+  // directly rather than by how many frames the box managed to draw.
+  await page.evaluate(([x, target]) => {
+    const s = window.__sim;
+    s.run(x); s.speedIdx = 4;
+    for (let i = 0; i < target / 45; i++) s.update(0.05);
+  }, [id, secs * 700]);
+  await page.waitForTimeout(2500);
+  await page.screenshot({ path: `${out}/${id}.png`, timeout: 120000 });
   notes.push(`${id}.png  ${await readout(page)}`);
 }
 await page.close();
 
 const phone = await open(390, 844, true);
 await phone.waitForTimeout(3000);
-await phone.screenshot({ path: `${out}/phone.png` });
+await phone.screenshot({ path: `${out}/phone.png`, timeout: 120000 });
 notes.push('phone.png');
+await phone.evaluate(() => document.getElementById('btnLeft').click());
+await phone.waitForTimeout(800);
+await phone.screenshot({ path: `${out}/phone-panel.png`, timeout: 120000 });
+notes.push('phone-panel.png');
 await phone.close();
 
 await browser.close();

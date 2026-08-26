@@ -8,7 +8,13 @@
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);
   overflow:hidden;-webkit-font-smoothing:antialiased}
-#scene{position:fixed;inset:0}
+#site{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#site:active{cursor:grabbing}
+#scene{position:fixed;inset:0;display:none}
+body.viewplant #site{display:none}
+body.viewplant #scene{display:block}
+body:not(.viewplant) #labels{display:none}
+body:not(.viewplant) #focusSeg{display:none}
 #scene canvas{display:block}
 #labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
 .labelLayer{position:absolute;inset:0;pointer-events:none}
@@ -34,10 +40,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);
 #bar{position:fixed;top:0;left:0;right:0;height:58px;display:flex;align-items:center;
   gap:14px;padding:0 14px;background:linear-gradient(#070c12ee,#070c1288);
   border-bottom:1px solid var(--line);z-index:20;backdrop-filter:blur(8px)}
-.clock{display:flex;flex-direction:column;line-height:1.1;min-width:132px}
+.clock{display:flex;flex:0 0 auto;flex-direction:column;line-height:1.1;min-width:132px}
 .clock b{font-variant-numeric:tabular-nums;font-size:19px;letter-spacing:.04em}
 .clock small{color:var(--dim);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase}
-.seg{display:flex;background:rgba(255,255,255,.05);border:1px solid var(--line);
+.seg{display:flex;flex:0 0 auto;background:rgba(255,255,255,.05);border:1px solid var(--line);
   border-radius:9px;overflow:hidden}
 .seg button{background:none;border:0;color:var(--dim);font:600 12.5px var(--font);
   padding:8px 13px;cursor:pointer}
@@ -46,6 +52,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);
 .icon{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:9px;
   color:var(--dim);width:36px;height:34px;cursor:pointer;font-size:15px}
 .icon:hover{color:var(--ink)}
+.icon.mob{display:none}
+.icon.on{background:rgba(87,217,255,.16);color:#bfeeff}
 #bar .icon:last-of-type{margin-left:auto}
 
 .panel{position:fixed;top:70px;width:274px;max-height:calc(100vh - 210px);overflow:auto;
@@ -110,7 +118,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);
     max-height:38vh;display:none}
   .panel.show{display:block}
   #feed{height:96px;bottom:8px}
-  #bar{gap:8px;padding:0 8px;height:52px}
+  #bar{gap:8px;padding:0 8px;height:52px;overflow-x:auto;scrollbar-width:none}
+  #bar::-webkit-scrollbar{display:none}
+  #bar .icon:last-of-type{margin-left:0}
+  .icon.mob{display:block}
   .clock{min-width:96px} .clock b{font-size:16px}
   .seg button{padding:7px 9px;font-size:11.5px}
   .tag{font-size:11px} .tag.title b{font-size:17px}

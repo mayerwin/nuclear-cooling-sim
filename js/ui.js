@@ -43,6 +43,12 @@ export class UI {
       [...$('#speedSeg').children].forEach((c) => c.classList.toggle('on', c === b));
     });
 
+    $('#viewSeg').addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      [...$('#viewSeg').children].forEach((c) => c.classList.toggle('on', c === b));
+      this.hooks.view(b.dataset.view);
+    });
+
     $('#focusSeg').addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
       [...$('#focusSeg').children].forEach((c) => c.classList.toggle('on', c === b));
@@ -74,7 +80,14 @@ export class UI {
       if (k === '1') this.pick('active');
       if (k === '2') this.pick('both');
       if (k === '3') this.pick('passive');
+      if (k === 'v') this.pickView('site');
+      if (k === 'c') this.pickView('plant');
     });
+  }
+
+  pickView(v) {
+    [...$('#viewSeg').children].forEach((c) => c.classList.toggle('on', c.dataset.view === v));
+    this.hooks.view(v);
   }
 
   pick(f) {

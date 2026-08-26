@@ -34,15 +34,15 @@ export class Labels {
       add('title', 'title', 0, 52, 0);
       add('rpv', 'part', L.rpv.x + 1, 24, L.rpv.z + 4);
       add('sg', 'part', L.sg.x - 5, 30, L.sg.z - 6);
-      add('pump', 'part', L.rcp.x - 4, 15, L.rcp.z + 4);
+      add('pump', 'part', L.rcp.x - 7, 10, L.rcp.z + 7);
       add('turb', 'part', L.turb.x - 8, 13, L.turb.z + 3);
       add('gen', 'part', L.turb.x + 9, 12, L.turb.z + 4);
       add('store', 'part',
         u.passive ? L.pool.x : L.tank.x,
-        u.passive ? L.pool.y + 6 : 5,
+        u.passive ? L.pool.y + 6 : 11,
         u.passive ? L.pool.z - 3 : L.tank.z);
       add('power', 'part', L.turb.x + 24, 20, L.turb.z - 2);
-      if (!u.passive) add('eccs', 'part', L.eccs.x, 8, L.eccs.z);
+      if (!u.passive) add('eccs', 'part', L.eccs.x + 3, 2, L.eccs.z);
       add('vent', 'part', L.stack.x, L.stack.h + 3, L.stack.z);
       u.labels = set;
     }
@@ -57,7 +57,9 @@ export class Labels {
         || (this.focus === 'active' && !u.passive)
         || (this.focus === 'passive' && u.passive);
       const detail = on && this.focus !== 'both';
-      const KEY = ['title', 'rpv', 'store', 'gen'];
+      // Side by side there is no room for a running commentary on both
+      // stations at once. The name and the verdict, nothing else.
+      const KEY = ['title'];
       const S = u.labels;
       const set = (k, html) => {
         const t = S[k]; if (!t) return;

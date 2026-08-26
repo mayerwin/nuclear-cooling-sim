@@ -2,6 +2,7 @@
 // parts.js - the reusable pieces of plant, as real geometry.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
+import { liquidMaterial, Bubbles, frameOf } from './fluid.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -26,50 +27,53 @@ export function roundedPath(pts, r = 1.6) {
   return path;
 }
 
-// The stripe that runs along the inside of a pipe. One image, cloned per pipe
-// so each can scroll at its own speed.
-let stripeImage = null;
-export function stripeTexture() {
-  if (!stripeImage) {
-    const c = document.createElement('canvas');
-    c.width = 128; c.height = 8;
-    const x = c.getContext('2d');
-    const g = x.createLinearGradient(0, 0, 128, 0);
-    g.addColorStop(0.00, '#0a2c48');
-    g.addColorStop(0.34, '#1f6ea8');
-    g.addColorStop(0.47, '#a9e4ff');
-    g.addColorStop(0.53, '#e6faff');
-    g.addColorStop(0.66, '#1f6ea8');
-    g.addColorStop(1.00, '#0a2c48');
-    x.fillStyle = g; x.fillRect(0, 0, 128, 8);
-    stripeImage = c;
-  }
-  const t = new THREE.CanvasTexture(stripeImage);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
-
-// A pipe you can see into: a see-through casing with the fluid inside it.
+// A pipe you can see into: a see-through casing with a real body of liquid
+// filling the bore, and bubbles carried along in it.
 export function pipe(pts, dia, mats, opts = {}) {
   const path = roundedPath(pts, opts.bend || dia * 2.2);
   const len = path.getLength();
   const seg = Math.max(24, Math.round(len * 1.6));
   const group = new THREE.Group();
   const casing = new THREE.Mesh(
-    new THREE.TubeGeometry(path, seg, dia / 2, 14, false), mats.pipe);
+    new THREE.TubeGeometry(path, seg, dia / 2, 12, false), mats.pipe);
   casing.castShadow = true;
   group.add(casing);
-  const tex = stripeTexture();
-  tex.repeat.set(Math.max(2, len / 3.2), 1);
+
+  // Flanges: the pipe's outside, at the spacing a real run would have them.
+  const frame = frameOf(path, Math.max(48, Math.min(260, Math.round(len * 4))));
+  const nRing = Math.max(2, Math.round(len / 5.5));
+  const rings = new THREE.InstancedMesh(
+    new THREE.TorusGeometry(dia * 0.54, dia * 0.1, 6, 16), mats.flange, nRing);
+  rings.frustumCulled = false;
+  {
+    const mm = new THREE.Matrix4(), q = new THREE.Quaternion();
+    const zAx = new THREE.Vector3(0, 0, 1), one = new THREE.Vector3(1, 1, 1);
+    for (let i = 0; i < nRing; i++) {
+      const t = (i + 0.5) / nRing * (frame.pts.length - 1);
+      const j = Math.min(frame.pts.length - 2, t | 0);
+      const tan = frame.pts[j + 1].clone().sub(frame.pts[j]).normalize();
+      q.setFromUnitVectors(zAx, tan);
+      mm.compose(frame.pts[j], q, one);
+      rings.setMatrixAt(i, mm);
+    }
+  }
+  group.add(rings);
+
+  // The liquid fills the bore. A thin thread down the middle of a pipe is a
+  // diagram; a full bore is what water in a pipe looks like.
+  const mat = liquidMaterial(dia);
+  const bore = dia * 0.46;
   const core = new THREE.Mesh(
-    new THREE.TubeGeometry(path, seg, dia * 0.33, 12, false),
-    new THREE.MeshStandardMaterial({
-      map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 0.85,
-      color: 0xffffff, roughness: 0.25, metalness: 0, toneMapped: true
-    }));
+    new THREE.TubeGeometry(path, seg, bore, 14, false), mat);
+  // The normal map has to tile at the pipe's own scale or the ripples stretch.
+  mat.normalMap.repeat.set(Math.max(2, len / 2.4), Math.max(1, Math.round(dia * 3)));
   group.add(core);
-  return { group, casing, core, tex, len, path, tint: core.material };
+
+  const count = Math.max(10, Math.min(90, Math.round(len * 2.4)));
+  const bub = new Bubbles(frame, bore * 0.34, count, mats.bubble);
+  group.add(bub.mesh);
+
+  return { group, casing, core, bub, len, path, mat, dia, bore, tint: mat };
 }
 
 // A vessel of revolution from a profile, with a cut so the near half comes off.

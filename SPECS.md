@@ -33,7 +33,11 @@ was attempted.
 | 2.7 | Fluid must visibly be **inside the pipes**, and must actually **flow**. |
 | 2.8 | No pipe borders that block or interrupt the flow. |
 | 2.9 | **Physics must be right.** Not a half-broken schematic: real continuity, real directions, real speeds. |
-| 2.10 | Dimensional scale is not important. The **circuit** — what is connected to what, and what is moving — is what matters. |
+| 2.10 | Dimensional scale is not important. The **circuit**, meaning what is connected to what and what is moving, is what matters. |
+| 2.11 | Liquid must **look like liquid**: a real refractive body that people are satisfied to watch flowing, produced by the 3-D engine rather than faked with a coloured stripe. |
+| 2.12 | **Pipes must not be cut where they should not be cut.** The cutaway is a hole in the building's wall, not a saw through everything standing inside it. |
+| 2.13 | Side by side, the two reactors must be **close enough to see both in full at once** on a desktop screen, with the side panels taken into account. |
+| 2.14 | Keep the **isometric site view** with the landscape. Both views stay; the switcher chooses between them. |
 
 ## 3. The machinery that must be shown
 
@@ -82,7 +86,9 @@ was attempted.
 
 ## Implementation, which engine does which job
 
-The app is one WebGL scene. There is no second renderer and no leftover canvas.
+The app has two views of one simulation, chosen by the **Site / Inside** switch:
+the island from above, painted on a 2-D canvas, and the inside of both buildings
+in WebGL. One of them is on screen at a time and both read the same model.
 
 | Job | Tool | Why that one |
 |---|---|---|
@@ -93,6 +99,8 @@ The app is one WebGL scene. There is no second renderer and no leftover canvas.
 | Labels | **CSS2DRenderer** | Labels are HTML anchored to 3-D points, so typography is CSS and nothing has to be shrunk to fit. |
 | Flow in the pipes | **1-D network hydraulics** (`flow.js`) | The one place with no library to reach for, deliberately. Rapier, Box2D, Matter and every SPH engine solve free bodies or free-surface fluid in an open domain under gravity. Closed pressurised pipe flow is a different problem and the tool for it is mass conservation round the loop with `v = Q / A`, which is what RELAP5 and TRACE use. An SPH fluid in a pipe would be wrong and unreadable. |
 | Free surfaces | Shallow-water solve (`flow.js`) | The water surface in each vessel is a row of columns under the shallow-water equations, displacing real mesh vertices. Waves cross it, reflect and die away. |
+| What the liquid looks like | **`MeshPhysicalMaterial` transmission** (`view/fluid.js`) | The liquid is a real body filling the bore, given to the renderer with transmission 1, an index of refraction of 1.333, a thickness and an attenuation colour. Three bends the background through it, so it refracts what is behind it the way water does. A tiling normal map generated from a sum of sines scrolls along it at the leg's own metres per second, and instanced bubbles are carried along at the same speed, which is what makes the speed and the direction legible. |
+| The site | **Canvas 2-D isometric** (`js/site/*`) | The island from above: terrain, the town, the sea, contamination and the wave. A flat painted map is the right tool for a plan view, and it is the one view where the 3-D scene would say less. |
 
 ### What the flow model produces
 
@@ -128,7 +136,11 @@ js/ui.js          the panels
 js/view/stage.js  renderer, camera, lights, environment, bloom
 js/view/unit.js   one power station as real geometry
 js/view/parts.js  reusable pieces: pipes with elbows, vessels, railings
+js/view/fluid.js  what the liquid looks like: refraction, ripples, bubbles
 js/view/plume.js  steam and smoke
 js/view/labels.js HTML labels on 3-D anchors
 js/view/state.js  what the picture is saying, read off the model
+js/site/*.js      the isometric site view: terrain, props, particles, painter
+tools/check.mjs   the gate: every scenario, every viewport, no errors
+tools/look.mjs    a close look at one piece of plant, for judging the fluids
 ```

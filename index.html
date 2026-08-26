@@ -12,17 +12,24 @@
 </head>
 <body>
 
+<canvas id="site"></canvas>
 <div id="scene"></div>
 <div id="labels"></div>
 
 <header id="bar">
   <div class="clock"><b id="clock">00:00:00</b><small>time since the initiating event</small></div>
+  <div class="seg" id="viewSeg">
+    <button data-view="site" class="on">Site</button>
+    <button data-view="plant">Inside</button>
+  </div>
   <div class="seg" id="focusSeg">
     <button data-focus="active">Active</button>
     <button data-focus="both" class="on">Both</button>
     <button data-focus="passive">Passive</button>
   </div>
   <div class="seg" id="speedSeg"></div>
+  <button class="icon mob" id="btnLeft" title="What happened">☰</button>
+  <button class="icon mob" id="btnRight" title="Reactors">◧</button>
   <button class="icon" id="btnSound" title="Sound">🔊</button>
   <button class="icon" id="btnReset" title="Reset">↺</button>
 </header>
@@ -65,7 +72,9 @@
       <li>Follow the steam out to the <b>turbine</b>. It turns the generator, and the
         megawatts beside it are what the station is putting on the grid. Scram the reactor
         and all of that stops.</li>
-      <li>Drag to look around. Scroll to zoom.</li>
+      <li><b>Site</b> shows the island from above: two stations, the town, the sea,
+        and where anything that gets out would go. <b>Inside</b> opens the buildings up.
+        Drag to look around, scroll to zoom.</li>
     </ul>
     <button class="btn primary big" id="startBtn">Start</button>
     <details class="disc"><summary>What is real here, and what is not</summary>
