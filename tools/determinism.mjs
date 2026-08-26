@@ -28,15 +28,28 @@ const grab = () => page.evaluate(() => {
   return out;
 });
 
+// The cutaway is on the GPU now, so its frame is read back off the WebGL
+// canvas instead. extract.pixels goes through the renderer, which is the only
+// way to read a WebGL surface after the frame has been presented.
+const grabGl = () => page.evaluate(async () => {
+  const s = window.__sim.cutStage;
+  const px = await s.app.renderer.extract.pixels(s.app.stage);
+  const d = px.pixels || px;
+  const out = [];
+  for (let i = 0; i < d.length; i += 4) out.push(d[i], d[i + 1], d[i + 2]);
+  return out;
+});
+
 const shot = async () => (await page.screenshot({ type: 'png' }));
 
 let bad = 0;
-async function check(label, setup, usePage) {
+async function check(label, setup, usePage, gl) {
   await page.evaluate(setup);
   await page.waitForTimeout(900);
-  const a = usePage ? await shot() : await grab();
+  const take = gl ? grabGl : grab;
+  const a = usePage ? await shot() : await take();
   await page.waitForTimeout(2600);
-  const b = usePage ? await shot() : await grab();
+  const b = usePage ? await shot() : await take();
   if (usePage) {
     const same = a.length === b.length && a.equals(b);
     if (!same) bad++;
@@ -63,11 +76,15 @@ await check('site view, fully frozen', () => {
 });
 await page.click('#viewSite');
 await page.click('#viewCut');
-// The circuit view is canvas now, so it gets the same treatment as the site:
-// freeze the clock and diff the pixels.
-await page.evaluate(() => { window.__sim.speedIdx = 0; window.__sim.fitCut(); });
-await page.waitForTimeout(700);
-await check('cutaway, fully frozen', () => { }, false);
+// The cutaway runs on the GPU. Freezing the clock has to freeze the fluid and
+// the rigid bodies with it, so nothing is stepped and the frame is a still.
+await page.evaluate(() => {
+  const s = window.__sim;
+  s.speedIdx = 0; s.cine = null; s.update = () => { };
+  s.fitCut();
+});
+await page.waitForTimeout(900);
+await check('cutaway, fully frozen', () => { }, false, true);
 
 await browser.close();
 if (bad) { console.log(`\n${bad} check(s) failed`); process.exitCode = 1; }

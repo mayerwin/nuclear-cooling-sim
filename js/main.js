@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // main.js — boot, input handling, animation loop
 // ---------------------------------------------------------------------------
-import * as cutaway from './cutaway.js';
+import * as scene from './scene.js';
 import { Sim } from './sim.js';
 import { Renderer } from './renderer.js';
 import { UI } from './ui.js';
@@ -21,6 +21,7 @@ function resize() {
   if (!sim) return;
   sim.cam.resize(canvas.width, canvas.height);
   sim.cutCam.resize(canvas.width, canvas.height);
+  if (sim.cutStage && sim.cutStage.ready) sim.cutStage.resize();
   if (sim.view === "cut") sim.fitCut();
   const wide = window.innerWidth > 860;
   if (wasWide !== wide) { wasWide = wide; sim.overview(); }
@@ -28,6 +29,9 @@ function resize() {
 
 let sim = new Sim(canvas);
 resize();
+// The cutaway runs on the GPU in its own canvas, stacked over this one.
+const glHost = document.getElementById('glstage');
+sim.cutStage.init(glHost).then(() => { sim.fitCut(); });
 sim.world.bakeTerrain();
 sim.world.bakeOverlay();
 
@@ -99,7 +103,8 @@ let lastTap = 0;
 canvas.addEventListener('pointerup', (e) => {
   const now = performance.now();
   if (now - lastTap < 300) {
-    if (sim.view === "cut") sim.fitCut();
+    if (sim.cutStage && sim.cutStage.ready) sim.cutStage.resize();
+  if (sim.view === "cut") sim.fitCut();
     else sim.cam.targetZoom = sim.cam.targetZoom > sim.fitZoom() * 1.4 ? sim.fitZoom() : sim.fitZoom() * 2.1;
   }
   lastTap = now;
@@ -124,7 +129,11 @@ function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.06);
   last = now;
   sim.update(dt);
-  renderer.draw(sim);
+  if (sim.view === 'cut' && sim.cutStage && sim.cutStage.ready) {
+    sim.cutStage.render(sim, sim.visTime);
+  } else {
+    renderer.draw(sim);
+  }
   acc += dt;
   if (acc > 0.22) { ui.update(); acc = 0; }
   requestAnimationFrame(frame);
@@ -133,6 +142,6 @@ requestAnimationFrame(frame);
 
 // expose for debugging
 window.__sim = sim;
-window.__cutaway = cutaway;
+window.__cutaway = scene;
 window.__r = renderer;
 window.__ui = ui;

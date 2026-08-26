@@ -37,21 +37,38 @@ at a reactor pressure vessel with its fuel bundle standing in it, the boiler bes
 U-tubes, the pump on the near corner of the loop, and the spare water — a pool held high above
 the reactor on the passive unit, a tank in the basement behind a pump on the active one.
 
-Every vessel is a glass shell over its own contents: clip to the silhouette, draw the water and
-the fuel, then lay the shell back over as glass. So the water level is not a bar on a gauge —
-it is water, with a surface that ripples, bubbles when it boils and turns from blue through
-scalding pale to orange as it heats. The pipes are cut open too, so what travels along them is
-water in a bore rather than a dashed line meaning water; when the pump stops it slows to the
-crawl of natural circulation rather than stopping. The pump itself is cut open from above: an
-impeller with curved vanes turning in a casing full of water, and still when it is not running.
-When the level drops below the top of the fuel the rods go grey → orange → red and start to
-slump, and the headline under each title names the step that plant has reached.
+Every vessel is a glass shell over its own contents, and so is every pipe: you
+look into the bore and what is in it is water.
 
-Pick a single unit and the **turbine hall** appears outside the containment: steam off the top
-of the boiler, through the wall, into the turbine; the generator with the megawatts it is
-making written beside it; the condenser turning the steam back into water; and the pulses of
-power running down the bus to the switchyard. Lose the reactor and all of that visibly stops.
-Lose the containment and there is a hole torn in the wall with the inside coming out of it.
+The water is **solved, not animated**. The plant model gives a heat balance; a
+pipe network turns that into one mass flow per circuit, and each leg turns the
+mass flow into its own velocity by continuity, `v = Q / A`. What comes out of
+that arithmetic is a hot leg at 12.6 m/s, a cold leg at 15.9, the core at 10.6,
+main steam at 35.6 and feedwater at 6.0 — the published figures for a four-loop
+PWR, because they are the same sum. The steam line runs twenty times faster
+than the feed line carrying the same kilograms, because steam is twenty times
+lighter. Stop the pump and the loop keeps turning at about five per cent of
+rated flow, which is what buoyancy against friction gives and what plants
+measure.
+
+The rotating machinery is on a **rigid-body solver** (Rapier). The impeller,
+the turbine-generator shaft and the backup pump are dynamic bodies with real
+inertia and damping; torque goes in and angle comes out. The shaft runs up when
+steam reaches it and coasts down when the steam stops. The impeller's direction
+is taken from the angle between its own two pipes, so it cannot turn against
+the water.
+
+Pick a single unit and the **steam side** appears outside the containment: steam off the top of
+the boiler, through the wall, into one turbine; the generator on the same shaft with the
+megawatts it is making written beside it; the condenser turning the steam back into water; and
+the feed line taking it back in. Scram the reactor and the steam stops, the shaft coasts down
+and the number goes to nothing. Lose the containment and there is a hole torn in the wall with
+the inside coming out of it.
+
+Everything is drawn by **PixiJS** on the GPU. The drops in the pipes are blurred together and
+thresholded, so overlapping drops merge into one moving body of liquid rather than reading as a
+row of dots. `SPECS.md` sets out which engine does which job and why the pipe flow is the one
+part that is not on an off-the-shelf physics engine.
 
 The water is drawn rather than diagrammed. Each vessel is a cylinder, so its
 contents get an elliptical surface with a moving crest, bubbles that rise when
@@ -228,9 +245,12 @@ js/
   world.js       terrain generation, contamination / scorch / flood fields
   props.js       trees, houses, barns, boats — and their burnt, flattened, irradiated states
   plantview.js   the two stations as they appear on the map, emitted as sorted pieces
-  cutaway.js     the isometric cutaway: the containment cut open, glass-shelled
-                 vessels you can see into, water with a surface and waves, and
-                 slugs of fluid travelling the pipe runs. One depth-sorted pass
+  scene.js       the cutaway, drawn with PixiJS on the GPU: the containment cut
+                 open, glass-shelled vessels and pipes you can see into
+  fluid.js       the flow itself - a pipe network solved by continuity, plus
+                 shallow-water free surfaces and buoyant puffs
+  plantgeom.js   where every machine is and how the circuits are wired
+  machinery.js   the impeller, the turbine shaft and the backup pump, on Rapier
   audio.js       every sound in the app, synthesised - oscillators and filtered
                  noise, no audio files anywhere
   plant.js       the physics: decay heat, boil-off, oxidation, containment, source term

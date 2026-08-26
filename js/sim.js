@@ -8,7 +8,7 @@ import { PlantView } from './plantview.js';
 import { FX } from './fx.js';
 import { Camera } from './iso.js';
 import { byId } from './scenarios.js';
-import { Cutaway } from './cutaway.js';
+import { CutScene } from './scene.js';
 import { Sound } from './audio.js';
 import { clamp, lerp, smoothstep } from './util.js';
 
@@ -77,7 +77,10 @@ export class Sim {
     this.view = v;
     if (typeof document !== 'undefined')
       document.body.classList.toggle('viewcut', v === 'cut');
-    if (v === 'cut') this.fitCut(); else this.overview();
+    if (v === 'cut') {
+      if (this.cutStage && this.cutStage.ready) this.cutStage.resize();
+      this.fitCut();
+    } else this.overview();
   }
 
   get activeCam() { return this.view === 'cut' ? this.cutCam : this.cam; }
@@ -88,7 +91,7 @@ export class Sim {
     this.passive = new Plant(MODE.PASSIVE, 'Unit B — Passive Cooling (Gen III+)');
     this.plants = [this.active, this.passive];
     this.views = [new PlantView(this.active, s.active), new PlantView(this.passive, s.passive)];
-    if (!this.cutStage) this.cutStage = new Cutaway();
+    if (!this.cutStage) { this.cutStage = new CutScene(); this.cutReady = null; }
     this.fitCut();
     this.hook();
   }

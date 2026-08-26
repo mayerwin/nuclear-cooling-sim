@@ -60,26 +60,12 @@ export class Renderer {
     return this.drawSite(sim);
   }
 
-  // The cutaway is painted here, on the same canvas as the site view: backdrop,
-  // then the circuits, then the key.
+  // In the cutaway the WebGL stage owns the screen; this canvas is hidden by
+  // CSS, so there is nothing to paint here but the key.
   drawCut(sim) {
     const ctx = this.ctx;
-    const CW = this.canvas.width, CH = this.canvas.height;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    const g = ctx.createLinearGradient(0, 0, 0, CH);
-    g.addColorStop(0, '#0a1119'); g.addColorStop(0.55, '#0c1620'); g.addColorStop(1, '#0a1119');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, CW, CH);
-    const dpr = CW / (window.innerWidth || CW);
-    ctx.save();
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.strokeStyle = 'rgba(80,130,180,0.055)'; ctx.lineWidth = 1;
-    const cw = CW / dpr, ch = CH / dpr;
-    for (let x = 0; x < cw; x += 46) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, ch); ctx.stroke(); }
-    for (let y = 0; y < ch; y += 46) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cw, y); ctx.stroke(); }
-    ctx.restore();
-    if (sim.cutStage) sim.cutStage.draw(ctx, sim, CW, CH, sim.visTime);
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    this.drawCutLegend(ctx, CW, CH);
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     return undefined;
   }
 

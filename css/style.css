@@ -23,6 +23,10 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--
   font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Inter,Roboto,sans-serif;
   overscroll-behavior:none;}
 #stage{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#glstage{position:fixed;inset:0;display:none;pointer-events:none}
+#glstage canvas{position:absolute;left:0;top:0;display:block}
+body.viewcut #stage{display:none}
+body.viewcut #glstage{display:block}
 #stage:active{cursor:grabbing}
 
 /* ------------------------------ top bar ------------------------------ */
