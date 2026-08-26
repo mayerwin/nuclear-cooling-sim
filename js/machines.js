@@ -1,0 +1,60 @@
+// ---------------------------------------------------------------------------
+// machines.js - the rotating kit, on a rigid-body solver.
+//
+// Rapier owns the impeller, the turbine-generator shaft and the backup pump.
+// They are dynamic bodies with real moments of inertia and real damping.
+// Torque goes in; angle and speed come out. Nothing sets an angle, so spin-up,
+// coast-down and the direction of rotation are all consequences.
+// ---------------------------------------------------------------------------
+let R = null;
+
+export async function initPhysics() {
+  if (R) return R;
+  const mod = await import('../vendor/rapier2d.mjs');
+  R = mod.default || mod;
+  await R.init();
+  return R;
+}
+
+class Spinner {
+  // Its own patch of the world and a collider in no collision group, so the
+  // shafts can never touch each other. The collider is only there to give the
+  // body a moment of inertia.
+  constructor(world, radius, damping, slot) {
+    this.body = world.createRigidBody(
+      R.RigidBodyDesc.dynamic().setTranslation(slot * 40, 0)
+        .setAngularDamping(damping).lockTranslations());
+    world.createCollider(
+      R.ColliderDesc.ball(radius).setDensity(1).setCollisionGroups(0), this.body);
+  }
+  torque(n, dt) { if (dt > 0) this.body.applyTorqueImpulse(n * dt, true); }
+  get angle() { return this.body.rotation(); }
+  get speed() { return this.body.angvel(); }
+}
+
+export class Machines {
+  constructor() {
+    this.world = new R.World({ x: 0, y: 0 });
+    // The impeller is light and heavily damped by the water it is pushing. The
+    // turbine-generator shaft is heavier and barely damped, so it runs up and
+    // runs down over seconds rather than snapping between states.
+    this.impeller = new Spinner(this.world, 0.55, 2.2, 0);
+    this.shaft = new Spinner(this.world, 1.25, 0.05, 1);
+    this.aux = new Spinner(this.world, 0.4, 2.6, 2);
+  }
+  // Sub-stepped, so the machines run at the same rate whatever the frame rate.
+  step(dt, o) {
+    if (dt <= 0) return;
+    const n = Math.min(10, Math.max(1, Math.ceil(dt * 60)));
+    const h = dt / n;
+    this.world.timestep = h;
+    for (let i = 0; i < n; i++) {
+      this.impeller.torque(o.pumpDriven ? (o.pumpTarget - this.impeller.speed) * 4.2 : 0, h);
+      // steam pushes, the generator's load and windage pull back; where they
+      // balance is the running speed
+      this.shaft.torque(o.steamTorque - this.shaft.speed * o.loadCoef, h);
+      this.aux.torque(o.auxDriven ? (o.auxTarget - this.aux.speed) * 3.4 : 0, h);
+      this.world.step();
+    }
+  }
+}

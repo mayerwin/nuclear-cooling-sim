@@ -1,0 +1,66 @@
+/* tools/check.mjs - the gate.
+ *   node tools/check.mjs [url] [outdir]
+ * Boots the app, drives every scenario, and fails on any console or page
+ * error. Writes a screenshot set for review.
+ */
+import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import { mkdirSync, writeFileSync } from 'node:fs';
+
+const url = process.argv[2] || 'http://127.0.0.1:8099/index.html';
+const out = process.argv[3] || '/tmp/check';
+mkdirSync(out, { recursive: true });
+const errs = [];
+const notes = [];
+const browser = await chromium.launch({
+  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  args: ['--no-sandbox', '--enable-unsafe-swiftshader', '--use-gl=swiftshader']
+});
+
+async function open(w, h, mobile) {
+  const page = await browser.newPage({
+    viewport: { width: w, height: h }, deviceScaleFactor: 1,
+    isMobile: !!mobile, hasTouch: !!mobile
+  });
+  page.on('console', (m) => { if (m.type() === 'error' && !/404/.test(m.text())) errs.push('console: ' + m.text()); });
+  page.on('pageerror', (e) => errs.push('pageerror: ' + e.message));
+  await page.goto(url, { waitUntil: 'load' });
+  await page.waitForTimeout(6000);
+  await page.evaluate(() => document.querySelector('#startBtn')?.click());
+  await page.waitForTimeout(2500);
+  return page;
+}
+const readout = (page) => page.evaluate(() => {
+  const s = window.__sim;
+  const f = (p) => `${p.state} lvl${(p.level * 100) | 0}% T${(p.Tclad - 273) | 0}C`
+    + ` dmg${(p.coreDamage * 100) | 0}% rel${(p.releasedBq / 1e15).toFixed(2)}PBq`;
+  return `t=${Math.round(s.t)}s | A: ${f(s.active)} | B: ${f(s.passive)}`;
+});
+
+const page = await open(1600, 950);
+for (const f of ['both', 'active', 'passive']) {
+  await page.evaluate((x) => document.querySelector(`[data-focus=${x}]`).click(), f);
+  await page.waitForTimeout(5000);
+  await page.screenshot({ path: `${out}/00-${f}.png` });
+  notes.push(`00-${f}.png  idle`);
+}
+const RUNS = [['tsunami', 26], ['sbo', 22], ['loca', 20], ['tmi', 20],
+  ['chernobyl', 14], ['uhs', 16], ['quake', 20], ['fire', 16], ['total', 24]];
+for (const [id, secs] of RUNS) {
+  await page.evaluate((x) => { window.__sim.run(x); window.__sim.speedIdx = 4; }, id);
+  await page.waitForTimeout(secs * 1000);
+  await page.screenshot({ path: `${out}/${id}.png` });
+  notes.push(`${id}.png  ${await readout(page)}`);
+}
+await page.close();
+
+const phone = await open(390, 844, true);
+await phone.waitForTimeout(3000);
+await phone.screenshot({ path: `${out}/phone.png` });
+notes.push('phone.png');
+await phone.close();
+
+await browser.close();
+writeFileSync(`${out}/INDEX.txt`, notes.join('\n') + '\n');
+console.log(notes.join('\n'));
+if (errs.length) { console.log('\nERRORS:\n' + [...new Set(errs)].join('\n')); process.exitCode = 1; }
+else console.log('\nno console or page errors');

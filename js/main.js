@@ -1,147 +1,61 @@
 // ---------------------------------------------------------------------------
-// main.js — boot, input handling, animation loop
+// main.js - boot and the frame loop.
 // ---------------------------------------------------------------------------
-import * as scene from './scene.js';
+import * as THREE from 'three';
 import { Sim } from './sim.js';
-import { Renderer } from './renderer.js';
+import { Stage } from './view/stage.js';
+import { Unit } from './view/unit.js';
+import { Labels } from './view/labels.js';
 import { UI } from './ui.js';
-import { PlantView } from './plantview.js';
-import { clamp } from './util.js';
+import { initPhysics } from './machines.js';
+import { state } from './view/state.js';
 
-const canvas = document.getElementById('stage');
-const ctx = canvas.getContext('2d');
+const host = document.getElementById('scene');
+const labelHost = document.getElementById('labels');
 
-let wasWide = null;
-function resize() {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = Math.floor(window.innerWidth * dpr);
-  canvas.height = Math.floor(window.innerHeight * dpr);
-  canvas.style.width = window.innerWidth + 'px';
-  canvas.style.height = window.innerHeight + 'px';
-  if (!sim) return;
-  sim.cam.resize(canvas.width, canvas.height);
-  sim.cutCam.resize(canvas.width, canvas.height);
-  if (sim.cutStage && sim.cutStage.ready) sim.cutStage.resize();
-  if (sim.view === "cut") sim.fitCut();
-  const wide = window.innerWidth > 860;
-  if (wasWide !== wide) { wasWide = wide; sim.overview(); }
+await initPhysics();
+const sim = new Sim();
+const stage = new Stage(host, labelHost);
+const SPAN = 112;
+const units = sim.plants.map((p, i) => new Unit(p, stage, i === 0 ? -SPAN : SPAN));
+for (const u of units) stage.scene.add(u.root);
+const labels = new Labels(stage, units);
+const ui = new UI(sim, { focus: (f) => setFocus(f), stage });
+
+let firstFocus = true;
+function setFocus(f) {
+  sim.focus = f;
+  const t = new THREE.Vector3();
+  if (f === 'both') { t.set(10, 26, 0); stage.focusOn(t, 445, 1.32, 0.235, firstFocus); }
+  else {
+    const u = units[f === 'active' ? 0 : 1];
+    t.set(u.worldX + 10, 20, 3);
+    stage.focusOn(t, 150, 0.92, 0.26, firstFocus);
+  }
+  firstFocus = false;
+  labels.setFocus(f);
 }
+setFocus('both');
 
-let sim = new Sim(canvas);
-resize();
-// The cutaway runs on the GPU in its own canvas, stacked over this one.
-const glHost = document.getElementById('glstage');
-sim.cutStage.init(glHost).then(() => { sim.fitCut(); });
-sim.world.bakeTerrain();
-sim.world.bakeOverlay();
+window.addEventListener('resize', () => stage.resize());
 
-
-const renderer = new Renderer(canvas, sim.world);
-renderer.buildOcean();
-
-const ui = new UI(sim);
-ui.renderFeed();
-sim.announce('Both units at 100% power. Grid connected, all systems normal.', 'ok');
-
-window.addEventListener('resize', resize);
-window.addEventListener('orientationchange', () => setTimeout(resize, 250));
-
-// ---------------------------------------------------------------- input
-let drag = null, pinch = null;
-const pointers = new Map();
-
-canvas.addEventListener('pointerdown', (e) => {
-  canvas.setPointerCapture(e.pointerId);
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (pointers.size === 1) {
-    const C = sim.activeCam;
-    drag = { x: e.clientX, y: e.clientY, cx: C.tx, cy: C.ty, moved: 0 };
-    sim.cine = null;
-  } else if (pointers.size === 2) {
-    const [a, b] = [...pointers.values()];
-    pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: sim.activeCam.targetZoom };
-    drag = null;
-  }
-});
-canvas.addEventListener('pointermove', (e) => {
-  if (!pointers.has(e.pointerId)) return;
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (pinch && pointers.size === 2) {
-    const [a, b] = [...pointers.values()];
-    const d = Math.hypot(a.x - b.x, a.y - b.y);
-    sim.activeCam.targetZoom = clamp(pinch.z * (d / pinch.d), 0.28, 3.4);
-    return;
-  }
-  if (!drag) return;
-  const C = sim.activeCam;
-  const dpr = canvas.width / window.innerWidth;
-  const dx = (e.clientX - drag.x) * dpr / C.zoom;
-  const dy = (e.clientY - drag.y) * dpr / C.zoom;
-  drag.moved += Math.abs(dx) + Math.abs(dy);
-  // invert the isometric basis
-  const wx = (dy / 16 + dx / 32) / 2, wy = (dy / 16 - dx / 32) / 2;
-  const lim = sim.view === 'cut' ? 40 : 62;
-  C.tx = clamp(drag.cx - wx, -lim, lim);
-  C.ty = clamp(drag.cy - wy, -lim, lim);
-  C.x = C.tx; C.y = C.ty;
-});
-const endPointer = (e) => {
-  pointers.delete(e.pointerId);
-  if (pointers.size < 2) pinch = null;
-  if (pointers.size === 0) drag = null;
-};
-canvas.addEventListener('pointerup', endPointer);
-canvas.addEventListener('pointercancel', endPointer);
-
-canvas.addEventListener('wheel', (e) => {
-  e.preventDefault();
-  const C = sim.activeCam;
-  C.targetZoom = clamp(C.targetZoom * (e.deltaY > 0 ? 0.9 : 1.11), 0.28, 3.4);
-}, { passive: false });
-
-let lastTap = 0;
-canvas.addEventListener('pointerup', (e) => {
-  const now = performance.now();
-  if (now - lastTap < 300) {
-    if (sim.cutStage && sim.cutStage.ready) sim.cutStage.resize();
-  if (sim.view === "cut") sim.fitCut();
-    else sim.cam.targetZoom = sim.cam.targetZoom > sim.fitZoom() * 1.4 ? sim.fitZoom() : sim.fitZoom() * 2.1;
-  }
-  lastTap = now;
-});
-
-window.addEventListener('keydown', (e) => {
-  const k = e.key.toLowerCase();
-  if (k === ' ') { e.preventDefault(); sim.speedIdx = sim.speedIdx === 0 ? 3 : 0; sim.cine = null; }
-  if (k === '1') sim.cam.focus(sim.world.sites.active.x + 7, sim.world.sites.active.y + 7, 1.05);
-  if (k === '2') sim.overview();
-  if (k === '3') sim.cam.focus(sim.world.sites.passive.x + 7, sim.world.sites.passive.y + 7, 1.05);
-  if (k === 'r') document.getElementById('btnReset').click();
-  if (k === 'c') document.getElementById('viewCut').click();
-  if (k === 'v') document.getElementById('viewSite').click();
-  if (k === '+' || k === '=') sim.speedIdx = Math.min(5, sim.speedIdx + 1);
-  if (k === '-') sim.speedIdx = Math.max(0, sim.speedIdx - 1);
-});
-
-// ---------------------------------------------------------------- loop
 let last = performance.now(), acc = 0;
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.06);
   last = now;
   sim.update(dt);
-  if (sim.view === 'cut' && sim.cutStage && sim.cutStage.ready) {
-    sim.cutStage.render(sim, sim.visTime);
-  } else {
-    renderer.draw(sim);
-  }
+  for (const u of units) u.update(state(u.plant), dt);
+  labels.update();
+  stage.update(dt);
+  stage.render();
   acc += dt;
   if (acc > 0.22) { ui.update(); acc = 0; }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
-// expose for debugging
+sim.announce('Both units at 100% power. Grid connected, all systems normal.', 'ok');
 window.__sim = sim;
-window.__cutaway = scene;
-window.__r = renderer;
-window.__ui = ui;
+window.__units = units;
+window.__stage = stage;
+window.__labels = labels;

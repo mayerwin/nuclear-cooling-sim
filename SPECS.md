@@ -24,6 +24,7 @@ was attempted.
 | # | Requirement |
 |---|---|
 | 2.1 | **Not SVG.** SVG is the wrong tool for this job. |
+| 2.1b | When told to redo something, **redo it**. Do not keep half the old thing and bolt the new one on. |
 | 2.2 | Use a **proper 2D isometric or 3D engine**, not hand-rolled drawing code. |
 | 2.3 | Use **proven libraries and real assets**. Do not reinvent the wheel and do not hand-roll badly. |
 | 2.4 | **Semi-realistic and satisfying to watch** — the RollerCoaster Tycoon / Factorio bar — while staying **schematic enough to be instantly understandable**. |
@@ -75,43 +76,59 @@ was attempted.
 | 6.3 | Commit author `2272127+mayerwin@users.noreply.github.com`. |
 | 6.4 | No model identifier in any committed artifact. |
 | 6.5 | Replies: no hedging, no "to be honest", no excuses. Do the work. |
+| 6.6 | No em dashes in the interface copy. Separate ideas another way. |
 
 ---
 
-## Implementation — which engine does which job
+## Implementation, which engine does which job
+
+The app is one WebGL scene. There is no second renderer and no leftover canvas.
 
 | Job | Tool | Why that one |
 |---|---|---|
-| Drawing the cutaway | **PixiJS 8** (WebGL2) | A real GPU 2-D engine: retained scene graph, masks, blend modes, filters, particle containers. Replaces every hand-rolled canvas call in the old view. |
-| Rotating machinery | **Rapier 2D** (dimforge, WASM) | A real rigid-body solver. The impeller, the turbine-generator shaft and the backup pump are dynamic bodies with real moments of inertia and damping. Torque goes in; angle and speed come out. Nothing sets an angle. |
-| Water looking like water | **pixi-filters** + Pixi's own blur | Blur the drops, then bend the alpha curve hard. Overlapping drops merge into one moving body of liquid with a clean edge — the standard 2-D metaball recipe — instead of reading as a row of dots. |
-| Flow in the pipes | **1-D network hydraulics** (`fluid.js`) | This is the one place there is no library to reach for, and deliberately so. Rapier, Box2D, Matter and every SPH engine solve free bodies or free-surface fluid in an open domain under gravity. Flow in a closed, pressurised pipe network is a different problem, and the tool for it is mass conservation round the loop with `v = Q / A` in each leg — which is what the plant codes (RELAP5, TRACE, ATHLET) use. An SPH fluid here would be both physically wrong and unreadable. |
-| Free surfaces | Shallow-water solve (`fluid.js`) | A row of water columns obeying the shallow-water equations. Waves cross the vessel, reflect off the walls and die away. |
+| The whole picture | **Three.js** (WebGL2) | Real 3-D. Real lathes, tubes and extrusions instead of hand-drawn ellipses. Real lights and shadows. Physically based metal, and glass with actual transmission, so you look through a vessel wall at the water rather than at a symbol for it. |
+| The cutaway | **Three.js clipping planes** | The near quarter of the building and the near half of every vessel are removed by real clipping planes. It is a true section, not a drawing of one. |
+| Glow | **UnrealBloomPass** | Hot fuel, moving water and the generator glow because they are emissive and the bloom pass finds them. |
+| Rotating machinery | **Rapier 2D** (dimforge, WASM) | A real rigid-body solver. The impeller, the turbine-generator shaft and the backup pump are dynamic bodies with real moments of inertia and damping. Torque goes in, angle comes out. |
+| Labels | **CSS2DRenderer** | Labels are HTML anchored to 3-D points, so typography is CSS and nothing has to be shrunk to fit. |
+| Flow in the pipes | **1-D network hydraulics** (`flow.js`) | The one place with no library to reach for, deliberately. Rapier, Box2D, Matter and every SPH engine solve free bodies or free-surface fluid in an open domain under gravity. Closed pressurised pipe flow is a different problem and the tool for it is mass conservation round the loop with `v = Q / A`, which is what RELAP5 and TRACE use. An SPH fluid in a pipe would be wrong and unreadable. |
+| Free surfaces | Shallow-water solve (`flow.js`) | The water surface in each vessel is a row of columns under the shallow-water equations, displacing real mesh vertices. Waves cross it, reflect and die away. |
 
-### What the flow model actually produces
+### What the flow model produces
 
 The plant model gives a heat balance. The network turns it into one mass flow
 per circuit, and each leg turns that into its own velocity. Nothing below was
-chosen to look right; each is what the arithmetic gives, and each matches the
-published figure for a four-loop PWR:
+chosen to look right:
 
-| Leg | Model | Real plant |
+| Leg | Model | Real 4-loop PWR |
 |---|---|---|
 | Primary mass flow | 17,662 kg/s | ~18,000 kg/s |
-| Hot leg | 12.6 m/s | 12–15 m/s |
-| Cold leg | 15.9 m/s | 14–17 m/s |
-| Through the core | 10.6 m/s | ~10 m/s |
-| Main steam | 35.6 m/s | 30–50 m/s |
-| Feedwater | 6.0 m/s | 4–7 m/s |
-| Natural circulation | ~5 % of rated | 3–5 % of rated |
+| Hot leg | 12.6 m/s | 12 to 15 |
+| Cold leg | 15.9 m/s | 14 to 17 |
+| Through the core | 10.6 m/s | ~10 |
+| Main steam | 35.6 m/s | 30 to 50 |
+| Feedwater | 6.0 m/s | 4 to 7 |
+| Natural circulation | ~5 % of rated | 3 to 5 % |
 
 The steam line runs twenty times faster than the feed line carrying the same
-kilograms, because steam at 70 bar is twenty times lighter than water. The
-natural-circulation figure comes from balancing buoyancy head against
-quadratic friction, which leaves the flow proportional to the cube root of the
-power; one calibration constant sets the level.
+kilograms, because steam at 70 bar is twenty times lighter. Natural circulation
+comes from balancing buoyancy head against quadratic friction, which leaves the
+flow on the cube root of the power.
 
-The pump's impeller takes its speed from the discharge velocity and its
-**direction from the geometry of its own two pipes** — the angle from the
-suction port round to the discharge port decides the sign. It cannot turn the
-wrong way, because nothing in the code is free to choose.
+### File map
+
+```
+js/plant.js       the physics of the reactor itself, unchanged and verified
+js/scenarios.js   the historical events
+js/audio.js       every sound, synthesised
+js/flow.js        pipe-network hydraulics and shallow-water free surfaces
+js/machines.js    the rotating kit, on Rapier
+js/sim.js         the clock, the scenarios, the log
+js/ui.js          the panels
+js/view/stage.js  renderer, camera, lights, environment, bloom
+js/view/unit.js   one power station as real geometry
+js/view/parts.js  reusable pieces: pipes with elbows, vessels, railings
+js/view/plume.js  steam and smoke
+js/view/labels.js HTML labels on 3-D anchors
+js/view/state.js  what the picture is saying, read off the model
+```

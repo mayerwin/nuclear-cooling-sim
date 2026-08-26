@@ -1,338 +1,157 @@
 // ---------------------------------------------------------------------------
-// ui.js — control-room panels, gauges, consequence ledger, event feed
+// ui.js - the panels round the picture.
 // ---------------------------------------------------------------------------
 import { SCENARIOS } from './scenarios.js';
 import { SPEEDS, SPEED_LABELS } from './sim.js';
-import { P0 } from './plant.js';
-import { clamp, fmtTime, fmtNum } from './util.js';
+import { MODE } from './plant.js';
 
 const $ = (s) => document.querySelector(s);
-const el = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h !== undefined) e.innerHTML = h; return e; };
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const hhmmss = (s) => {
+  s = Math.max(0, Math.floor(s));
+  const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+};
 
 export class UI {
-  constructor(sim) {
+  constructor(sim, hooks) {
     this.sim = sim;
+    this.hooks = hooks;
     this.build();
-    this.lastFeed = 0;
+    sim.onFeed = () => this.renderFeed();
+    this.renderFeed();
+    this.update();
   }
 
   build() {
-    // ---- scenarios ----
-    const list = $('#scenarioList');
-    SCENARIOS.forEach(s => {
-      const b = el('button', 'scn');
-      b.innerHTML = `<span class="ic">${s.icon}</span><span><span class="nm">${s.name}</span>
-        <span class="rf">${s.ref}</span></span>`;
-      b.onclick = () => {
-        document.querySelectorAll('.scn').forEach(x => x.classList.remove('on'));
-        b.classList.add('on');
-        this.sim.run(s.id);
-        this.showWhy(s);
-        if (this.sim.view !== 'cut' && !this.nudged) {
-          this.nudged = true;
-          this.toast('TIP: press Cutaway to watch the fluids', true);
-        }
-        $('#scenarioName').textContent = `${s.name} — ${s.ref}`;
-        this.toast(`${s.icon} ${s.name.toUpperCase()} INITIATED`);
-        if (window.innerWidth <= 860) this.closePanels();
-      };
-      list.appendChild(b);
+    const sim = this.sim;
+    $('#scenarios').innerHTML = SCENARIOS.map((s) =>
+      `<button class="sc" data-id="${s.id}"><b>${s.name}</b><small>${s.ref.replace(/·/g, '·')}</small></button>`).join('');
+    $('#scenarios').addEventListener('click', (e) => {
+      const b = e.target.closest('.sc');
+      if (!b) return;
+      sim.sound.init();
+      sim.run(b.dataset.id);
+      this.closeMobile();
     });
 
-    // ---- speed buttons ----
-    const sp = $('#speeds');
-    const labels = SPEED_LABELS;
-    SPEEDS.forEach((v, i) => {
-      const b = el('button', i === this.sim.speedIdx ? 'on' : '', labels[i]);
-      if (v < 0) b.classList.add('auto');
-      b.onclick = () => {
-        this.sim.speedIdx = i; this.sim.cine = null;
-        sp.querySelectorAll('button').forEach((x, j) => x.classList.toggle('on', j === i));
-      };
-      sp.appendChild(b);
-    });
-    this.speedBtns = sp;
-
-    // ---- telemetry cards ----
-    const cards = $('#cards');
-    this.cardEls = this.sim.plants.map((p, i) => {
-      const c = el('div', 'card ' + (i === 0 ? 'act' : 'pas'));
-      c.innerHTML = `<h3>${i === 0 ? '⚙️' : '🌊'} ${i === 0 ? 'ACTIVE' : 'PASSIVE'} COOLING</h3>
-        <div class="sub">${i === 0 ? 'Gen-II LWR · pumps, diesels, operators' : 'Gen-III+ LWR · gravity, convection, evaporation'}</div>
-        <div class="stateHost"></div><div class="gauges"></div>
-        <div class="paths"></div><div class="alarms"></div>`;
-      cards.appendChild(c);
-      return {
-        root: c, state: c.querySelector('.stateHost'), g: c.querySelector('.gauges'),
-        paths: c.querySelector('.paths'), alarms: c.querySelector('.alarms')
-      };
+    $('#speedSeg').innerHTML = SPEEDS.map((v, i) =>
+      `<button data-i="${i}"${i === sim.speedIdx ? ' class="on"' : ''}>${SPEED_LABELS[i]}</button>`).join('');
+    $('#speedSeg').addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      sim.speedIdx = +b.dataset.i;
+      [...$('#speedSeg').children].forEach((c) => c.classList.toggle('on', c === b));
     });
 
-    // ---- toggles ----
-    $('#tgExplain').onchange = (e) => {
-      this.sim.showLabels = e.target.checked;
-      if (this.sim.cutStage) this.sim.fitCut();
-    };
-    $('#tgZones').onchange = (e) => this.sim.showZones = e.target.checked;
-    $('#tgSabotage').onchange = (e) => {
-      this.sim.sabotage = e.target.checked;
-      this.sim.passive.sabotaged = e.target.checked;
-      this.toast(e.target.checked
-        ? '⚠ PASSIVE SAFETY SYSTEMS DISABLED' : '✓ Passive safety systems restored',
-        !e.target.checked);
-    };
-    const wind = $('#wind');
-    wind.oninput = () => {
-      const deg = +wind.value;
-      $('#windVal').textContent = deg + '°';
-      this.sim.fx.wind.dir = (deg - 45) * Math.PI / 180;
-    };
-    document.querySelectorAll('[data-cam]').forEach(b => {
-      b.onclick = () => {
-        const sim = this.sim, s = sim.world.sites, m = b.dataset.cam;
-        sim.cine = null;
-        sim.holdCamera();
-        if (sim.view === 'cut') {
-          sim.cutFocus = m === 'both' ? 'both' : m;
-          sim.fitCut();
-          document.querySelectorAll('[data-cut]').forEach(x =>
-            x.classList.toggle('on', x.dataset.cut === sim.cutFocus));
-          return;
-        }
-        if (m === 'active') sim.cam.focus(s.active.x + 7, s.active.y + 7, 1.15);
-        else if (m === 'passive') sim.cam.focus(s.passive.x + 7, s.passive.y + 7, 1.15);
-        else sim.overview();
-      };
+    $('#focusSeg').addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      [...$('#focusSeg').children].forEach((c) => c.classList.toggle('on', c === b));
+      this.hooks.focus(b.dataset.focus);
     });
 
-    // ---- view switcher ----
-    const setView = (v) => {
-      this.sim.setView(v);
-      $('#viewSite').classList.toggle('on', v === 'site');
-      $('#viewCut').classList.toggle('on', v === 'cut');
-      document.body.classList.toggle('cutmode', v === 'cut');
-      if (v === 'cut') {
-        const wide = window.innerWidth > 860;
-        this.sim.cutFocus = wide ? 'both' : 'active';
-        this.sim.fitCut();
-        document.querySelectorAll('[data-cut]').forEach(x =>
-          x.classList.toggle('on', x.dataset.cut === this.sim.cutFocus));
-      }
-      $('#viewHint').innerHTML = v === 'cut'
-        ? 'Every moving line is a flow the model computed. When a loop stops here, it stopped there.'
-        : 'Switch to <b>Cutaway</b> to watch the water, steam and hydrogen move inside each containment.';
-    };
-    $('#viewSite').onclick = () => setView('site');
-    $('#viewCut').onclick = () => setView('cut');
-    document.querySelectorAll('[data-cut]').forEach(b => {
-      b.onclick = () => {
-        this.sim.cutFocus = b.dataset.cut;
-        this.sim.fitCut();
-        document.querySelectorAll('[data-cut]').forEach(x =>
-          x.classList.toggle('on', x === b));
-      };
-    });
-
-    // ---- top actions ----
-    $('#btnReset').onclick = () => {
-      this.sim.softReset();
-      document.querySelectorAll('.scn').forEach(x => x.classList.remove('on'));
-      $('#scenarioName').textContent = 'Select a scenario — both units run side by side';
-      $('#whyBox').innerHTML = '';
-      this.toast('✓ SIMULATION RESET', true);
-    };
+    $('#btnReset').onclick = () => sim.reset();
     $('#btnSound').onclick = () => {
-      const b = $('#btnSound'), on = b.getAttribute('aria-pressed') !== 'true';
-      b.setAttribute('aria-pressed', on ? 'true' : 'false');
-      b.textContent = on ? '🔊' : '🔇';
-      this.sim.sound.setMuted(!on);
+      const m = sim.sound.setMuted(!sim.sound.muted);
+      $('#btnSound').textContent = m ? '🔇' : '🔊';
     };
-    $('#btnHelp').onclick = () => $('#modal').classList.add('open');
-    // audio needs a gesture before a browser will let it make a sound, and
-    // pressing Start is the only one we are guaranteed
-    $('#modalClose').onclick = $('#startBtn').onclick = () => {
+    $('#tgSabotage').onchange = (e) => {
+      sim.sabotage = e.target.checked;
+      sim.passive.sabotaged = sim.sabotage;
+      sim.announce(sim.sabotage
+        ? 'Passive systems disabled on Unit B. It is now only as safe as its pumps.'
+        : 'Passive systems restored on Unit B.', 'crit');
+    };
+    $('#startBtn').onclick = () => {
       $('#modal').classList.remove('open');
-      this.sim.sound.init();
+      sim.sound.init();
     };
+    $('#ledger').innerHTML = LEDGER;
 
-    // ---- mobile panels ----
-    $('#btnPanels').onclick = () => this.togglePanel('left');
-    document.querySelectorAll('[data-open]').forEach(b => {
-      b.onclick = () => {
-        const k = b.dataset.open;
-        if (k === 'feedsheet') { $('#feed').classList.toggle('show'); return; }
-        this.togglePanel(k);
-      };
+    addEventListener('keydown', (e) => {
+      const k = e.key.toLowerCase();
+      if (k === ' ') { e.preventDefault(); sim.speedIdx = sim.speedIdx === 0 ? 3 : 0; this.syncSpeed(); }
+      if (k === 'r') sim.reset();
+      if (k === '1') this.pick('active');
+      if (k === '2') this.pick('both');
+      if (k === '3') this.pick('passive');
     });
-    document.querySelectorAll('[data-close]').forEach(b => {
-      b.onclick = () => $('#' + b.dataset.close).classList.remove('show');
-    });
-
-    this.sim.onFeed = () => this.renderFeed();
   }
 
-  togglePanel(id) {
-    const p = $('#' + id);
-    const was = p.classList.contains('show');
-    document.querySelectorAll('.panel').forEach(x => x.classList.remove('show'));
-    if (!was) p.classList.add('show');
-    document.querySelectorAll('#mobileTabs button').forEach(b =>
-      b.classList.toggle('on', b.dataset.open === id && !was));
+  pick(f) {
+    [...$('#focusSeg').children].forEach((c) => c.classList.toggle('on', c.dataset.focus === f));
+    this.hooks.focus(f);
   }
-  closePanels() { document.querySelectorAll('.panel').forEach(x => x.classList.remove('show')); }
-
-  showWhy(s) {
-    // `watch` is the line that tells a reader where to point their eyes. It was
-    // written for every scenario, styled in the stylesheet, and then never put
-    // on the page. It goes second, right after the one-line summary.
-    $('#whyBox').innerHTML = `<h4>${s.icon} ${s.name} — what happens, and why</h4>
-      <p class="lede">${s.lede}</p>
-      <p class="watch"><span>WATCH</span><i>${s.watch}</i></p>
-      <p>${s.detail}</p><p><b>${s.why}</b></p>`;
+  syncSpeed() {
+    [...$('#speedSeg').children].forEach((c, i) => c.classList.toggle('on', i === this.sim.speedIdx));
   }
+  closeMobile() { document.querySelectorAll('.panel').forEach((p) => p.classList.remove('show')); }
 
-  toast(msg, ok) {
-    const t = el('div', 'tst' + (ok ? ' ok' : ''), msg);
-    $('#toast').appendChild(t);
-    setTimeout(() => { t.style.transition = 'opacity .4s'; t.style.opacity = '0'; }, 2600);
-    setTimeout(() => t.remove(), 3100);
-  }
-
-  // -------------------------------------------------------------------
-  // thresholds = [warnAt, badAt]; invert=true means LOW is dangerous
-  gauge(label, val, unit, frac, thresholds, invert, fixed) {
+  gauge(label, val, unit, frac, band) {
     const f = clamp(frac, 0, 1);
-    let col = fixed || 'var(--accent)';
-    if (!fixed) {
-      const [wa, ba] = thresholds;
-      const bad = invert ? f < ba : f > ba;
-      const warn = invert ? f < wa : f > wa;
-      if (bad) col = 'var(--crit)'; else if (warn) col = 'var(--warn)';
-    }
-    return `<div class="g"><div class="lbl"><span>${label}</span><b>${val}${unit}</b></div>
-      <div class="bar"><i style="width:${(f * 100).toFixed(1)}%;background:${col};
-      box-shadow:0 0 8px ${col}"></i></div></div>`;
+    const col = band === 'bad' ? 'var(--bad)' : band === 'warn' ? 'var(--warn)' : 'var(--ok)';
+    return `<div class="g"><div class="row"><span>${label}</span><b>${val}${unit ? ' ' + unit : ''}</b></div>`
+      + `<div class="track"><div class="fill" style="width:${(f * 100).toFixed(1)}%;background:${col}"></div></div></div>`;
   }
 
   update() {
     const sim = this.sim;
-    $('#clock').textContent = fmtTime(sim.t);
-    const auto = SPEEDS[sim.speedIdx] < 0;
-    const narrow = window.innerWidth <= 860;
-    this.speedBtns.querySelectorAll('button')[5].textContent =
-      (auto && !narrow) ? `AUTO ${Math.round(sim.speed)}\u00d7` : 'AUTO';
-    // speed highlight (cinematics override)
-    this.speedBtns.querySelectorAll('button').forEach((x, j) =>
-      x.classList.toggle('on', j === sim.speedIdx));
-
-    sim.plants.forEach((p, i) => {
-      const c = this.cardEls[i];
-      const st = p.state;
-      // same three tiers as the site banner, from the same words
-      const kind = /SAFE|RECOV|NORMAL|STABLE/.test(st) ? 'ok'
-        : /BLACKOUT|DEGRADED|LOSING WATER/.test(st) ? 'warn' : 'crit';
-      c.state.innerHTML = `<span class="state ${kind}">${st}</span>`;
-
-      const pctPow = (p.qDecay / P0) * 100;
-      const tC = p.Tclad - 273;
-      const cons = p.consequences();
-      c.g.innerHTML =
-        this.gauge('Thermal power', pctPow < 1 ? pctPow.toFixed(2) : pctPow.toFixed(0), '% ' +
-          `(${fmtNum(p.qDecay / 1e6, ' MW', 0)})`, Math.pow(pctPow / 100, 0.35), [0.6, 0.85], false,
-          p.powerFrac > 1.5 ? 'var(--crit)' : 'var(--passive)') +
-        this.gauge('Core water level', (p.level * 100).toFixed(0), '%', p.level, [0.85, 0.55], true) +
-        this.gauge('Cladding temperature', tC.toFixed(0), ' °C', clamp((tC - 200) / 2500, 0, 1), [0.28, 0.44]) +
-        this.gauge('Heat removed / produced', (p.coolingMargin * 100).toFixed(0), '%',
-          clamp(p.coolingMargin, 0, 1), [0.98, 0.6], true) +
-        this.gauge('Containment pressure', p.pCtmt.toFixed(2), ' MPa', clamp(p.pCtmt / 1.1, 0, 1), [0.38, 0.62]) +
-        this.gauge('Hydrogen generated', (p.h2 + p.h2Building).toFixed(0), ' kg',
-          clamp((p.h2 + p.h2Building) / 900, 0, 1), [0.05, 0.25]) +
-        this.gauge('Core damage', (p.coreDamage * 100).toFixed(1), ' %', p.coreDamage, [0.01, 0.2]) +
-        this.gauge('Cs-137 released', cons.pbq < 0.01 ? cons.pbq.toExponential(1) : cons.pbq.toFixed(2),
-          ' PBq', clamp(Math.log10(1 + cons.pbq) / 2, 0, 1), [0.01, 0.2]) +
-        (i === 0
-          ? this.gauge('DC battery charge (8 h)', (p.battery * 100).toFixed(0), '%',
-            p.battery, [0.5, 0.15], true)
-          : this.gauge('Gravity tank PCCWST (72 h)', (p.pccwst / 3e4).toFixed(0), '%',
-            p.pccwst / 3e6, [0.5, 0.15], true));
-
-      const paths = p.paths && p.paths.length
-        ? p.paths.map(x => `<div class="p">${x}</div>`).join('')
-        : '<div class="none">⛔ NO HEAT REMOVAL PATH AVAILABLE</div>';
-      const wrecked = p.coreDamage > 0.01 || !p.ctmtIntact;
-      const grace = wrecked ? null : (i === 0
-        ? (p.acPower ? null : `${(p.battery * p.batteryHours).toFixed(1)} h of battery left`)
-        : `${(72 * (p.pccwst / 3e6)).toFixed(0)} h before anyone has to do anything`);
-      c.paths.innerHTML = paths + (grace
-        ? `<div class="grace">\u23f1 ${grace}</div>` : '');
-      c.alarms.innerHTML = p.alarms.map(a => `<span class="alarm">${a}</span>`).join('');
-    });
-
-    this.renderConsequences();
-  }
-
-  renderConsequences() {
-    const [a, b] = this.sim.plants;
-    const ca = a.consequences(), cb = b.consequences();
-    const inesCol = (n) => n >= 6 ? '#ff5c48' : n >= 4 ? '#ffc44d' : n >= 1 ? '#9fd3e8' : '#63e08a';
-    const row = (lbl, va, vb) =>
-      `<tr><td>${lbl}</td><td class="a">${va}</td><td class="b">${vb}</td></tr>`;
-    const km2 = (v) => v < 0.05 ? '—' : fmtNum(v, ' km²', v < 10 ? 1 : 0);
-    const ppl = (v) => v < 10 ? '—' : fmtNum(v, '', 0);
-    const usd = (v) => v < 0.05 ? '—' : '$' + v.toFixed(v < 10 ? 1 : 0) + 'B';
-
-    document.querySelector('#consequences').innerHTML = `
-      <div class="ines">
-        <div class="inesBox"><div class="n" style="color:${inesCol(a.ines())}">${a.ines()}</div>
-          <div class="l">INES · Active</div></div>
-        <div class="inesBox"><div class="n" style="color:${inesCol(b.ines())}">${b.ines()}</div>
-          <div class="l">INES · Passive</div></div>
-      </div>
-      <table class="ctable">
-        <tr><th>Consequence</th><th>Active</th><th>Passive</th></tr>
-        ${row('Cs-137 released', ca.pbq < 1e-3 ? '—' : ca.pbq.toFixed(2) + ' PBq',
-      cb.pbq < 1e-3 ? '—' : cb.pbq.toFixed(2) + ' PBq')}
-        ${row('Core damaged', (a.coreDamage * 100).toFixed(1) + '%', (b.coreDamage * 100).toFixed(1) + '%')}
-        ${row('Land > 555 kBq/m²', km2(ca.land), km2(cb.land))}
-        ${row('Exclusion radius', ca.pbq < 1e-3 ? '—' : ca.exclusionR.toFixed(1) + ' km',
-        cb.pbq < 1e-3 ? '—' : cb.exclusionR.toFixed(1) + ' km')}
-        ${row('People displaced', ppl(ca.evac), ppl(cb.evac))}
-        ${row('Latent cancers (LNT)', ca.cancers < 1 ? '—' : Math.round(ca.cancers),
-          cb.cancers < 1 ? '—' : Math.round(cb.cancers))}
-        ${row('Acute casualties', ca.acute || '—', cb.acute || '—')}
-        ${row('Cleanup + liability', usd(ca.cost), usd(cb.cost))}
-        ${row('Explosions', a.explosions || '—', b.explosions || '—')}
-      </table>
-      ${this.verdictHTML(a, b, ca, cb)}`;
-  }
-
-  verdictHTML(a, b, ca, cb) {
-    if (!this.sim.scenario) return `<div class="verdict">Pick a scenario. Both units are hit by the
-      <b>identical</b> hazard at the identical moment — the only variable is how they remove decay heat.</div>`;
-    if (this.sim.sabotage && b.coreDamage > 0.01) {
-      return `<div class="verdict bad">With its passive systems <b>deliberately disabled</b>, the Gen-III+
-        unit fails too — which is the point: the survival above is produced by the passive
-        equipment, not by the model being kind to it.</div>`;
-    }
-    if (ca.pbq < 1e-3 && cb.pbq < 1e-3) {
-      return `<div class="verdict">Both units are still holding. Let it run, or raise the time
-        multiplier — the active plant's margin is measured in <b>battery hours</b>.</div>`;
-    }
-    const ratio = cb.pbq > 1e-6 ? (ca.pbq / cb.pbq) : Infinity;
-    const factor = !isFinite(ratio) ? 'essentially zero' : `${ratio < 10 ? ratio.toFixed(1) : Math.round(ratio)}×`;
-    return `<div class="verdict"><b>Result:</b> the active unit released
-      <b>${ca.pbq.toFixed(2)} PBq</b> of Cs-137 and reached <b>INES ${a.ines()}</b>;
-      the passive unit released ${cb.pbq < 1e-3 ? '<b>nothing measurable</b>' : `<b>${cb.pbq.toFixed(3)} PBq</b>`}
-      (${factor} less) at <b>INES ${b.ines()}</b>.
-      ${cb.coreDamage < 0.01 ? 'Its core never uncovered: the water was already above it, and gravity does not need a diesel.' : ''}
+    $('#clock').textContent = hhmmss(sim.t);
+    $('#telemetry').innerHTML = sim.plants.map((p) => {
+      const P = p.mode === MODE.PASSIVE;
+      const dmg = p.coreDamage;
+      const good = !(p.vesselBreach || dmg > 0.01 || p.level < 0.97);
+      const T = p.Tclad - 273;
+      return `<div class="unit">
+        <h3>${P ? 'Unit B' : 'Unit A'}</h3>
+        <div class="sub">${P ? 'Gen III+, passive' : 'Gen II, active'}</div>
+        <div class="st ${good ? 'ok' : 'bad'}">${p.state}</div>
+        ${this.gauge('Heat still in the fuel', (p.qDecay / 1e6).toFixed(p.qDecay < 1e7 ? 1 : 0), 'MW',
+    p.qDecay / 3400e6, 'ok')}
+        ${this.gauge('Water over the fuel', Math.round(p.level * 100), '%', p.level,
+    p.level > 0.9 ? 'ok' : p.level > 0.71 ? 'warn' : 'bad')}
+        ${this.gauge('Cladding temperature', Math.round(T), '°C', T / 2200,
+    T < 400 ? 'ok' : T < 900 ? 'warn' : 'bad')}
+        ${this.gauge('Containment pressure', p.pCtmt.toFixed(2), 'MPa', p.pCtmt / 0.9,
+    p.pCtmt < 0.4 ? 'ok' : p.pCtmt < 0.7 ? 'warn' : 'bad')}
+        ${this.gauge('Core damage', (dmg * 100).toFixed(0), '%', dmg, dmg < 0.01 ? 'ok' : 'bad')}
+        ${this.gauge('Caesium-137 released', (p.releasedBq / 1e15).toFixed(2), 'PBq',
+    p.releasedBq / 8.5e16, p.releasedBq < 1e13 ? 'ok' : 'bad')}
       </div>`;
+    }).join('');
   }
 
   renderFeed() {
-    const f = this.sim.feed;
-    const host = document.querySelector('#feedInner');
-    host.innerHTML = f.slice(-40).reverse().map(e =>
-      `<div class="ev ${e.kind}"><span class="tm">${fmtTime(e.t)}</span><span class="tx">${e.msg}${e.n > 1 ? ` <b class="xn">\u00d7${e.n}</b>` : ''}</span></div>`
-    ).join('');
+    const el = $('#feedInner');
+    el.innerHTML = this.sim.feed.slice(-40).map((e) =>
+      `<div class="e"><span class="t">${hhmmss(e.t)}</span>`
+      + `<span class="${e.kind}">${e.msg}${e.n > 1 ? ` (x${e.n})` : ''}</span></div>`).join('');
+    el.parentElement.scrollTop = 1e6;
   }
 }
+
+const LEDGER = `<table>
+<tr><th>Modelled</th><td>Way and Wigner decay heat. Latent heat boil off against the real
+water inventory. Zirconium and steam oxidation above 1100 K with its 6.5 MJ/kg exotherm and
+0.044 kg of hydrogen per kg of cladding. Saturated pool containment pressure. Hydrogen
+migration and deflagration. Released caesium 137 integrated over time.</td></tr>
+<tr><th>Solved</th><td>The flow. One mass flow per circuit from the heat balance, then a
+velocity for every pipe by continuity. The numbers that come out match a four loop PWR:
+17,662 kg/s primary, 12.6 m/s in the hot leg, 15.9 in the cold leg, 10.6 through the core,
+35.6 in the main steam line, 6.0 in the feedwater. Natural circulation lands at about 5 per
+cent of rated flow, which is what plants measure. The rotating machinery is on a rigid body
+solver: torque in, angle out.</td></tr>
+<tr><th>Scaled</th><td>Time. The clock compresses quiet hours and drops to near real time
+when a core is coming apart. The turbine runs up in seconds rather than minutes, to match.</td></tr>
+<tr><th>Assumed</th><td>Both units are 3,400 MW thermal so the comparison is like for like.
+The Gen II unit is a large dry PWR containment. The Gen III+ unit is AP1000 class: passive
+residual heat removal, core makeup tanks, gravity injection and a steel shell cooled by air
+and an evaporating film. 8 hours of battery on the Gen II unit and 24 on the Gen III+,
+against a 72 hour gravity tank. The passive plant is not invulnerable here: past about 1.5
+times the seismic design basis the pool cracks, and past about 2.5 times the heat exchanger
+line fails too.</td></tr>
+<tr><th>Faked</th><td>Hot water is drawn reddish. Water at 350 °C is not red. The colour is
+there so you can see where the heat is without reading a number. The near quarter of the
+building and the near half of every vessel are cut away, the way a museum model is cut away.
+Consequence figures are scaling laws fitted to two data points, Fukushima at about 15 PBq and
+Chernobyl at about 85. They are the right order of magnitude and nothing more.</td></tr>
+</table>`;

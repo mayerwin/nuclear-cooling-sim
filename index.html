@@ -1,237 +1,79 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
-<title>Passive vs Active Nuclear Cooling — Isometric Accident Simulator</title>
-<meta name="description" content="An isometric, RollerCoaster-Tycoon-style simulator comparing actively cooled Gen-II reactors with passively cooled Gen-III+ reactors under Fukushima, Chernobyl, Three Mile Island and other severe accident scenarios." />
-<meta name="theme-color" content="#0a1018" />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230e1a24'/%3E%3Cg fill='%2364e08a'%3E%3Ccircle cx='32' cy='32' r='6'/%3E%3Cpath d='M32 8a24 24 0 0 1 20.8 12L38 28.5A10 10 0 0 0 32 26z'/%3E%3Cpath d='M52.8 44A24 24 0 0 1 32 56V38.5a10 10 0 0 0 5.2-1.4z'/%3E%3Cpath d='M11.2 44A24 24 0 0 1 11.2 20L26 28.5a10 10 0 0 0 0 7z'/%3E%3C/g%3E%3C/svg%3E" />
-<link rel="stylesheet" href="css/style.css" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Passive cooling, watched</title>
+<meta name="description" content="Two nuclear stations, one with active cooling and one with passive cooling, taken through the same accidents. Watch which one survives.">
+<link rel="stylesheet" href="css/app.css">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
+</script>
 </head>
 <body>
-<canvas id="stage"></canvas>
-<div id="glstage"></div>
 
-<!-- ======================= TOP BAR ======================= -->
-<header id="topbar">
-  <div class="brand">
-    <span class="logo">☢</span>
-    <div>
-      <h1>Passive <span class="vs">vs</span> Active Cooling</h1>
-      <p id="scenarioName">Select a scenario — both units run side by side</p>
-    </div>
+<div id="scene"></div>
+<div id="labels"></div>
+
+<header id="bar">
+  <div class="clock"><b id="clock">00:00:00</b><small>time since the initiating event</small></div>
+  <div class="seg" id="focusSeg">
+    <button data-focus="active">Active</button>
+    <button data-focus="both" class="on">Both</button>
+    <button data-focus="passive">Passive</button>
   </div>
-  <div class="clock">
-    <div class="clk" id="clock">00:00:00</div>
-    <div class="clklbl">time since initiating event</div>
-  </div>
-  <div class="viewSwitch" id="viewSwitch">
-    <button id="viewSite" class="on" title="The site and its surroundings (V)">🏭 <span>Site</span></button>
-    <button id="viewCut" title="Inside both reactors (C)">🔬 <span>Cutaway</span></button>
-  </div>
-  <div class="speeds" id="speeds"></div>
-  <div class="topActions">
-    <button class="btn ghost" id="btnSound" title="Sound on/off" aria-pressed="true">🔊</button>
-    <button class="btn ghost" id="btnHelp" title="What am I looking at?">?</button>
-    <button class="btn ghost" id="btnReset" title="Reset simulation">⟲</button>
-    <button class="btn ghost only-mobile" id="btnPanels" title="Panels">▤</button>
-  </div>
+  <div class="seg" id="speedSeg"></div>
+  <button class="icon" id="btnSound" title="Sound">🔊</button>
+  <button class="icon" id="btnReset" title="Reset">↺</button>
 </header>
 
-<!-- ======================= LEFT: SCENARIOS ======================= -->
 <aside id="left" class="panel">
-  <div class="panelHead">
-    <h2>Trigger a catastrophe</h2>
-    <button class="closeBtn only-mobile" data-close="left">×</button>
-  </div>
-  <div id="scenarioList"></div>
-  <!-- the explanation belongs where the eye already is: right under the
-       scenario that was just clicked, not below the controls off the bottom -->
-  <div class="whyBox" id="whyBox"></div>
-  <div class="panelHead"><h2>Controls</h2></div>
-  <div class="toggles">
-    <label class="tg"><input type="checkbox" id="tgExplain" checked><span>Equipment labels <em>(zoom in)</em></span></label>
-    <label class="tg"><input type="checkbox" id="tgZones" checked><span>Evacuation zones</span></label>
-    <label class="tg danger"><input type="checkbox" id="tgSabotage"><span>Disable passive systems <em>(what-if)</em></span></label>
-    <div class="slider">
-      <span>Wind</span>
-      <input type="range" id="wind" min="0" max="359" value="150">
-      <span id="windVal">150°</span>
-    </div>
-    <div class="camBtns">
-      <button class="btn sm" data-cam="active">Active unit</button>
-      <button class="btn sm" data-cam="both">Both</button>
-      <button class="btn sm" data-cam="passive">Passive unit</button>
-    </div>
-    <p class="hint" id="viewHint">Switch to <b>Cutaway</b> to open the buildings up and watch
-      the water go round inside each one. Pick a single unit there to see its turbine hall
-      and where the electricity comes from.</p>
-  </div>
+  <h2>What happened</h2>
+  <div id="scenarios"></div>
+  <label class="toggle"><input type="checkbox" id="tgSabotage">
+    <span>Disable the passive systems</span></label>
+  <p class="hint">Turn this on and the Gen III+ unit loses the things that make it
+    passive. It is the fastest way to see that the difference is real.</p>
 </aside>
 
-<!-- ======================= RIGHT: TELEMETRY ======================= -->
 <aside id="right" class="panel">
-  <div class="panelHead">
-    <h2>Reactor telemetry</h2>
-    <button class="closeBtn only-mobile" data-close="right">×</button>
-  </div>
-  <div id="cards"></div>
-  <div class="panelHead"><h2>Consequences</h2></div>
-  <div id="consequences"></div>
+  <h2>Reactors</h2>
+  <div id="telemetry"></div>
 </aside>
 
-<!-- ======================= EVENT FEED ======================= -->
 <section id="feed"><div id="feedInner"></div></section>
 
-<!-- ======================= MOBILE TABS ======================= -->
-<nav id="mobileTabs" class="only-mobile">
-  <button data-open="left">☢ Scenarios</button>
-  <button data-open="right">📊 Telemetry</button>
-  <button data-open="feedsheet">📋 Log</button>
-</nav>
-
-<!-- ======================= INTRO / HELP ======================= -->
 <div id="modal" class="modalWrap open">
   <div class="modal">
-    <button class="modalClose" id="modalClose">×</button>
-    <h2><span class="logo">☢</span> Two ways to keep a reactor cool</h2>
-    <p class="lede">A reactor that has been shut down still makes heat — about <b>6.5% of full power</b> the instant
-      the rods drop, and still ~0.5% a day later. For a 3,400&nbsp;MW core that is <b>220&nbsp;MW</b> falling to
-      <b>17&nbsp;MW</b>: enough to boil itself dry and melt in hours if nothing carries that heat away.
-      Every nuclear accident in history is a story about losing that heat path.</p>
-    <div class="cols">
-      <div class="col act">
-        <h3>Active cooling <small>Gen II — Fukushima, TMI, most of today's fleet</small></h3>
-        <ul>
-          <li>Motor-driven pumps push water through the core.</li>
-          <li>Pumps need the grid → then diesels → then batteries.</li>
-          <li>Heat ends up in the sea or a river, via more pumps.</li>
-          <li>Operators must diagnose and act, often in minutes.</li>
-          <li><b>Chain of dependencies. Break any link and the clock starts.</b></li>
-        </ul>
-      </div>
-      <div class="col pas">
-        <h3>Passive cooling <small>Gen III+ — AP1000, ESBWR, SMRs</small></h3>
-        <ul>
-          <li>Water sits <em>above</em> the core and falls into it.</li>
-          <li>Hot water rises, cold water sinks — natural circulation.</li>
-          <li>Steam condenses on a steel shell cooled by an air draught.</li>
-          <li>Valves <em>open</em> when they lose power (fail-safe).</li>
-          <li><b>No pump, no diesel, no operator, for 72 hours.</b></li>
-        </ul>
-      </div>
-    </div>
-    <p class="callout"><b>And when is passive <i>not</i> enough?</b> Shake the plant hard
-      enough and the pool above the reactor cracks and drains — try <i>Beyond-Design Quake</i>.
-      It rides that out: the water lands on the containment floor and gravity feeds it straight
-      back in. Only two things actually finish it — <b>losing the containment</b> and
-      <b>turning the passive systems off</b> — and both are in the UI.</p>
-    <h3 class="ledgerHead">How to read the diagram</h3>
-    <ul class="fine howto">
-      <li>Both buildings are <b>cut open</b> the same way — the near quarter of the wall
-        removed, the roof drawn as glass, the top of each vessel sliced off. Nothing has burst;
-        that is just how you get to look in.</li>
-      <li>Both plants are built <b>the same way</b>. One thing differs: where the spare water
-        sits — in a pool held high beside the reactor on the right, in a basement tank behind a
-        pump on the left.</li>
-      <li>The <b>fuel bundle</b> stands inside the reactor, in the water. Watch the level against
-        the top of it: while the fuel is covered it stays grey; uncovered it goes orange, then
-        red, then slumps.</li>
-      <li><b>Water you can watch.</b> Slugs of fluid travel the pipes at the speed the model
-        computed; a plain steel pipe has nothing in it. Water heats from blue through a
-        pale scalding colour to orange. If the loop is orange all the way round, nothing is
-        taking the heat away — it is carrying the same heat straight back into the fuel.</li>
-      <li>Under the reactor: how much water is left, how hot, and <b>how much heat the fuel is
-        still making</b>. That last number is the whole problem: shutting a reactor down stops
-        the chain reaction, not the heat.</li>
-      <li>Beside the big pump: what the cooling behind it is <b>made of</b>. Both plants keep
-        creeping round on their own when it stops — the difference is whether what happens
-        next needs pumps.</li>
-      <li>The pipe out of the reactor leaves <b>high</b> and climbs into the boiler; the pipe
-        back leaves the boiler lower and runs down to the pump. Hot water rises and cool water
-        sinks, so that loop keeps turning on its own once the pump stops — but at a
-        <b>crawl</b>, which is what you see when the slugs slow right down.</li>
-      <li>Look into the <b>pump</b>: the impeller and its curved vanes are turning in a casing
-        full of water. When it stops, they stop.</li>
-      <li>Pick a single unit and the <b>turbine hall</b> appears outside the containment. Steam
-        leaves the top of the boiler, spins the turbine, turns the generator — that is where
-        the electricity comes from — and the condenser turns it back into water to be pumped
-        in again. Nothing in that loop has ever been inside the reactor.</li>
-      <li>The line under each plant's name is <b>the step it has reached</b>. Watch them
-        separate.</li>
+    <h1>Two reactors, the same bad day</h1>
+    <p class="lede">On the left, a station that keeps its core cool with pumps, and needs
+      electricity to run them. On the right, one that uses gravity, boiling and the outside
+      air, and needs nothing at all. Pick an accident and watch both.</p>
+    <h3>How to read it</h3>
+    <ul class="howto">
+      <li>Both buildings are <b>cut open</b>: the near quarter of the wall is taken off and
+        every vessel is sliced down its own axis. Nothing has burst, that is just how you
+        get to look in.</li>
+      <li>The <b>fuel</b> stands inside the reactor, in the water. Watch the level against
+        the top of it. Covered, it stays grey. Uncovered, it glows, then melts.</li>
+      <li>The water in the pipes is <b>solved, not animated</b>. Each pipe runs at the speed
+        continuity gives it, so the thin lines run fast and the fat ones run slow, and when
+        the pump stops the loop keeps creeping at a twentieth of the speed.</li>
+      <li>Under the reactor: how much water is left, how hot it is, and how much heat the
+        fuel is <b>still making</b>. That last number is the whole problem. Shutting a
+        reactor down stops the chain reaction, not the heat.</li>
+      <li>Follow the steam out to the <b>turbine</b>. It turns the generator, and the
+        megawatts beside it are what the station is putting on the grid. Scram the reactor
+        and all of that stops.</li>
+      <li>Drag to look around. Scroll to zoom.</li>
     </ul>
-    <button class="btn primary big" id="startBtn">Start the simulator</button>
-    <details class="disc">
-      <summary>What is real here, and what is not</summary>
-      <p class="fine">Half the value of a simulation is knowing which numbers to trust. So:</p>
-      <table class="ledger">
-        <tr><th>Computed</th><td>Way–Wigner decay heat. Latent-heat boil-off against the net
-          heat imbalance. Zr–H₂O oxidation above 1100&nbsp;K with its 6.5&nbsp;MJ/kg exotherm and
-          0.044&nbsp;kg H₂ per kg of zircaloy. Saturated-pool containment pressure,
-          <i>p</i>&nbsp;=&nbsp;<i>p</i><sub>air</sub>(T)&nbsp;+&nbsp;<i>p</i><sub>sat</sub>(T)&nbsp;+&nbsp;<i>p</i><sub>H2</sub>.
-          Hydrogen migration and deflagration. Released Cs-137 integrated over time.
-          <b>Every flow animated in the diagram</b> — if dashes are moving, the model is moving
-          that water.</td></tr>
-        <tr><th>Scaled</th><td>Time: the AUTO clock compresses quiet hours up to 1800× and drops
-          to near real time when a core is coming apart. The cutaway is an <b>isometric cutaway,
-          not a scale drawing</b>: the same projection as the site view, so the two are one world
-          at two scales, but the machines are sized to be read rather than measured. The layout
-          is the real arrangement of a loop — reactor, hot leg high, boiler, pump on the cold leg
-          low, and back in — and the passive plant's pool really does sit higher than the reactor,
-          because that height is what makes gravity work. What is not real is the spacing: a
-          containment is far emptier than this, and the vessels are drawn far fatter relative to
-          their height than they are. Distance: one map tile is about 25&nbsp;m, so
-          the whole island is 1.2&nbsp;km across — the contamination footprint is a schematic of the plume, not a
-          dispersion calculation, and the evacuation rings are indicative rather than measured
-          (a 20&nbsp;km ring would be four hundred tiles wide). The radius written against each
-          ring in the key <i>is</i> the model's number; the circle drawn for it is not. The site
-          is staged for the camera rather than laid out to a real plant plan.</td></tr>
-        <tr><th>Assumed</th><td>Both units are 3,400&nbsp;MW thermal so the comparison is
-          like-for-like. The Gen-II unit is a large dry PWR containment; a Mark-I BWR is a harder
-          case. The Gen-III+ unit is AP1000-class: PRHR, CMTs, ADS, IRWST gravity injection and a
-          steel shell cooled by air and an evaporating film. 8&nbsp;h of battery on the Gen-II
-          unit and 24&nbsp;h on the Gen-III+, against a 72&nbsp;h gravity tank. <b>The passive
-          plant is not invulnerable here</b>: past about 1.5×
-          the seismic design basis the in-containment pool cracks and leaks, and past about 2.5×
-          the heat-exchanger line fails as well. Neither on its own melts it down, because the
-          water is still inside the containment and gravity puts it back; what does melt it down
-          is losing the containment, or turning the passive kit off. Try Beyond-Design Quake,
-          Everything At Once and the <b>disable passive systems</b> toggle and watch which one
-          actually breaks it.</td></tr>
-        <tr><th>Faked</th><td>Hot water is drawn <b>orange</b>. Water at 350&nbsp;°C is not
-          orange; it is water. The colour is there so you can see where the heat is without
-          reading a number, and it is the one place the picture chooses legibility over
-          literal truth. Three more things are cut or bent for the same reason. The near
-          quarter of the containment wall, and the near half of each vessel head, are
-          <b>cut away</b>, the way a museum model is cut away — nothing has actually opened.
-          The roof is drawn as <b>glass</b>; it is 40&nbsp;mm of steel. And a pressure vessel
-          runs water-solid, with no free surface at all: the level is drawn with headroom
-          under the head so you can watch it fall, and the percentage beside it is the model's
-          own number. The consequence figures (land, evacuees, cost, latent cancers)
-          and the evacuation rings drawn on the map are
-          scaling laws fitted to <b>two</b> data points — Fukushima ≈15&nbsp;PBq and Chernobyl
-          ≈85&nbsp;PBq. They are the right order of magnitude and nothing more. The latent-cancer
-          number is a straight LNT extrapolation, shown because people ask for it, not because the
-          model believes it precisely. The tsunami inundation is cinematic, not hydrodynamic.
-          The condensate loop — water boiled off inside the containment condenses on the
-          cold steel shell and drains back to the pool and the floor — is modelled as closed but
-          not perfect: 6% of what the heat exchanger boils, and 2% of each recirculation pass, is
-          treated as held up and not returned. Those two fractions are a guess, and they are what
-          decides whether the passive unit rides out a total blackout for days or for weeks. With
-          a perfectly closed containment it never runs out; with a leaky one it fails in hours.</td></tr>
-      </table>
-      <p class="fine">Not convinced the passive kit is what does the work? Turn on
-        <b>Disable passive systems</b> and run the same scenario: Unit B melts down too, and faster
-        than Unit A, because it has no steam-driven pump to fall back on. The severe seismic
-        scenarios damage it without any toggle at all. Both are in the UI so the comparison can be
-        falsified rather than just asserted.</p>
+    <button class="btn primary big" id="startBtn">Start</button>
+    <details class="disc"><summary>What is real here, and what is not</summary>
+      <div id="ledger"></div>
     </details>
   </div>
 </div>
 
-<div id="cutSwitch"><button data-cut="active" class="on">⚙️ Active</button><button data-cut="passive">🌊 Passive</button><button data-cut="both" class="wide-only">Both</button></div>
-<div id="toast"></div>
 <script type="module" src="js/main.js"></script>
 </body>
 </html>
