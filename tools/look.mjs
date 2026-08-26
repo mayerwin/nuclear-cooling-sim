@@ -35,7 +35,8 @@ const CAMS = {
   turbine:{ t: [-43 + 30, 8, 6], d: 26, a: 1.15, e: 0.18 },
   pool:   { t: [43 + 3.5, 22, -9], d: 28, a: 1.0, e: 0.30 },
   passive:{ t: [43 - 10, 16, 20], d: 46, a: 1.15, e: 0.24 },
-  breach: { t: [-43, 16, 14], d: 60, a: 1.55, e: 0.28 }
+  breach: { t: [-43, 16, 14], d: 60, a: 1.55, e: 0.28 },
+  power:  { t: [-43 + 40, 9, 4], d: 44, a: 1.25, e: 0.22 }
 };
 const c = CAMS[shot] || CAMS.loop;
 await page.evaluate((c) => {

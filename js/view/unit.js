@@ -8,7 +8,7 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js';
-import { liquidMaterial, Riser } from './fluid.js';
+import { liquidMaterial, Riser, Bubbles, frameOf } from './fluid.js';
 import { tempColor, waterColor, heatOf } from './materials.js';
 import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js';
 import { Machines } from '../machines.js';
@@ -63,6 +63,16 @@ function tintWater(mat, colour, dt) {
   mat.normalMap.offset.x += dt * 0.035;
   mat.normalMap.offset.y += dt * 0.021;
   mat.emissive.copy(colour).multiplyScalar(0.14);
+}
+
+// A bare run of metal with proper elbows. Pipes carry fluid and get the whole
+// fluid treatment; a busbar carries current and just needs to be a solid.
+function pipeLike(pts, r, mat, bend) {
+  const path = roundedPath(pts, bend == null ? r * 3 : bend);
+  const seg = Math.max(16, Math.round(path.getLength() * 1.4));
+  const mesh = new THREE.Mesh(new THREE.TubeGeometry(path, seg, r, 8, false), mat);
+  mesh.castShadow = true;
+  return mesh;
 }
 
 export class Unit {
@@ -235,33 +245,10 @@ export class Unit {
     rim.material = m.concrete;
     g.add(rim);
 
-    // the operating floor, which is what you actually stand on inside
-    // A walkway round the wall, not a lid: it has to give structure without
-    // covering the machines it is there to let you reach.
-    const deckGeo = new THREE.RingGeometry(12.2, R_IN - 0.3, 72, 1).rotateX(-Math.PI / 2);
-    const opDeck = new THREE.Mesh(deckGeo, m.inner);
-    opDeck.position.y = 13.2; opDeck.receiveShadow = true;
-    g.add(opDeck);
-    const deckRail = [];
-    for (let i = 0; i <= 30; i++) {
-      const a = (i / 30) * Math.PI * 2;
-      deckRail.push(V(Math.cos(a) * 12.4, 13.2, Math.sin(a) * 12.4));
-    }
-    g.add(railing(deckRail, this.stage.mat.rail, 1.0));
-    for (let i = 0; i < 10; i++) {
-      const a = (i / 10) * Math.PI * 2;
-      const col = tube(0.4, 0.4, 13.2, this.stage.mat.painted, 10);
-      col.position.set(Math.cos(a) * (R_IN - 1.6), 6.6, Math.sin(a) * (R_IN - 1.6));
-      g.add(col);
-    }
-
-    // handrail round the near edge of the floor
-    const pts = [];
-    for (let i = 0; i <= 26; i++) {
-      const a = Math.PI * 0.5 * (i / 26);
-      pts.push(V(Math.cos(a) * (R_IN - 0.5), 0, Math.sin(a) * (R_IN - 0.5)));
-    }
-    g.add(railing(pts, this.stage.mat.rail));
+    // Nothing else goes inside. An operating deck, a handrail and a ring of
+    // columns are what a real containment has and what a photograph of one
+    // shows, but here they stand between the viewer and the only thing the
+    // picture is for: the water, where it goes and what happens to it.
   }
 
   // ---- reactor, boiler, pump ---------------------------------------------
@@ -463,6 +450,24 @@ export class Unit {
     this.rotor.position.set(t.x - 1.6, 8.4, t.z);
     g.add(this.rotor);
 
+    // The steam inside the casing. It arrives at the narrow end, does work on
+    // the wheel and leaves colder, wetter and much larger, so the body of
+    // vapour is a cone that widens along the machine.
+    this.turbSteam = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.9, 1.5, 8.4, 32, 1, true).rotateZ(-Math.PI / 2),
+      liquidMaterial(2.4));
+    this.turbSteam.material.normalMap.repeat.set(5, 3);
+    // cut on the same plane as the casing, so the vapour stays inside it
+    this.turbSteam.material.clippingPlanes = casMat.clippingPlanes;
+    this.turbSteam.position.set(t.x - 6, 8.4, t.z);
+    this.turbSteam.renderOrder = 2;
+    g.add(this.turbSteam);
+    // and the droplets it carries, blown straight through onto the blades
+    this.turbWisp = new Bubbles(
+      frameOf(roundedPath([V(t.x - 10, 8.4, t.z), V(t.x - 2, 8.4, t.z)], 0.2), 40),
+      0.75, 46, m.bubble);
+    g.add(this.turbWisp.mesh);
+
     const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 22, 20)
       .rotateZ(Math.PI / 2), this.stage.mat.steel);
     shaft.position.set(t.x + 1, 8.4, t.z);
@@ -488,11 +493,45 @@ export class Unit {
     const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 16, 8), pylonMat);
     mast.position.set(t.x + 24, 8, t.z - 2);
     g.add(mast);
-    for (const yy of [12, 15]) {
+    const armY = [12, 15];
+    for (const yy of armY) {
       const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 8, 6).rotateZ(Math.PI / 2), pylonMat);
       arm.position.set(t.x + 24, yy, t.z - 2);
       g.add(arm);
     }
+
+    // The electricity has to visibly leave the machine that made it: three
+    // busbars out of the generator, into the transformer, up to the pylon and
+    // away. A generator wired to nothing is not making anything.
+    this.busMat = new THREE.MeshStandardMaterial({
+      color: 0xb87333, roughness: 0.35, metalness: 0.95,
+      emissive: new THREE.Color(0x2a1400), emissiveIntensity: 0
+    });
+    this.bus = new THREE.Group();
+    for (let i = 0; i < 3; i++) {
+      const dz = (i - 1) * 1.5;
+      const run = pipeLike([
+        V(t.x + 12.6, 8.4 + (i - 1) * 0.9, t.z),
+        V(t.x + 15, 8.4 + (i - 1) * 0.9, t.z),
+        V(t.x + 15, 4.6, t.z - 2 + dz * 0.6),
+        V(t.x + 16.4, 4.6, t.z - 2 + dz * 0.6)
+      ], 0.26, this.busMat);
+      this.bus.add(run);
+    }
+    // transformer to pylon, then off into the distance
+    for (let i = 0; i < 4; i++) {
+      const yy = armY[i >> 1], dz = (i % 2 ? 1 : -1) * 3.1;
+      this.bus.add(pipeLike([
+        V(t.x + 17.6, 3.6, t.z - 2 + (i % 2 ? 0.8 : -0.8)),
+        V(t.x + 21, yy - 0.4, t.z - 2 + dz * 0.6),
+        V(t.x + 24, yy - 0.3, t.z - 2 + dz)
+      ], 0.13, this.busMat, 1.4));
+      this.bus.add(pipeLike([
+        V(t.x + 24, yy - 0.3, t.z - 2 + dz),
+        V(t.x + 40, yy - 3.4, t.z - 2 + dz)
+      ], 0.13, this.busMat, 1.4));
+    }
+    g.add(this.bus);
 
     // Boiler, over the containment, down beside the turbine hall and in
     // through the end of the casing. It has to arrive somewhere or the steam
@@ -701,6 +740,32 @@ Object.assign(Unit.prototype, {
       auxDriven: !!st.injecting,
       auxTarget: 22
     });
+    // ---- steam through the turbine, and the power leaving it ----
+    {
+      const v = this.legSteam.v, on = Math.abs(v) > 0.02;
+      const tm = this.turbSteam.material;
+      tm.normalMap.offset.x -= v * dt / 2.4;
+      tm.color.setHex(0xf6fbff);
+      tm.attenuationColor.setHex(0xffffff);
+      tm.attenuationDistance = 60;
+      tm.transmission = 0.12;
+      tm.roughness = 0.85;
+      tm.thickness = 0.4;
+      tm.ior = 1.02;
+      tm.opacity = on ? 0.7 : 0.06;
+      tm.emissive.setHex(0xa9d3f2);
+      tm.emissiveIntensity = on ? 0.8 : 0.03;
+      tm.normalScale.set(1.2, 1.2);
+      this.turbSteam.visible = on;
+      this.turbWisp.advance(dt, v, 8, on ? 2.2 : 0.0001);
+      this.turbWisp.mesh.visible = on;
+
+      // the busbars carry what the generator is actually making
+      const mw = this.spin > 4 ? clamp(this.secondary.mdot / 1900, 0, 1) : 0;
+      this.busMat.emissiveIntensity = mw * 0.45;
+      this.busMat.emissive.setHex(mw > 0.02 ? 0xff8a30 : 0x2a1400);
+    }
+
     this.impeller.rotation.y = this.mach.impeller.angle;
     // the water in the volute is dragged round with the impeller
     this.pumpWater.material.normalMap.offset.x = this.mach.impeller.angle / 6.283;
