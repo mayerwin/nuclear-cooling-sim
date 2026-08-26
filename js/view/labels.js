@@ -170,19 +170,29 @@ export class Labels {
   // its part by a leader. Nothing lands on the machinery.
   layout() {
     const cam = this.stage.camera;
+    // Project against the camera as it is now, not as it was when the last
+    // frame was drawn. Vector3.project reuses matrixWorldInverse, which only
+    // the renderer refreshes, and with a damped camera that one frame of lag
+    // is a permanent offset between a caption and the leader pointing at it.
+    cam.updateMatrixWorld();
+    cam.matrixWorldInverse.copy(cam.matrixWorld).invert();
     const w = window.innerWidth, h = window.innerHeight;
     const R = this.freeRect();
     const narrow = R.x1 - R.x0 < 620;
     const cols = { L: [], R: [], C: [] };
     for (const it of this.items) {
       if (!it.o.visible || !it.u.root.visible) { it.box.style.opacity = '0'; it.lead.style.opacity = '0'; continue; }
+      // The renderer hides an anchor it did not draw last frame, and a hidden
+      // box measures zero wide, which would park the caption in the wrong
+      // column for as long as it takes to draw the next frame.
+      it.el.style.display = '';
       it.o.getWorldPosition(_v).project(cam);
       if (_v.z < -1 || _v.z > 1) { it.box.style.opacity = '0'; it.lead.style.opacity = '0'; continue; }
       it.sx = (_v.x * 0.5 + 0.5) * w;
       it.sy = (-_v.y * 0.5 + 0.5) * h;
       const r = it.box.getBoundingClientRect();
-      it.bw = r.width || 120;
-      it.bh = r.height || 34;
+      it.bw = r.width || it.bw || 120;
+      it.bh = r.height || it.bh || 34;
       cols[narrow && it.side === 'R' ? 'L' : it.side].push(it);
     }
     const place = (it, px, py) => {

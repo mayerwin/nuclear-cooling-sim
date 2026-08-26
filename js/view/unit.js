@@ -798,44 +798,82 @@ export class Unit {
       // the residual heat loop: out of the reactor, up into the pool, back in
       this.legPrhrUp = new Leg('to the pool', 0.2, 2);
       this.legCoil = new Leg('coil', 0.2, 2);
+      this.legCoilOut = new Leg('coil out', 0.2, 2, { rho: FLUID.rhoCold });
       this.legPrhrDn = new Leg('back from the pool', 0.2, 2, { rho: FLUID.rhoCold });
-      this.prhr = new Circuit('prhr', [this.legPrhrUp, this.legCoil, this.legPrhrDn]);
+      this.prhr = new Circuit('prhr',
+        [this.legPrhrUp, this.legCoil, this.legCoilOut, this.legPrhrDn]);
       const up = pipe([
         V(r.x - 3.2, HOT_Y, r.z + 1.6), V(r.x - 5, HOT_Y, r.z + 1.6),
         V(r.x - 5, p.y + 1.6, r.z + 1.6), V(r.x - 5, p.y + 1.6, p.z + p.d / 2 - 2)
       ], 0.45, m, { bend: 1.6 });
       up.leg = this.legPrhrUp; g.add(up.group);
+      // The coil sits low enough to stay under the water while there is any
+      // water, because a coil in the air is not taking heat out of anything.
+      const COIL_Y = p.y + 1.0;
       const coilPts = [];
       let cx = p.x + p.w / 2 - 2.5, side = 1;
       while (cx > p.x - p.w / 2 + 2.0) {
-        coilPts.push(V(cx, p.y + 1.6, p.z + side * (p.d / 2 - 2.2)));
-        coilPts.push(V(cx, p.y + 1.6, p.z - side * (p.d / 2 - 2.2)));
+        coilPts.push(V(cx, COIL_Y, p.z + side * (p.d / 2 - 2.2)));
+        coilPts.push(V(cx, COIL_Y, p.z - side * (p.d / 2 - 2.2)));
         cx -= 1.5; side *= -1;
       }
-      const coil = pipe(coilPts, 0.4, m, { bend: 0.7 });
-      coil.leg = this.legCoil; g.add(coil.group);
+      // drawn in two halves, so the water going into it hot and coming out
+      // cold is the same colour change as the boiler's
+      const half = Math.max(2, Math.round(coilPts.length / 2));
+      const coilA = pipe(coilPts.slice(0, half + 1), 0.4, m, { bend: 0.7 });
+      coilA.leg = this.legCoil; g.add(coilA.group);
+      const coilB = pipe(coilPts.slice(half), 0.4, m, { bend: 0.7 });
+      coilB.leg = this.legCoilOut; g.add(coilB.group);
       const dn = pipe([
         coilPts[coilPts.length - 1].clone(),
-        V(p.x - p.w / 2 + 1, p.y + 1.6, r.z - 1.4),
-        V(r.x + 5.5, p.y + 1.6, r.z - 1.6), V(r.x + 5.5, COLD_Y, r.z - 1.6),
+        V(p.x - p.w / 2 + 1, COIL_Y, r.z - 1.4),
+        V(r.x + 5.5, COIL_Y, r.z - 1.6), V(r.x + 5.5, COLD_Y, r.z - 1.6),
         V(r.x + 3.2, COLD_Y, r.z - 1.6)
       ], 0.45, m, { bend: 1.6 });
       dn.leg = this.legPrhrDn; g.add(dn.group);
-      this.pipes.push(up, coil, dn);
+      this.pipes.push(up, coilA, coilB, dn);
 
-      // and the line that simply lets it fall in
+      // When the tank cracks the water does not vanish: it falls on the floor
+      // of the building, and the model goes on drawing from it down there. So
+      // both the falling stream and the water it makes are drawn.
+      this.sumpWater = new THREE.Mesh(
+        new THREE.CylinderGeometry(R_IN - 0.4, R_IN - 0.4, 1, 56), ownWater(m.poolWater));
+      this.sumpWater.material.clippingPlanes = this.cut;
+      this.sumpWater.material.clipIntersection = true;
+      this.sumpWater.visible = false;
+      g.add(this.sumpWater);
+      this.leakJet = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.22, 0.45, p.y - 0.2, 12), liquidMaterial(0.6));
+      this.leakJet.position.set(p.x + p.w / 2 - 1.0, (p.y - 0.2) / 2, p.z + p.d / 2 - 0.9);
+      this.leakJet.material.normalMap.repeat.set(2, 6);
+      this.leakJet.visible = false;
+      g.add(this.leakJet);
+
+      // And the line that simply lets it fall in. It is fed from two places:
+      // the pool while there is a pool, and the floor of the building once the
+      // pool has emptied onto it, which is what keeps the core covered after
+      // the tank has cracked.
       this.legGrav = new Leg('gravity', 0.3, 2, { rho: FLUID.rhoCold });
+      this.legRecirc = new Leg('gravity', 0.3, 2, { rho: FLUID.rhoCold });
+      this.legFill = new Leg('gravity', 0.3, 2, { rho: FLUID.rhoCold });
       this.gravity = new Circuit('gravity', [this.legGrav]);
-      // It goes in low down the side of the vessel, not into the head: what
-      // makes it work is the drop from the surface of that pool to here.
+      this.recircC = new Circuit('recirculation', [this.legRecirc]);
+      this.fillC = new Circuit('into the reactor', [this.legFill]);
+      const TEE = V(p.x + 3, 12.6, p.z + p.d / 2 - 1.5);
       const grav = pipe([
-        V(p.x + 3, p.y + 0.5, p.z + p.d / 2 - 1.5),
-        V(p.x + 3, 12.6, p.z + p.d / 2 - 1.5),
-        V(r.x - 2.97, 12.6, r.z - 1.2), V(r.x - 2.97, 10.4, r.z - 1.2),
-        V(r.x - 2.53, 10.4, r.z - 1.2)
+        V(p.x + 3, p.y + 0.5, p.z + p.d / 2 - 1.5), TEE.clone()
       ], 0.5, m, { bend: 1.4 });
       grav.leg = this.legGrav; g.add(grav.group);
-      this.pipes.push(grav);
+      const recirc = pipe([
+        V(p.x + 3, 0.8, p.z + p.d / 2 - 1.5), TEE.clone()
+      ], 0.5, m, { bend: 1.4 });
+      recirc.leg = this.legRecirc; g.add(recirc.group);
+      const fill = pipe([
+        TEE.clone(), V(r.x - 2.97, 12.6, r.z - 1.2),
+        V(r.x - 2.97, 10.4, r.z - 1.2), V(r.x - 2.53, 10.4, r.z - 1.2)
+      ], 0.5, m, { bend: 1.4 });
+      fill.leg = this.legFill; g.add(fill.group);
+      this.pipes.push(grav, recirc, fill);
     } else {
       const t = L.tank;
       const pit = slab(t.w + 4, 0.6, t.d + 4, this.stage.mat.deck);
@@ -956,8 +994,14 @@ Object.assign(Unit.prototype, {
     if (this.prhr) {
       const qp = (st.s.prhr || 0) > 0 ? (p.qDecay || 0) : 0;
       this.prhr.setFlow(qp / (FLUID.cpPrimary * FLUID.dTprhr));
+      // Where the water is coming from is drawn, not assumed: out of the pool
+      // while the pool has any, off the floor once it has not.
       const on = (st.s.gravity || 0) > 0 || (st.s.cmt || 0) > 0;
-      this.gravity.setFlow(on && p.irwst > 1e5 ? 55 : 0);
+      const fromPool = on && p.irwst > 1e5;
+      const fromSump = on && !fromPool && (p.ctmtSump || 0) > 1e5;
+      this.gravity.setFlow(fromPool ? 55 : 0);
+      this.recircC.setFlow(fromSump ? 55 : 0);
+      this.fillC.setFlow(fromPool || fromSump ? 55 : 0);
     }
     if (this.inject) this.inject.setFlow(st.injecting ? (st.s.rcic ? 25 : 40) : 0);
     // the sea water only runs while there is a heat sink to run to
@@ -1010,7 +1054,7 @@ Object.assign(Unit.prototype, {
 
     // ---- the fluid in every pipe, scrolling at its own velocity ----
     for (const c of [this.primary, this.secondary, this.prhr, this.gravity,
-      this.inject, this.ventCircuit, this.cw]) if (c) c.advance(dt);
+      this.recircC, this.fillC, this.inject, this.ventCircuit, this.cw]) if (c) c.advance(dt);
     const heat = loopHeat(p.Tclad);
     const cold = loopHeat(p.Tclad - FLUID.dTcore);
     // A body of water is drawn as water and only turns colour when it is
@@ -1044,7 +1088,7 @@ Object.assign(Unit.prototype, {
         // boiler and across the pool coil, is the heat leaving the reactor.
         const u = leg.name === 'feedwater' || leg.name === 'back from the pool'
           || leg.name === 'suction' || leg.name === 'injection' || leg.name === 'gravity'
-          || leg.name === 'sea water'
+          || leg.name === 'sea water' || leg.name === 'coil out'
           ? 0.06
           : (leg.name === 'cold leg' || leg.name === 'boiler tubes') ? cold : heat;
         waterColor(u, cTmp);
@@ -1173,6 +1217,24 @@ Object.assign(Unit.prototype, {
       const warm = (st.s.prhr || 0) > 0 ? 0.2 : 0.04;
       waterColor(warm, cTmp);
       tintWater(this.poolWater.material, cTmp, dt);
+    }
+
+    // ---- the water that got out of the tank and is lying on the floor ----
+    if (this.sumpWater) {
+      const kg = p.ctmtSump || 0;
+      const dep = clamp(kg / 2.1e6, 0, 1) * 2.6;
+      this.sumpWater.visible = dep > 0.04;
+      this.sumpWater.scale.y = Math.max(0.05, dep);
+      this.sumpWater.position.set(0, dep / 2 + 0.05, 0);
+      tintWater(this.sumpWater.material, waterColor(0.03, cTmp), dt);
+      this.sumpWater.material.emissiveIntensity = 0.34;
+      this.sumpWater.material.attenuationDistance = 3.2;
+      const leaking = p.irwstCracked && p.irwst > 1e5;
+      this.leakJet.visible = leaking;
+      if (leaking) {
+        this.leakJet.material.normalMap.offset.y += dt * 2.2;
+        tintWater(this.leakJet.material, waterColor(0.06, cTmp), 0);
+      }
     }
 
     // ---- lamps ----

@@ -43,7 +43,9 @@ await page.evaluate(() => document.querySelector('[data-view=plant]').click());
 await page.waitForTimeout(3000);
 for (const f of ['both', 'active', 'passive']) {
   await page.evaluate((x) => document.querySelector(`[data-focus=${x}]`).click(), f);
-  await page.waitForTimeout(5000);
+  // Software rendering is slow enough that the camera move and the caption
+  // layout need several seconds of wall clock to settle.
+  await page.waitForTimeout(9000);
   await page.screenshot({ path: `${out}/00-${f}.png`, timeout: 120000 });
   notes.push(`00-${f}.png  idle`);
 }
@@ -59,7 +61,7 @@ for (const [id, secs] of RUNS) {
     s.run(x); s.speedIdx = 4;
     for (let i = 0; i < target / 45; i++) s.update(0.05);
   }, [id, secs * 700]);
-  await page.waitForTimeout(2500);
+  await page.waitForTimeout(5000);
   await page.screenshot({ path: `${out}/${id}.png`, timeout: 120000 });
   notes.push(`${id}.png  ${await readout(page)}`);
 }

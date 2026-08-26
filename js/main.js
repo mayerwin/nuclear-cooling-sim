@@ -152,3 +152,4 @@ sim.announce('Both units at 100% power. Grid connected, all systems normal.', 'o
 window.__sim = sim;
 window.__units = units;
 window.__stage = stage;
+window.__labels = labels;
