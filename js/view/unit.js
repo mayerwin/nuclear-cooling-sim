@@ -81,7 +81,7 @@ function fluidRod(pts, r, bend) {
   const seg = Math.max(20, Math.round(path.getLength() * 3));
   const mat = liquidMaterial(r * 2);
   mat.normalMap.repeat.set(Math.max(3, path.getLength() / 1.4), 2);
-  mat.attenuationDistance = r * 6;
+  mat.attenuationDistance = r * 14;
   mat.clearcoat = 0.2;
   const mesh = new THREE.Mesh(new THREE.TubeGeometry(path, seg, r, 10, false), mat);
   mesh.castShadow = true;
@@ -451,7 +451,7 @@ export class Unit {
     for (let k = 0; k < 5; k++) {
       const w = 0.6 + k * 0.45, top = SG_TS + 7.0 + w * 0.9;
       const at = (o, y) => V(s.x + bx + dx * o, y, s.z + bz + dz * o);
-      const u = fluidRod([at(-w, SG_TS), at(-w, top), at(w, top), at(w, SG_TS)],
+      const u = fluidRod([at(w, SG_TS), at(w, top), at(-w, top), at(-w, SG_TS)],
         0.17, w * 0.9);
       g.add(u.mesh);
       this.sgTubes.push(u);
@@ -1132,8 +1132,10 @@ Object.assign(Unit.prototype, {
       const tm = this.turbSteam.material;
       tm.normalMap.offset.x -= v * dt / 2.4;
       tm.alphaMap.offset.x -= v * dt * 0.18;
-      tm.opacity = on ? 0.62 : 0.04;
-      tm.emissiveIntensity = on ? 0.42 : 0.03;
+      // Thin enough to see the wheels through it: the machine is the subject
+      // and the steam is what is happening to it.
+      tm.opacity = on ? 0.38 : 0.04;
+      tm.emissiveIntensity = on ? 0.26 : 0.02;
       this.turbSteam.visible = on;
       this.turbWisp.advance(dt, v, this.turbLen, on ? 1.0 : 0.0001);
       this.turbWisp.mesh.visible = on;
@@ -1197,8 +1199,11 @@ Object.assign(Unit.prototype, {
           || leg.name === 'sea water' || leg.name === 'coil out'
           ? 0.06
           : (leg.name === 'cold leg' || leg.name === 'boiler tubes') ? cold : heat;
-        waterColor(u, cTmp);
+        // Lightened towards white, because the gradient replaces the base
+        // colour and a fully saturated one turns the water to poster paint.
+        waterColor(u, cTmp).lerp(WHITE, 0.25);
         setGradient(mat, cTmp);
+        waterColor(u, cTmp);
         mat.attenuationColor.copy(cTmp);
         mat.color.set(0xffffff);
         mat.transmission = 1;
@@ -1222,11 +1227,14 @@ Object.assign(Unit.prototype, {
     // The boiler tubes and the pool coil carry the change itself: hot in at
     // one end, cold out at the other, mixed along the run.
     {
-      const hotC = waterColor(heat, new THREE.Color());
-      const coldC = waterColor(cold, new THREE.Color());
+      const hotC = waterColor(heat, new THREE.Color()).lerp(WHITE, 0.25);
+      const coldC = waterColor(cold, new THREE.Color()).lerp(WHITE, 0.25);
       const wet = st.lvl > 0.02;
       for (const u of this.sgTubes || []) {
         setGradient(u.mat, hotC, coldC);
+        // The colour lives entirely in the gradient here. Tinting the volume
+        // as well fights it and turns the hot end brown.
+        u.mat.attenuationColor.setHex(0xffffff);
         u.mat.normalMap.offset.x -= this.legTubes.v * dt / 2.4;
         u.mat.emissive.copy(coldC).multiplyScalar(0.10);
         u.mesh.visible = wet;
@@ -1234,6 +1242,7 @@ Object.assign(Unit.prototype, {
       if (this.poolCoil) {
         const on = (st.s.prhr || 0) > 0;
         setGradient(this.poolCoil.mat, on ? hotC : coldC, coldC);
+        this.poolCoil.mat.attenuationColor.setHex(0xffffff);
         this.poolCoil.mat.normalMap.offset.x -= this.legCoil.v * dt / 2.4;
         this.poolCoil.mesh.visible = wet;
       }
