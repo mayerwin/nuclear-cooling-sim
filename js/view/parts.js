@@ -41,9 +41,12 @@ export function pipe(pts, dia, mats, opts = {}) {
 
   // Flanges: the pipe's outside, at the spacing a real run would have them.
   const frame = frameOf(path, Math.max(48, Math.min(260, Math.round(len * 4))));
-  const nRing = Math.max(2, Math.round(len / 5.5));
+  // Rings only where a run is long enough to need them. Two flanges on a two
+  // metre stub is jewellery, and it was reading as machinery.
+  const nRing = Math.round(len / 7);
   const rings = new THREE.InstancedMesh(
-    new THREE.TorusGeometry(dia * 0.54, dia * 0.1, 6, 16), mats.flange, nRing);
+    new THREE.TorusGeometry(dia * 0.54, dia * 0.1, 6, 16), mats.flange, Math.max(1, nRing));
+  rings.count = nRing;
   rings.frustumCulled = false;
   {
     const mm = new THREE.Matrix4(), q = new THREE.Quaternion();
