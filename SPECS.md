@@ -38,6 +38,8 @@ was attempted.
 | 2.12 | **Pipes must not be cut where they should not be cut.** The cutaway is a hole in the building's wall, not a saw through everything standing inside it. |
 | 2.13 | Side by side, the two reactors must be **close enough to see both in full at once** on a desktop screen, with the side panels taken into account. |
 | 2.14 | Keep the **isometric site view** with the landscape. Both views stay; the switcher chooses between them. |
+| 2.15 | **Waterproof by construction.** Every pipe must end inside a vessel's water body through a welded nozzle collar, and every heat exchanger's chambers hold real drawn water. A pipe that stops at a surface is a defect wherever it appears. |
+| 2.16 | The app is a **simulator, not an animation**: every drawn quantity (levels, colours, speeds, glows, leaks, floods) is read from the plant model each frame, so changing a model parameter changes the picture with no drawing code touched. |
 
 ## 3. The machinery that must be shown
 

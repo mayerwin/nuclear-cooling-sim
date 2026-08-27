@@ -37,7 +37,7 @@ export const L = {
 // The reactor's outlet and the boiler's inlet are at the same height, so the
 // hot leg is one straight run. Same for the pump's discharge and the reactor's
 // inlet. Every elbow that is left is one the machinery actually needs.
-const HOT_Y = 13.0, COLD_Y = 8.2, XOVER_Y = 11.4;
+const HOT_Y = 13.0, COLD_Y = 8.2, XOVER_Y = 12.4;
 const SG_BASE = 11.3;
 // The boiler's channel head is at the bottom, which is where both of the
 // reactor's pipes meet it, and the tube sheet is the floor of the shell.
@@ -165,9 +165,23 @@ function buildPump(stage, m, x, y, z, sc) {
   motor.position.set(x, y + 2.15 * sc, z);
   group.add(motor);
   const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.26 * sc, 12, 8), m.lamp.clone());
-  lamp.position.set(x, y + 3.0 * sc, z);
+  lamp.position.set(x, y + 2.95 * sc, z);
   group.add(lamp);
   return { group, impeller, water, lamp };
+}
+
+// A welded joint. Every pipe in the plant must end INSIDE something through
+// one of these: the collar sits on the vessel wall, and the pipe runs on past
+// it into the water on the other side. A pipe that stops at a surface can
+// drift a hand's breadth and float; a pipe that penetrates cannot.
+function collar(stage, x, y, z, axis, r, len = 1.0) {
+  const geo = new THREE.CylinderGeometry(r, r * 1.12, len, 18);
+  if (axis === 'x') geo.rotateZ(Math.PI / 2);
+  if (axis === 'z') geo.rotateX(Math.PI / 2);
+  const mesh = new THREE.Mesh(geo, stage.mat.steel);
+  mesh.position.set(x, y, z);
+  mesh.castShadow = true;
+  return mesh;
 }
 
 export class Unit {
@@ -470,17 +484,40 @@ export class Unit {
     }
     // The head and the dome are glass: the head is where the hot leg's one fat
     // pipe becomes many thin tubes, and the dome is where the boiling makes
-    // the steam that leaves, and both of those are things to watch, not
-    // things to hide behind steel.
+    // the steam that leaves, and both of those are things to watch. Plain
+    // transparency, not refraction: under a heavy scene the refractive pass
+    // milks over and reads as solid metal, which is the opposite of the point.
+    const clearGlass = new THREE.MeshStandardMaterial({
+      color: 0xdfeaf4, roughness: 0.12, metalness: 0.1,
+      transparent: true, opacity: 0.22, side: THREE.DoubleSide,
+      clippingPlanes: this.cut, depthWrite: false
+    });
     const HEAD_P = SG_PROFILE.slice(0, 4);
     const BARREL_P = [[2.7, 2.05], [2.7, 9.1], [3.1, 10.8], [4.0, 12.6], [4.0, 16.7]];
     const DOME_P = [[4.0, 16.7], [3.4, 17.9], [1.8, 18.7], [0, 19.1]];
-    for (const [prof, mat] of [[HEAD_P, this.mHalfSg], [BARREL_P, this.mShellSg],
-      [DOME_P, this.mHalfSg]]) {
+    for (const [prof, mat] of [[HEAD_P, clearGlass], [BARREL_P, this.mShellSg],
+      [DOME_P, clearGlass]]) {
       const part = vessel(prof, mat);
       part.position.set(s.x, SG_BASE, s.z);
       g.add(part);
     }
+
+    // The water in the head, in two real bodies either side of the divider:
+    // the hot leg's water arrives in one, the tubes drink from it, and what
+    // they give back fills the other, where the crossover draws it off. The
+    // pipe, the chamber and the tubes are one continuous fluid.
+    const headProf = [[0.2, 0.35], [1.25, 0.45], [2.2, 1.05], [2.5, 2.0], [2.5, 2.86]]
+      .map(([r0, y0]) => new THREE.Vector2(r0, y0));
+    this.headHot = new THREE.Mesh(
+      new THREE.LatheGeometry(headProf, 24, 0, Math.PI), ownWater(m.water, 0));
+    this.headHot.position.set(s.x, SG_BASE, s.z);
+    this.headHot.material.clippingPlanes = this.cut;
+    g.add(this.headHot);
+    this.headCold = new THREE.Mesh(
+      new THREE.LatheGeometry(headProf, 24, Math.PI, Math.PI), ownWater(m.water, 0));
+    this.headCold.position.set(s.x, SG_BASE, s.z);
+    this.headCold.material.clippingPlanes = this.cut;
+    g.add(this.headCold);
     this.sgWater = tube(2.62, 2.62, 1, m.water, 40);
     this.sgWater.material = ownWater(m.water);
     this.sgWater.material.clippingPlanes = this.mHalfSg.clippingPlanes;
@@ -524,7 +561,7 @@ export class Unit {
     for (let k = 0; k < 5; k++) {
       const w = 0.6 + k * 0.45, top = SG_TS + 6.0 + w * 0.9;
       const at = (o, y) => V(s.x + bx + dx * o, y, s.z + bz + dz * o);
-      const u = fluidRod([at(w, SG_TS), at(w, top), at(-w, top), at(-w, SG_TS)],
+      const u = fluidRod([at(w, SG_TS - 0.8), at(w, top), at(-w, top), at(-w, SG_TS - 0.8)],
         0.17, w * 0.9);
       g.add(u.mesh);
       this.sgTubes.push(u);
@@ -571,27 +608,30 @@ export class Unit {
 
     // Out of the top of the reactor, round and down into the boiler's channel
     // head, which is where a U-tube boiler is fed from.
-    // Reactor out at HOT_Y, straight across into the boiler's channel head at
-    // the same height. Boiler out one and a half metres lower, straight down
-    // into the pump, and straight back across into the reactor. Three runs,
-    // one elbow, and the elbow is the crossover leg a real plant has.
-    const sgHot = V(s.x + 2.7, HOT_Y, s.z);
-    const sgCold = V(s.x + 2.7, XOVER_Y, s.z);
-    this.hot = pipe([V(r.x - 3.1, HOT_Y, r.z), sgHot], 1.1, m, { bend: 1.0 });
+    // Reactor out at HOT_Y, straight across, through a welded nozzle into the
+    // HOT side of the boiler's channel head. Out of the COLD side of the head,
+    // which is the other side of the divider plate, down, under the boiler and
+    // up into the pump from below. Each run penetrates what it serves: the
+    // hot leg's water ends inside the head's water, and the head's water ends
+    // inside the pump's, so the circuit is continuous fluid end to end.
+    this.hot = pipe([V(r.x - 2.4, HOT_Y, r.z), V(s.x + 1.6, HOT_Y, s.z)],
+      1.1, m, { bend: 1.0 });
     g.add(this.hot.group);
+    g.add(collar(this.stage, r.x - 3.25, HOT_Y, r.z, 'x', 0.75, 1.0));
+    g.add(collar(this.stage, s.x + 2.5, HOT_Y, s.z, 'x', 0.75, 1.0));
 
-    // Down out of the channel head, under, and up into the pump from below,
-    // which is how a coolant pump is actually fed. Going in over the top means
-    // going through the motor.
     this.cold = pipe([
-      sgCold, V(sgCold.x, 5.4, s.z), V(p.x, 5.4, p.z), V(p.x, COLD_Y - 0.9, p.z)
-    ], 1.0, m, { bend: 1.6 });
+      V(s.x - 1.6, XOVER_Y, s.z), V(s.x - 3.6, XOVER_Y, s.z),
+      V(s.x - 3.6, 5.4, s.z), V(p.x, 5.4, p.z), V(p.x, COLD_Y - 0.6, p.z)
+    ], 1.0, m, { bend: 1.5 });
     g.add(this.cold.group);
+    g.add(collar(this.stage, s.x - 2.5, XOVER_Y, s.z, 'x', 0.7, 1.0));
 
     this.coldB = pipe([
-      V(p.x + 1.85, COLD_Y, p.z), V(r.x - 3.1, COLD_Y, r.z)
+      V(p.x + 1.5, COLD_Y, p.z), V(r.x - 2.4, COLD_Y, r.z)
     ], 1.0, m, { bend: 1.0 });
     g.add(this.coldB.group);
+    g.add(collar(this.stage, r.x - 3.25, COLD_Y, r.z, 'x', 0.7, 1.0));
 
     this.hot.leg = this.legHot;
     // one physical leg, drawn in two runs: out of the boiler and into the
@@ -871,6 +911,7 @@ export class Unit {
     ], 1.2, m, { bend: 3.0, steam: true });
     this.steam.leg = this.legSteam;
     g.add(this.steam.group);
+    g.add(collar(this.stage, s.x, SG_BASE + 19.0, s.z, 'y', 0.8, 0.9));
 
     // What comes out of the turbine has to go somewhere: down the neck into
     // the condenser, where it turns back into water.
@@ -902,6 +943,7 @@ export class Unit {
     this.feedPour.material.normalMap.repeat.set(2, 6);
     this.feedPour.position.set(s.x - 2.4, SG_BASE + 12.2, s.z);
     g.add(this.feedPour);
+    g.add(collar(this.stage, s.x - 3.7, SG_BASE + 13.6, s.z, 'x', 0.5, 0.9));
     this.secondary.legs.push(this.legExh);
     this.pipes.push(this.steam, this.exh, this.feed);
 
@@ -1336,6 +1378,18 @@ Object.assign(Unit.prototype, {
       const hotC = waterColor(heat, new THREE.Color()).lerp(WHITE, 0.25);
       const coldC = waterColor(cold, new THREE.Color()).lerp(WHITE, 0.25);
       const wet = st.lvl > 0.02;
+      // the two chambers of the channel head carry the loop's own colours
+      if (this.headHot) {
+        tintWater(this.headHot.material, hotC, dt);
+        tintWater(this.headCold.material, coldC, dt);
+        // full strength: these two chambers ARE the colour change the boiler
+        // exists to make, and washed out they read as one body of grey
+        this.headHot.material.color.copy(hotC);
+        this.headCold.material.color.copy(coldC);
+        const wet2 = st.lvl > 0.02;
+        this.headHot.visible = wet2;
+        this.headCold.visible = wet2;
+      }
       for (const u of this.sgTubes || []) {
         setGradient(u.mat, hotC, coldC);
         // The colour lives entirely in the gradient here. Tinting the volume
