@@ -67,10 +67,12 @@ export class UI {
         ? 'Passive systems disabled on Unit B. It is now only as safe as its pumps.'
         : 'Passive systems restored on Unit B.', 'crit');
     };
-    $('#startBtn').onclick = () => {
+    // The inline handler in the page already closes the modal; this only has
+    // to start the audio, and a browser that refuses must not eat the click.
+    $('#startBtn').addEventListener('click', () => {
       $('#modal').classList.remove('open');
-      sim.sound.init();
-    };
+      try { sim.sound.init(); } catch (e) { console.warn('audio unavailable', e); }
+    });
     $('#ledger').innerHTML = LEDGER;
 
     addEventListener('keydown', (e) => {

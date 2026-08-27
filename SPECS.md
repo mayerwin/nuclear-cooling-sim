@@ -40,6 +40,8 @@ was attempted.
 | 2.14 | Keep the **isometric site view** with the landscape. Both views stay; the switcher chooses between them. |
 | 2.15 | **Waterproof by construction.** Every pipe must end inside a vessel's water body through a welded nozzle collar, and every heat exchanger's chambers hold real drawn water. A pipe that stops at a surface is a defect wherever it appears. |
 | 2.16 | The app is a **simulator, not an animation**: every drawn quantity (levels, colours, speeds, glows, leaks, floods) is read from the plant model each frame, so changing a model parameter changes the picture with no drawing code touched. |
+| 2.17 | **Any pipe can be broken by clicking it**, and the break is physics: the kind of pipe maps to its physical consequence in the model (`plant.breakPipe`), and levels, temperatures and what the safety systems can still do all follow from the ordinary model step. The wound bleeds what the pipe carried, for as long as what fed it holds out. |
+| 2.18 | In the side-by-side view the two stations stand at the **same camera depth** and draw the same size. |
 
 ## 3. The machinery that must be shown
 

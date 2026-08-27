@@ -37,8 +37,16 @@ function skyTexture() {
 export class Stage {
   constructor(host, labelHost) {
     this.host = host;
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    // A phone GPU handed a 3x-density canvas, refraction and bloom kills the
+    // context and the view goes black. Everything scales down on mobile.
+    const mobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: !mobile, powerPreference: 'high-performance' });
+    this.renderer.setPixelRatio(Math.min(mobile ? 1.3 : 2, window.devicePixelRatio || 1));
+    // If the context is lost anyway, let the browser restore it instead of
+    // staying black for the rest of the session.
+    this.renderer.domElement.addEventListener('webglcontextlost',
+      (e) => e.preventDefault(), false);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.localClippingEnabled = true;
@@ -46,7 +54,7 @@ export class Stage {
     this.renderer.toneMappingExposure = 0.96;
     // The refraction pass is a second render of the whole scene. Half
     // resolution costs nothing visible, because refraction blurs anyway.
-    this.renderer.transmissionResolutionScale = 0.4;
+    this.renderer.transmissionResolutionScale = mobile ? 0.22 : 0.4;
     host.appendChild(this.renderer.domElement);
 
     this.labels = new CSS2DRenderer();
@@ -111,19 +119,23 @@ export class Stage {
     grid.material.opacity = 0.28;
     this.scene.add(grid);
 
-    // Water standing on the site after a wave has been over it. It is one
-    // sheet across the whole model because the sea does not stop at a property
-    // line, but it stops at the containment wall: the sheet has a hole punched
-    // where each sealed building stands, because a flood does not pass through
-    // a metre of concrete, and water appearing inside the one building whose
-    // whole job is keeping things out would say the opposite of the truth.
+    this.resize();
+  }
+
+  // Water standing on the site after a wave has been over it: one sheet across
+  // the whole model, because the sea does not stop at a property line, with a
+  // hole punched where each sealed containment stands, because a flood does
+  // not pass through a metre of concrete. Built once the unit positions are
+  // known, so the holes are exactly where the buildings are.
+  buildFlood(centres) {
     const floodShape = new THREE.Shape();
     floodShape.moveTo(-700, -700);
     floodShape.lineTo(700, -700); floodShape.lineTo(700, 700);
     floodShape.lineTo(-700, 700); floodShape.closePath();
-    for (const ux of [-38, 38]) {
+    for (const [ux, uz] of centres) {
       const hole = new THREE.Path();
-      hole.absarc(ux, 0, 17.0, 0, Math.PI * 2, true);
+      // Shape space is x, y; after rotateX(-PI/2) shape y maps to world -z.
+      hole.absarc(ux, -uz, 17.0, 0, Math.PI * 2, true);
       floodShape.holes.push(hole);
     }
     this.flood = new THREE.Mesh(
@@ -135,14 +147,14 @@ export class Stage {
     this.flood.material.normalMap.repeat.set(60, 60);
     this.flood.visible = false;
     this.scene.add(this.flood);
-
-    this.resize();
   }
+
 
   // depth is metres of water standing above grade. The drawn level chases the
   // model's level instead of jumping to it: the wave arrives in a moment in
   // the log, but water on the ground rises, it does not teleport.
   setFlood(depth, dt) {
+    if (!this.flood) return;
     const cur = this.floodDepth || 0;
     const next = cur + Math.sign(depth - cur) * Math.min(Math.abs(depth - cur), dt * 0.9);
     this.floodDepth = next;

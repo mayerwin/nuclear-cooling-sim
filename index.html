@@ -75,8 +75,20 @@
       <li><b>Site</b> shows the island from above: two stations, the town, the sea,
         and where anything that gets out would go. <b>Inside</b> opens the buildings up.
         Drag to look around, scroll to zoom.</li>
+      <li><b>Click any pipe to break it.</b> The break is physics, not paint: the plant
+        loses whatever that pipe was doing, and everything downstream follows. Cut the
+        sea water line and the heat has nowhere to go; cut the pool's line on the
+        passive unit and see what it still has left.</li>
     </ul>
     <button class="btn primary big" id="startBtn">Start</button>
+    <script>
+      /* The module code wires this button too, but the module can take a
+         moment to load on a slow connection, or fail outright on a device
+         without WebGL2. The door must open regardless. */
+      document.getElementById('startBtn').addEventListener('click', function () {
+        document.getElementById('modal').classList.remove('open');
+      });
+    </script>
     <details class="disc"><summary>What is real here, and what is not</summary>
       <div id="ledger"></div>
     </details>

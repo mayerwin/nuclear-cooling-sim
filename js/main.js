@@ -16,22 +16,42 @@ import { initPhysics } from './machines.js';
 import { state } from './view/state.js';
 import { clamp } from './util.js';
 
+const SPAN = 38;
 const siteCanvas = document.getElementById('site');
 const host = document.getElementById('scene');
 const labelHost = document.getElementById('labels');
 
-await initPhysics();
+try { await initPhysics(); } catch (e) { console.warn(e); }
 const sim = new Sim(siteCanvas);
 sim.world.bakeTerrain();
 sim.world.bakeOverlay();
 const renderer = new Renderer(siteCanvas, sim.world);
 renderer.buildOcean();
 
-const stage = new Stage(host, labelHost);
-const SPAN = 38;
-const units = sim.plants.map((p, i) => new Unit(p, stage, i === 0 ? -SPAN : SPAN));
-for (const u of units) stage.scene.add(u.root);
-const labels = new Labels(stage, units);
+// A device with no WebGL2 cannot draw the inside view at all. The site view
+// is plain canvas and always works, so the app degrades to that instead of
+// dying on a black screen with a dead button.
+const GL_OK = (() => {
+  try { return !!document.createElement('canvas').getContext('webgl2'); }
+  catch (e) { return false; }
+})();
+let stage = null, units = [], labels = null;
+if (GL_OK) {
+  stage = new Stage(host, labelHost);
+  // The stations stand along the camera's screen-right axis for the CUT_AZ
+  // heading, so in the side-by-side view both sit at the same depth and draw
+  // the same size. Offsetting along plain world x put one behind the other.
+  const RIGHT = { x: Math.sin(CUT_AZ), z: -Math.cos(CUT_AZ) };
+  units = sim.plants.map((p, i) => new Unit(p, stage,
+    (i === 0 ? -SPAN : SPAN) * RIGHT.x, (i === 0 ? -SPAN : SPAN) * RIGHT.z));
+  for (const u of units) stage.scene.add(u.root);
+  labels = new Labels(stage, units);
+  stage.buildFlood(units.map((u) => [u.worldX, u.worldZ]));
+} else {
+  const b = document.querySelector('[data-view=plant]');
+  b.disabled = true;
+  b.title = 'This device has no WebGL2, so the inside view cannot be drawn.';
+}
 
 function resize() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -41,7 +61,7 @@ function resize() {
   siteCanvas.style.height = window.innerHeight + 'px';
   sim.cam.resize(siteCanvas.width, siteCanvas.height);
   if (sim.view === 'site') sim.overview();
-  stage.resize();
+  if (stage) stage.resize();
   if (sim.focus) setFocus(sim.focus);
 }
 addEventListener('resize', resize);
@@ -65,6 +85,7 @@ function usable() {
 }
 
 function setFocus(f) {
+  if (!stage) return;
   sim.focus = f;
   const u = usable();
   // A phone is tall and narrow. Framing a wide row of buildings on it leaves
@@ -99,7 +120,7 @@ function setFocus(f) {
   firstFocus = false;
   labels.setFocus(f);
 }
-const ui = new UI(sim, { focus: setFocus, view: (v) => sim.setView(v) });
+const ui = new UI(sim, { focus: setFocus, view: (v) => sim.setView(GL_OK ? v : 'site') });
 setFocus('both');
 resize();
 
@@ -135,12 +156,47 @@ for (const [btn, panel] of [['btnLeft', 'left'], ['btnRight', 'right']]) {
   });
 }
 
+// ---- breaking pipes ----
+// Click any pipe in the inside view and it ruptures, and the rupture is
+// physics: the model loses whatever that pipe was doing, and the picture
+// follows the model. This is the test bench the whole app exists for.
+if (stage) {
+  const caster = new THREE.Raycaster();
+  const ptr = new THREE.Vector2();
+  let downAt = null;
+  stage.renderer.domElement.addEventListener('pointerdown', (e) => {
+    downAt = { x: e.clientX, y: e.clientY };
+  });
+  stage.renderer.domElement.addEventListener('pointerup', (e) => {
+    if (!downAt) return;
+    const moved = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y);
+    downAt = null;
+    if (moved > 6 || sim.view !== 'plant') return;
+    ptr.set((e.clientX / window.innerWidth) * 2 - 1,
+      -(e.clientY / window.innerHeight) * 2 + 1);
+    caster.setFromCamera(ptr, stage.camera);
+    const targets = [];
+    for (const u of units) {
+      if (!u.root.visible) continue;
+      for (const q of u.pipes) {
+        if (!q.kindBreak || q.broken) continue;
+        q.casing.userData.pick = { u, q };
+        targets.push(q.casing);
+      }
+    }
+    const hits = caster.intersectObjects(targets, false);
+    if (!hits.length) return;
+    const { u, q } = hits[0].object.userData.pick;
+    u.rupture(q, hits[0].point);
+  });
+}
+
 let last = performance.now(), acc = 0;
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.06);
   last = now;
   sim.update(dt);
-  if (sim.view === 'plant') {
+  if (sim.view === 'plant' && stage) {
     for (const u of units) if (u.root.visible) u.update(state(u.plant), dt);
     // The wave clears the seawall by this much, and what gets past it stands
     // on the site: that is what drowns the diesels in the basement.

@@ -137,6 +137,50 @@ export class Plant {
     this.onLog && this.onLog(msg, kind);
   }
 
+  // A pipe broken by hand (or by anything else) becomes physics, not paint.
+  // Each kind maps to the physical consequence that break would actually
+  // have, and everything downstream - levels, pressures, temperatures, what
+  // the safety systems can still do - follows from the ordinary model step.
+  breakPipe(kind) {
+    this.broken = this.broken || {};
+    if (this.broken[kind]) return false;
+    this.broken[kind] = true;
+    switch (kind) {
+      case 'primary':
+        this.leakRate = Math.max(this.leakRate, 45);
+        this.scram('primary pipe rupture, loss-of-coolant accident');
+        this.log('Primary pipe ruptured. Reactor coolant is escaping into the containment', 'crit');
+        break;
+      case 'steamline':
+        this.scram('main steam line rupture');
+        this.log('Steam line severed. The boiler can no longer carry heat to the turbine', 'crit');
+        break;
+      case 'feedline':
+        this.scram('feedwater line rupture');
+        this.log('Feed line severed. Nothing is putting water back into the boiler', 'crit');
+        break;
+      case 'prhr':
+        this.prhrOk = false;
+        this.log('Passive cooling line severed. The pool can no longer take the heat', 'crit');
+        break;
+      case 'gravity':
+        this.log('Gravity injection line severed. The pool cannot reach the reactor', 'crit');
+        break;
+      case 'inject':
+        this.log('Injection line severed. The backup pump has nowhere to pump', 'crit');
+        break;
+      case 'cw':
+        this.uhs = false;
+        this.log('Sea water line severed. ULTIMATE HEAT SINK LOST', 'crit');
+        break;
+      case 'vent':
+        this.ventFailLogged = true;
+        this.log('Vent line severed. The containment can no longer be vented on purpose', 'crit');
+        break;
+    }
+    return true;
+  }
+
   scram(reason) {
     if (this.scrammed) return;
     this.scrammed = true;
@@ -203,14 +247,17 @@ export class Plant {
     let inject = 0;     // kg/s makeup
     this.paths = [];
 
-    if (!this.scrammed && acPower && this.uhs && this.pumpsOk) {
+    const BK = this.broken || {};
+    if (!this.scrammed && acPower && this.uhs && this.pumpsOk
+      && !BK.steamline && !BK.feedline) {
       q = Pth;
       sys.feed = 1;
       this.paths.push('Main feedwater + condenser');
     } else {
-      if (acPower && this.pumpsOk && this.uhs && this.quakeDamage < 0.8) {
+      if (acPower && this.pumpsOk && this.uhs && this.quakeDamage < 0.8
+        && !BK.steamline && !BK.feedline) {
         q += Pth * 1.15;
-        inject += 40;
+        inject += BK.inject ? 0 : 40;
         sys.aux = 1;
         this.paths.push(P ? 'Normal RHR (non-safety)' : 'Aux feedwater + RHR pumps');
       }
@@ -324,7 +371,7 @@ export class Plant {
       // depressurised the pool drains into it; what boils off condenses on the
       // containment shell and runs back to the floor, and the same nozzles
       // draw it up again. It only stops when the containment stops holding.
-      if (this.pRPV < 0.9) {
+      if (this.pRPV < 0.9 && !(this.broken && this.broken.gravity)) {
         const fromPool = this.irwst > 1e5;
         const fromSump = this.ctmtIntact && this.ctmtSump > 1e5;
         if (fromPool || fromSump) {
@@ -482,7 +529,7 @@ export class Plant {
     // design pressure ~0.45 MPa; realistic ultimate capacity roughly twice that
     const pFail = P ? 1.05 : 0.84;
     if (this.ctmtIntact && this.pCtmt > pFail * 0.72 && !this.vented && !P) {
-      if (this.operators && dcPower) {
+      if (this.operators && dcPower && !(this.broken && this.broken.vent)) {
         this.vented = true;
         this.log('Hardened vent opened - a deliberate release to save the containment', 'crit');
         this.ctmtLeak = Math.max(this.ctmtLeak, 3e-4);

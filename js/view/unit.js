@@ -185,23 +185,27 @@ function collar(stage, x, y, z, axis, r, len = 1.0) {
 }
 
 export class Unit {
-  constructor(plant, stage, worldX) {
+  constructor(plant, stage, worldX, worldZ = 0) {
     this.plant = plant;
     this.stage = stage;
     this.passive = plant.mode === 'passive' || /passive/i.test(plant.mode);
     this.root = new THREE.Group();
-    this.root.position.x = worldX;
+    // The two stations stand along the camera's own screen-right axis, so
+    // side by side they sit at the SAME depth: offsetting them along plain
+    // world x put one thirty metres behind the other and it drew smaller.
+    this.root.position.set(worldX, 0, worldZ);
     // Turned so the layout plane squares up to the camera: local +x runs
     // across the picture and local +z points into the half that is kept.
     this.root.rotation.y = Math.PI / 2 - CUT_AZ;
     this.worldX = worldX;
+    this.worldZ = worldZ;
 
     // One plane, not two: half the building comes off, not a quarter. A wedge
     // leaves three walls standing and you end up peering into a slot. Taking
     // the whole near half off puts the machines in the open, and the far wall
     // stays behind them as something to read them against. Clipping is in
     // world space, so each unit gets its own plane.
-    this.cut = [cutPlane(worldX, 0)];
+    this.cut = [cutPlane(worldX, worldZ)];
     const m = stage.mat;
     const clip = (src) => {
       const c = src.clone();
@@ -633,6 +637,7 @@ export class Unit {
     g.add(this.coldB.group);
     g.add(collar(this.stage, r.x - 3.25, COLD_Y, r.z, 'x', 0.7, 1.0));
 
+    this.hot.kindBreak = this.cold.kindBreak = this.coldB.kindBreak = 'primary';
     this.hot.leg = this.legHot;
     // one physical leg, drawn in two runs: out of the boiler and into the
     // reactor, with the pump in the middle of it
@@ -829,6 +834,7 @@ export class Unit {
     const cwOut = pipe([
       V(CX + 4.6, 2.4, t.z), V(CX + 5.6, 2.7, t.z), V(BAS + 1.4, 2.7, t.z)
     ], 1.4, m, { bend: 1.2 });
+    cwIn.kindBreak = cwOut.kindBreak = 'cw';
     cwIn.leg = cwOut.leg = this.legCw;
     g.add(cwIn.group); g.add(cwOut.group);
     this.pipes.push(cwIn, cwOut);
@@ -846,6 +852,7 @@ export class Unit {
     const culvert = pipe([
       V(BAS + 5.4, 0.9, t.z), V(BAS + 16, 0.9, t.z)
     ], 1.8, m, { bend: 1.0 });
+    culvert.kindBreak = 'cw';
     culvert.leg = this.legCw;
     g.add(culvert.group);
     this.pipes.push(culvert);
@@ -909,6 +916,7 @@ export class Unit {
       V(s.x, SG_BASE + 18.6, s.z), V(s.x, 33, s.z),
       V(X0 + 0.9, 33, t.z), V(X0 + 0.9, AX + 2.9, t.z)
     ], 1.2, m, { bend: 3.0, steam: true });
+    this.steam.kindBreak = 'steamline';
     this.steam.leg = this.legSteam;
     g.add(this.steam.group);
     g.add(collar(this.stage, s.x, SG_BASE + 19.0, s.z, 'y', 0.8, 0.9));
@@ -919,6 +927,7 @@ export class Unit {
     this.exh = pipe([
       V((X0 + X1) / 2, 6.2, t.z), V((X0 + X1) / 2, 3.4, t.z)
     ], 1.7, m, { bend: 0.8, steam: true });
+    this.exh.kindBreak = 'steamline';
     this.exh.leg = this.legExh;
     g.add(this.exh.group);
 
@@ -934,6 +943,7 @@ export class Unit {
       V(s.x - 5.2, 36.5, s.z), V(s.x - 5.2, SG_BASE + 13.6, s.z),
       V(s.x - 3.4, SG_BASE + 13.6, s.z)
     ], 0.7, m, { bend: 2.4 });
+    this.feed.kindBreak = 'feedline';
     this.feed.leg = this.legFeed;
     g.add(this.feed.group);
     // and the water arriving inside the shell, falling to the surface, so the
@@ -964,10 +974,50 @@ export class Unit {
       V(R_IN * 0.72, 22, -R_IN * 0.5), V(st.x, 22, st.z), V(st.x, st.h, st.z)
     ], 0.8, m, { bend: 2.4, steam: true });
     this.legVent = new Leg('vent', 0.8, 1, { rho: FLUID.rhoSteam, kind: 'steam' });
+    this.vent.kindBreak = 'vent';
     this.vent.leg = this.legVent;
     this.ventCircuit = new Circuit('vent', [this.legVent]);
     g.add(this.vent.group);
     this.pipes.push(this.vent);
+  }
+
+  // Any pipe can be broken, and breaking it is not paint: the kind of pipe
+  // maps to the physical consequence in the plant model, and the model's next
+  // step decides everything downstream. The wound itself is a torn collar and
+  // a jet of whatever the pipe was carrying, which dies away as the thing
+  // feeding it runs out.
+  rupture(q, worldPoint) {
+    if (!q.kindBreak || q.broken) return false;
+    const changed = this.plant.breakPipe(q.kindBreak);
+    if (!changed) { q.broken = true; return false; }
+    q.broken = true;
+    const local = this.root.worldToLocal(worldPoint.clone());
+    const g = this.root;
+    const torn = new THREE.Mesh(
+      new THREE.TorusGeometry(q.dia * 0.62, q.dia * 0.16, 8, 18),
+      new THREE.MeshStandardMaterial({ color: 0x1d1512, roughness: 0.9,
+        emissive: new THREE.Color(0x180a06), emissiveIntensity: 0.4 }));
+    torn.position.copy(local);
+    torn.rotation.set(Math.PI / 2, 0, 0);
+    g.add(torn);
+    const steam = q.leg && q.leg.kind === 'steam';
+    let jet = null;
+    if (!steam) {
+      // water falls: a column from the wound to the floor
+      const h = Math.max(1.2, local.y - 0.1);
+      jet = new THREE.Mesh(
+        new THREE.CylinderGeometry(q.dia * 0.2, q.dia * 0.45, h, 10),
+        liquidMaterial(q.dia * 0.8));
+      jet.material.normalMap.repeat.set(2, Math.max(3, Math.round(h)));
+      jet.position.set(local.x, local.y - h / 2, local.z);
+      g.add(jet);
+    }
+    if (!this.plumes) this.addPlumes();
+    const spray = new Plume(120, steam ? 0xeef6ff : 0xbfe0f4, steam ? 22 : 13);
+    g.add(spray.points);
+    this.breakFx = this.breakFx || [];
+    this.breakFx.push({ q, torn, jet, spray, at: local, t0: this.plant.t, steam });
+    return true;
   }
 
   // ---- what the two designs do differently -------------------------------
@@ -1012,6 +1062,7 @@ export class Unit {
       const up = pipe([
         V(r.x - 3.1, HOT_Y, r.z), V(RUP, HOT_Y, r.z), V(RUP, p.y + 1.6, r.z)
       ], 0.45, m, { bend: 1.6 });
+      up.kindBreak = 'prhr';
       up.leg = this.legPrhrUp; g.add(up.group);
       // The coil sits low enough to stay under the water while there is any
       // water, because a coil in the air is not taking heat out of anything.
@@ -1035,6 +1086,7 @@ export class Unit {
         coilPts[coilPts.length - 1].clone(), V(RDN, COIL_Y, r.z),
         V(RDN, COLD_Y + 1.4, r.z), V(r.x + 3.1, COLD_Y + 1.4, r.z)
       ], 0.45, m, { bend: 1.6 });
+      dn.kindBreak = 'prhr';
       dn.leg = this.legPrhrDn; g.add(dn.group);
       this.pipes.push(up, dn);
 
@@ -1071,16 +1123,19 @@ export class Unit {
       const GX = r.x - 1.6;
       const TEE = V(GX, 18.6, r.z);
       const grav = pipe([V(GX, p.y + 0.4, r.z), TEE.clone()], 0.5, m, { bend: 1.4 });
+      grav.kindBreak = 'gravity';
       grav.leg = this.legGrav; g.add(grav.group);
       const recirc = pipe([
         V(GX - 3.2, 0.8, r.z), V(GX - 3.2, 18.6, r.z), TEE.clone()
       ], 0.5, m, { bend: 1.4 });
+      recirc.kindBreak = 'gravity';
       recirc.leg = this.legRecirc; g.add(recirc.group);
       // Into the top of the vessel, not into its side: the water has to be
       // seen arriving somewhere, and a line that stops against a wall is a
       // line that goes nowhere.
       const IN = V(GX, r.base + 15.9, r.z);
       const fill = pipe([TEE.clone(), V(IN.x, IN.y + 0.9, IN.z)], 0.5, m, { bend: 0.6 });
+      fill.kindBreak = 'gravity';
       fill.leg = this.legFill; g.add(fill.group);
       this.pipes.push(grav, recirc, fill);
 
@@ -1154,6 +1209,7 @@ export class Unit {
       const suct = pipe([
         V(t.x + t.w / 2 - 0.8, 0.6, t.z), V(e.x, 0.6, e.z), V(e.x, 1.0, e.z)
       ], 0.5, m, { bend: 1.2 });
+      suct.kindBreak = 'inject';
       suct.leg = this.legSuct; g.add(suct.group);
       // Along the floor and straight up into the cold leg. It has to pass
       // under the boiler, which is why the boiler stands on legs.
@@ -1161,6 +1217,7 @@ export class Unit {
         V(e.x + 1.2, 1.7, e.z), V(r.x - 6.0, 1.7, r.z),
         V(r.x - 6.0, COLD_Y, r.z)
       ], 0.4, m, { bend: 1.6 });
+      inj.kindBreak = 'inject';
       inj.leg = this.legInj; g.add(inj.group);
       this.pipes.push(suct, inj);
     }
@@ -1565,6 +1622,30 @@ Object.assign(Unit.prototype, {
         this.leakJet.material.normalMap.offset.y += dt * 2.2;
         tintWater(this.leakJet.material, waterColor(0.06, cTmp), 0);
       }
+    }
+
+    // ---- broken pipes bleeding ----
+    // Each wound blows for as long as what fed it holds out: the primary jet
+    // stops when the vessel is dry, a steam jet when the blowdown is spent,
+    // the rest die on their own timescale. Nothing bleeds forever.
+    for (const b of this.breakFx || []) {
+      const age = p.t - b.t0;
+      let on;
+      if (b.q.kindBreak === 'primary') on = st.lvl > 0.02;
+      else if (b.q.kindBreak === 'steamline' || b.q.kindBreak === 'feedline') on = age < 240;
+      else if (b.q.kindBreak === 'cw') on = age < 60;
+      else on = age < 150;
+      if (b.jet) {
+        b.jet.visible = on;
+        if (on) {
+          b.jet.material.normalMap.offset.y -= dt * 2.6;
+          setGradient(b.jet.material, waterColor(
+            b.q.kindBreak === 'primary' ? heat : 0.06, cTmp).lerp(WHITE, 0.3));
+        }
+      }
+      b.spray.step(dt, on ? (b.steam ? 26 : 14) : 0, b.at.x, b.at.y, b.at.z,
+        b.steam ? { spread: 1.6, vy: 4.5, vx: 3.5, life: 2.4, grow: 2.4, alpha: 0.5 }
+          : { spread: 0.8, vy: 1.6, vx: 2.4, life: 1.1, grow: 1.1, alpha: 0.5 });
     }
 
     // ---- lamps ----
