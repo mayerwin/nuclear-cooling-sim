@@ -16,23 +16,32 @@ import { Machines } from '../machines.js';
 
 const R_IN = 15.4, WALL = 1.0, SHELL_H = 31, DOME_R = R_IN + WALL;
 
-// where everything stands
+// Where everything stands.
+//
+// The whole station is laid out in ONE vertical plane, and the model is turned
+// so that plane faces the camera. x runs left to right across the picture, y is
+// up, and z is depth, which almost nothing uses. That is what lets the circuit
+// be read without turning the camera: what you get is an elevation, and the
+// runs between the machines are straight because the machines are at the same
+// height as each other on purpose.
 export const L = {
-  // The reactor stands in the quarter that is cut open, so it is the thing you
-  // see first. Everything else is arranged round it.
-  rpv:  { x: 5.5, z: 5.0, r: 3.2, base: 2.6, h: 17.0 },
-  sg:   { x: -6.5, z: -5.5 },
-  rcp:  { x: -6.0, z: 6.5 },
-  pool: { x: 1.5, z: -8.0, w: 11, d: 9, h: 5.2, y: 20.5 },
-  turb: { x: 28, z: 6 },
-  tank: { x: -20, z: 15, w: 11, d: 7, h: 6 },
-  eccs: { x: -11, z: 20 },
-  stack:{ x: 18, z: -17, h: 30 }
+  rpv:  { x: 4.5, z: 0, r: 3.2, base: 2.6, h: 17.0 },
+  sg:   { x: -8.5, z: 0 },
+  rcp:  { x: -3.6, z: 0 },
+  pool: { x: 4.5, z: 0, w: 13, d: 8, h: 5.2, y: 21.6 },
+  turb: { x: 26, z: 0 },
+  tank: { x: -30, z: 0, w: 11, d: 7, h: 6 },
+  eccs: { x: -24, z: 0 },
+  stack:{ x: -19, z: 0, h: 30 }
 };
-const HOT_Y = 13.0, COLD_Y = 8.2;
+// The reactor's outlet and the boiler's inlet are at the same height, so the
+// hot leg is one straight run. Same for the pump's discharge and the reactor's
+// inlet. Every elbow that is left is one the machinery actually needs.
+const HOT_Y = 13.0, COLD_Y = 8.2, XOVER_Y = 11.4;
+const SG_BASE = 11.3;
 // The boiler's channel head is at the bottom, which is where both of the
 // reactor's pipes meet it, and the tube sheet is the floor of the shell.
-const SG_NOZ = 4.2, SG_TS = 6.0;
+const SG_NOZ = SG_BASE + 1.7, SG_TS = SG_BASE + 3.0;
 const W_LO = L.rpv.base + 1.0, W_HI = L.rpv.base + 12.2;
 export const FUEL_Y0 = L.rpv.base + 2.3;
 export const FUEL_TOP_FRAC = 0.71;
@@ -43,9 +52,11 @@ const RPV_PROFILE = [
   [0, 0], [1.6, 0.18], [2.7, 1.0], [3.2, 2.6], [3.2, 13.5],
   [3.0, 14.9], [1.9, 16.3], [0, 17.0]
 ];
+// Nineteen metres, which is about what a real one is, and short enough that
+// the lines leaving its top stay under the dome.
 const SG_PROFILE = [
-  [0, 0], [1.4, 0.2], [2.4, 1.2], [2.7, 2.7], [2.7, 12.0],
-  [3.1, 14.2], [4.0, 16.6], [4.0, 22.0], [3.4, 23.6], [1.8, 24.6], [0, 25.1]
+  [0, 0], [1.4, 0.15], [2.4, 0.9], [2.7, 2.05], [2.7, 9.1],
+  [3.1, 10.8], [4.0, 12.6], [4.0, 16.7], [3.4, 17.9], [1.8, 18.7], [0, 19.1]
 ];
 
 // A body of water takes its colour from what the light loses on the way
@@ -117,6 +128,9 @@ export class Unit {
     this.passive = plant.mode === 'passive' || /passive/i.test(plant.mode);
     this.root = new THREE.Group();
     this.root.position.x = worldX;
+    // Turned so the layout plane squares up to the camera: local +x runs
+    // across the picture and local +z points into the half that is kept.
+    this.root.rotation.y = Math.PI / 2 - CUT_AZ;
     this.worldX = worldX;
 
     // One plane, not two: half the building comes off, not a quarter. A wedge
@@ -141,16 +155,14 @@ export class Unit {
       pipe: m.pipe, fuel: m.fuel,
       steel: m.steel, painted: m.painted, deck: m.deck, dark: m.dark,
       poolWater: ownWater(m.poolWater), copper: m.copper, rail: m.rail, lamp: m.lamp.clone(),
-      bubble: m.bubble, flange: m.flange
+      bubble: m.bubble, mote: m.mote, flange: m.flange
     };
-    // Vessels are cut on their own axis, on the same heading as the building,
-    // so the whole model reads as one section rather than a set of unrelated
-    // slices.
-    const halfPlane = (x, z) => [cutPlane(x + worldX, z)];
+    // Every vessel stands on the layout plane, so the plane that halves the
+    // building halves all of them too. One cut, one section, one picture.
     this.mHalfRpv = m.glass.clone();
-    this.mHalfRpv.clippingPlanes = halfPlane(L.rpv.x, L.rpv.z);
+    this.mHalfRpv.clippingPlanes = this.cut;
     this.mHalfSg = m.glass.clone();
-    this.mHalfSg.clippingPlanes = halfPlane(L.sg.x, L.sg.z);
+    this.mHalfSg.clippingPlanes = this.cut;
     // The near half of each vessel is taken off, so what is left is the far
     // half, and the far half of a real vessel is steel. Drawing it as glass
     // as well leaves the water floating in front of the sky with nothing
@@ -357,13 +369,15 @@ export class Unit {
 
     // The route the water takes: in at the nozzle, down the gap between the
     // barrel and the wall, round the bottom and up through the fuel. Two
-    // columns of carried bubbles going down and the boiling column going up
-    // are what make that route, and its speed, something you can watch.
+    // columns going down and the boiling column going up are what make that
+    // route, and its speed, something you can watch. What goes down is drawn
+    // as specks of water, not as bubbles: bubbles rise, and a white bubble
+    // travelling downwards reads as wrong.
     this.downFlow = [];
     for (const sgn of [1, -1]) {
-      const px = r.x + CUT_T.x * 2.58 * sgn, pz = r.z + CUT_T.z * 2.58 * sgn;
+      const px = r.x + 2.58 * sgn, pz = r.z;
       const fr = frameOf(roundedPath([V(px, W_HI - 0.4, pz), V(px, W_LO + 0.6, pz)], 0.2), 40);
-      const b = new Bubbles(fr, 0.16, 26, m.bubble);
+      const b = new Bubbles(fr, 0.15, 30, m.mote);
       g.add(b.mesh);
       this.downFlow.push(b);
     }
@@ -403,11 +417,18 @@ export class Unit {
     // those tubes is a different circuit that never touches it: it boils, and
     // the steam goes to the turbine. Two circuits, one wall between them.
     const s = L.sg;
-    const sgSkirt = tube(2.3, 2.6, 2.0, this.stage.mat.painted, 32);
-    sgSkirt.position.set(s.x, 1.0, s.z);
-    g.add(sgSkirt);
+    // On legs, so its channel head is level with the reactor's nozzles and
+    // the hot leg can run straight across, and so the pipework underneath can
+    // pass between them instead of round a skirt.
+    for (const dx0 of [-2.3, 2.3]) {
+      for (const dz0 of [-2.3, 2.3]) {
+        const leg = tube(0.3, 0.34, SG_BASE, this.stage.mat.painted, 10);
+        leg.position.set(s.x + dx0, SG_BASE / 2, s.z + dz0);
+        g.add(leg);
+      }
+    }
     this.sgShell = vessel(SG_PROFILE, this.mShellSg);
-    this.sgShell.position.set(s.x, 2.0, s.z);
+    this.sgShell.position.set(s.x, SG_BASE, s.z);
     g.add(this.sgShell);
     this.sgWater = tube(2.62, 2.62, 1, m.water, 40);
     this.sgWater.material = ownWater(m.water);
@@ -430,13 +451,14 @@ export class Unit {
     // Everything that lives in the plane of the cut is set a little way back
     // into the half that is kept, and is not clipped: geometry sitting exactly
     // on a clipping plane is a coin toss, and it lands on discarded.
-    const BACK = 0.32, bx = CUT_N.x * BACK, bz = CUT_N.z * BACK;
+    // into the half that is kept, which is local -z once the model is turned
+    const BACK = 0.32, bx = 0, bz = -BACK;
     const plateIn = new THREE.MeshStandardMaterial({
       color: 0x7f8b96, roughness: 0.5, metalness: 0.7, side: THREE.DoubleSide });
     // the divider stands across the channel head, edge on to the cut
     const div = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.6, 4.4), plateIn);
     div.position.set(s.x + bx, SG_TS - 1.4, s.z + bz);
-    div.rotation.y = -CUT_AZ;
+    div.rotation.y = 0;
     g.add(div);
 
     // The bundle, in section: nested U-tubes in the plane of the cut. The side
@@ -446,10 +468,10 @@ export class Unit {
     // Each tube is one run of water, hot where it goes in and cold where it
     // comes out, mixing between the two along its own length: that gradient is
     // the heat crossing into the second circuit, drawn where it happens.
-    const dx = CUT_T.x, dz = CUT_T.z;
+    const dx = 1, dz = 0;
     this.sgTubes = [];
     for (let k = 0; k < 5; k++) {
-      const w = 0.6 + k * 0.45, top = SG_TS + 7.0 + w * 0.9;
+      const w = 0.6 + k * 0.45, top = SG_TS + 6.0 + w * 0.9;
       const at = (o, y) => V(s.x + bx + dx * o, y, s.z + bz + dz * o);
       const u = fluidRod([at(w, SG_TS), at(w, top), at(-w, top), at(-w, SG_TS)],
         0.17, w * 0.9);
@@ -461,7 +483,7 @@ export class Unit {
       const sep = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.62, 3.0, 14, 1, true),
         new THREE.MeshStandardMaterial({
           color: 0x8894a0, roughness: 0.6, metalness: 0.5, side: THREE.DoubleSide }));
-      sep.position.set(s.x + bx + dx * r, 2 + 19.0, s.z + bz + dz * r);
+      sep.position.set(s.x + bx + dx * r, SG_BASE + 15.5, s.z + bz + dz * r);
       g.add(sep);
     }
 
@@ -542,36 +564,25 @@ export class Unit {
 
     // Out of the top of the reactor, round and down into the boiler's channel
     // head, which is where a U-tube boiler is fed from.
-    // The two nozzles sit either side of the divider plate, so they lie along
-    // the face of the cut and both are in view.
-    const Tx = CUT_T.x, Tz = CUT_T.z;
-    const nozHot = V(s.x + Tx * 2.6, SG_NOZ, s.z + Tz * 2.6);
-    const nozCold = V(s.x - Tx * 2.6, SG_NOZ, s.z - Tz * 2.6);
-    this.hot = pipe([
-      V(r.x, HOT_Y, r.z), V(r.x, HOT_Y, s.z - 4.7),
-      V(nozHot.x + Tx * 2.8, HOT_Y, nozHot.z + Tz * 2.8),
-      V(nozHot.x + Tx * 2.8, SG_NOZ, nozHot.z + Tz * 2.8), nozHot
-    ], 1.1, m, { bend: 2.2 });
+    // Reactor out at HOT_Y, straight across into the boiler's channel head at
+    // the same height. Boiler out one and a half metres lower, straight down
+    // into the pump, and straight back across into the reactor. Three runs,
+    // one elbow, and the elbow is the crossover leg a real plant has.
+    const sgHot = V(s.x + 2.7, HOT_Y, s.z);
+    const sgCold = V(s.x + 2.7, XOVER_Y, s.z);
+    this.hot = pipe([V(r.x - 3.1, HOT_Y, r.z), sgHot], 1.1, m, { bend: 1.0 });
     g.add(this.hot.group);
 
-    // and back out of the other half of the channel head, up into the pump
     this.cold = pipe([
-      nozCold,
-      V(nozCold.x - Tx * 2.9, SG_NOZ, nozCold.z - Tz * 2.9),
-      V(nozCold.x - Tx * 2.9, SG_NOZ, p.z),
-      V(p.x, SG_NOZ, p.z), V(p.x, COLD_Y - 1.3, p.z)
+      sgCold, V(p.x, XOVER_Y, p.z), V(p.x, COLD_Y + 1.4, p.z)
     ], 1.0, m, { bend: 1.5 });
     g.add(this.cold.group);
 
     this.coldB = pipe([
-      V(p.x + 1.9, COLD_Y, p.z), V(r.x - 3.6, COLD_Y, r.z), V(r.x - 3.2, COLD_Y, r.z)
-    ], 1.0, m, { bend: 2.4 });
+      V(p.x + 1.85, COLD_Y, p.z), V(r.x - 3.1, COLD_Y, r.z)
+    ], 1.0, m, { bend: 1.0 });
     g.add(this.coldB.group);
 
-    // The primary is one closed loop: when the vessel is empty it is empty
-    // everywhere, and every run of it has to stop pretending to carry water.
-    const dryPrimary = () => this.plant.level <= 0.02;
-    this.hot.dry = this.cold.dry = this.coldB.dry = dryPrimary;
     this.hot.leg = this.legHot;
     // one physical leg, drawn in two runs: out of the boiler and into the
     // reactor, with the pump in the middle of it
@@ -698,59 +709,68 @@ export class Unit {
     // The condenser: the steam gives its heat to sea water running through a
     // second set of tubes and turns back into water. That sea water is the
     // ultimate heat sink, so it is drawn: when it stops, the reason the plant
-    // is in trouble is on the screen.
-    this.cond = new THREE.Mesh(new THREE.CylinderGeometry(2.7, 2.7, 9, 32, 1, true)
-      .rotateX(Math.PI / 2), this.stage.mat.steel);
-    this.cond.position.set(t.x - 4, 1.4, t.z);
+    // is in trouble is on the screen. It lies along the same axis as the
+    // machine above it, so the exhaust drops straight into it.
+    const CX = (X0 + X1) / 2;
+    this.cond = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 9, 32, 1, true)
+      .rotateZ(Math.PI / 2), this.stage.mat.steel);
+    this.cond.position.set(CX, 1.8, t.z);
     this.cond.material.side = THREE.DoubleSide;
     g.add(this.cond);
-    for (const zz of [-4.5, 4.5]) {
-      const head = new THREE.Mesh(new THREE.SphereGeometry(2.7, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2)
-        .rotateX(zz > 0 ? Math.PI / 2 : -Math.PI / 2), this.stage.mat.painted);
-      head.position.set(t.x - 4, 1.4, t.z + zz);
+    for (const xx of [-4.5, 4.5]) {
+      const head = new THREE.Mesh(new THREE.SphereGeometry(2.6, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2)
+        .rotateZ(xx > 0 ? -Math.PI / 2 : Math.PI / 2), this.stage.mat.painted);
+      head.position.set(CX + xx, 1.8, t.z);
       g.add(head);
     }
     this.legCw = new Leg('sea water', 2.2, 2, { rho: FLUID.rhoCold });
     this.cw = new Circuit('sea water', [this.legCw]);
+    // In and out at their own heights, straight, and away to the right where
+    // the sea is. Two lines you can follow with a finger.
     const cwIn = pipe([
-      V(t.x - 8.5, 1.4, t.z - 16), V(t.x - 8.5, 1.4, t.z + 4.5), V(t.x - 6.4, 1.4, t.z + 4.5)
-    ], 2.2, m, { bend: 2.0 });
+      V(t.x + 8, -2.4, t.z), V(t.x + 8, 0.7, t.z), V(CX + 5.0, 0.7, t.z)
+    ], 2.2, m, { bend: 1.2 });
     const cwOut = pipe([
-      V(t.x - 6.4, 1.4, t.z - 4.5), V(t.x - 0.6, 1.4, t.z - 4.5), V(t.x - 0.6, 1.4, t.z - 16)
-    ], 2.2, m, { bend: 2.0 });
+      V(CX + 5.0, 3.2, t.z), V(t.x + 8, 3.2, t.z), V(t.x + 8, -2.4, t.z)
+    ], 2.2, m, { bend: 1.2 });
     cwIn.leg = cwOut.leg = this.legCw;
     g.add(cwIn.group); g.add(cwOut.group);
     this.pipes.push(cwIn, cwOut);
 
-    const xf = slab(4.4, 3.6, 4.4, this.stage.mat.painted);
-    xf.position.set(t.x + 13, 1.8, t.z - 3);
+    // Transformer and lamp stand at the generator's own height, so the wiring
+    // between them is straight. Every bend in a cable is one more thing to
+    // follow, and there is nothing here that needs one.
+    const XF = t.x + 13, POLE = t.x + 19;
+    const xf = slab(4.4, 5.2, 4.4, this.stage.mat.painted);
+    xf.position.set(XF, AX, t.z);
     g.add(xf);
     for (let i = 0; i < 3; i++) {
-      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.25, 2.6, 4.6), this.stage.mat.dark);
-      fin.position.set(t.x + 11.6 + i * 1.4, 1.8, t.z - 3);
+      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.25, 4.0, 4.8), this.stage.mat.dark);
+      fin.position.set(XF - 1.4 + i * 1.4, AX, t.z);
       g.add(fin);
     }
-    // Two conductors, because two is what a circuit takes, and they end at a
-    // lamp. A pylon carrying four lines off the edge of the picture says the
-    // power went somewhere; a lamp that comes on says the power is real.
+    const xfPlinth = slab(5.0, AX - 2.6, 5.0, this.stage.mat.deck);
+    xfPlinth.position.set(XF, (AX - 2.6) / 2, t.z);
+    g.add(xfPlinth);
+
     const poleMat = this.stage.mat.rail;
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.24, 11, 8), poleMat);
-    pole.position.set(t.x + 18.5, 5.5, t.z - 4);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.26, 12, 8), poleMat);
+    pole.position.set(POLE, 6, t.z);
     g.add(pole);
-    const armX = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.2, 6)
+    const bracket = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 1.8, 6)
       .rotateZ(Math.PI / 2), poleMat);
-    armX.position.set(t.x + 17.6, 10.4, t.z - 4);
-    g.add(armX);
+    bracket.position.set(POLE + 0.9, AX + 0.9, t.z);
+    g.add(bracket);
     this.lampGlass = new THREE.Mesh(
-      new THREE.SphereGeometry(0.62, 18, 12), this.stage.mat.bulb.clone());
-    this.lampGlass.position.set(t.x + 16.7, 10.0, t.z - 4);
+      new THREE.SphereGeometry(0.66, 18, 12), this.stage.mat.bulb.clone());
+    this.lampGlass.position.set(POLE + 1.8, AX + 0.5, t.z);
     g.add(this.lampGlass);
     const shade = new THREE.Mesh(
-      new THREE.ConeGeometry(0.95, 0.7, 18, 1, true), this.stage.mat.painted);
-    shade.position.set(t.x + 16.7, 10.7, t.z - 4);
+      new THREE.ConeGeometry(1.0, 0.7, 18, 1, true), this.stage.mat.painted);
+    shade.position.set(POLE + 1.8, AX + 1.15, t.z);
     g.add(shade);
-    this.lampLight = new THREE.PointLight(0xffd9a0, 0, 22, 2);
-    this.lampLight.position.set(t.x + 16.7, 9.6, t.z - 4);
+    this.lampLight = new THREE.PointLight(0xffd9a0, 0, 24, 2);
+    this.lampLight.position.set(POLE + 1.8, AX + 0.1, t.z);
     g.add(this.lampLight);
 
     this.busMat = new THREE.MeshStandardMaterial({
@@ -759,21 +779,11 @@ export class Unit {
     });
     this.bus = new THREE.Group();
     for (let i = 0; i < 2; i++) {
-      const dy = i ? 0.7 : -0.7, dz = i ? 0.55 : -0.55;
-      // generator to transformer
+      const dy = i ? 0.75 : -0.75;
       this.bus.add(pipeLike([
-        V(t.x + 4.6, AX + dy, t.z),
-        V(t.x + 7.8, AX + dy, t.z),
-        V(t.x + 7.8, 4.2, t.z - 3 + dz),
-        V(t.x + 10.9, 4.2, t.z - 3 + dz)
-      ], 0.2, this.busMat));
-      // transformer to the pole, and down it to the lamp
+        V(t.x + 4.9, AX + dy, t.z), V(XF - 2.1, AX + dy, t.z)], 0.19, this.busMat));
       this.bus.add(pipeLike([
-        V(t.x + 15.2, 3.4, t.z - 3 + dz),
-        V(t.x + 18.5 + dz * 0.4, 9.4 + dy * 0.4, t.z - 4),
-        V(t.x + 17.4, 10.4 + dy * 0.25, t.z - 4),
-        V(t.x + 16.7, 10.2, t.z - 4)
-      ], 0.1, this.busMat, 1.1));
+        V(XF + 2.1, AX + dy, t.z), V(POLE - 0.2, AX + dy, t.z)], 0.13, this.busMat));
     }
     g.add(this.bus);
 
@@ -783,8 +793,8 @@ export class Unit {
     // Out of the top of the boiler, up under the dome, out through the wall
     // and down into the top of the turbine's inlet end.
     this.steam = pipe([
-      V(s.x, 2 + 24.0, s.z), V(s.x, 30, s.z), V(s.x, 30, t.z - 13),
-      V(X0 + 0.9, 30, t.z - 13), V(X0 + 0.9, 30, t.z), V(X0 + 0.9, AX + 2.9, t.z)
+      V(s.x, SG_BASE + 18.6, s.z), V(s.x, 33, s.z),
+      V(X0 + 0.9, 33, t.z), V(X0 + 0.9, AX + 2.9, t.z)
     ], 1.2, m, { bend: 3.0, steam: true });
     this.steam.leg = this.legSteam;
     g.add(this.steam.group);
@@ -793,16 +803,18 @@ export class Unit {
     // the condenser, where it turns back into water.
     this.legExh = new Leg('to the condenser', 2.6, 1, { rho: 12, kind: 'steam' });
     this.exh = pipe([
-      V(t.x - 4, 6.2, t.z), V(t.x - 4, 2.0, t.z)
+      V((X0 + X1) / 2, 6.2, t.z), V((X0 + X1) / 2, 3.4, t.z)
     ], 2.6, m, { bend: 0.8, steam: true });
     this.exh.leg = this.legExh;
     g.add(this.exh.group);
 
+    // Back the other way at its own height, so the two halves of the second
+    // circuit run as one straight pair across the top of the picture: white
+    // going right to the turbine, blue coming back to the boiler.
     this.feed = pipe([
-      V(t.x - 4, -1.0, t.z + 4.6), V(t.x - 4, 1.4, t.z + 9),
-      V(s.x - 8, 1.4, t.z + 9), V(s.x - 8, 1.4, s.z), V(s.x - 4.0, 1.4, s.z),
-      V(s.x - 4.0, 2 + 6.0, s.z), V(s.x - 2.7, 2 + 6.0, s.z)
-    ], 0.7, m, { bend: 2.2 });
+      V(X0 - 3.4, 1.8, t.z), V(X0 - 3.4, 36.5, t.z),
+      V(s.x, 36.5, s.z), V(s.x, SG_BASE + 16.2, s.z)
+    ], 0.7, m, { bend: 2.4 });
     this.feed.leg = this.legFeed;
     g.add(this.feed.group);
     this.secondary.legs.push(this.legExh);
@@ -867,31 +879,34 @@ export class Unit {
       this.legPrhrDn = new Leg('back from the pool', 0.2, 2, { rho: FLUID.rhoCold });
       this.prhr = new Circuit('prhr',
         [this.legPrhrUp, this.legCoil, this.legCoilOut, this.legPrhrDn]);
+      // Straight up off the hot leg into the pool. Hot water rises; drawing
+      // the line that carries it as anything but a vertical run hides that.
+      const RUP = p.x - p.w / 2 + 2.0;
       const up = pipe([
-        V(r.x - 3.2, HOT_Y, r.z + 1.6), V(r.x - 5, HOT_Y, r.z + 1.6),
-        V(r.x - 5, p.y + 1.6, r.z + 1.6), V(r.x - 5, p.y + 1.6, p.z + p.d / 2 - 2)
+        V(r.x - 3.1, HOT_Y, r.z), V(RUP, HOT_Y, r.z), V(RUP, p.y + 1.6, r.z)
       ], 0.45, m, { bend: 1.6 });
       up.leg = this.legPrhrUp; g.add(up.group);
       // The coil sits low enough to stay under the water while there is any
       // water, because a coil in the air is not taking heat out of anything.
-      const COIL_Y = p.y + 1.0;
+      const COIL_Y = p.y + 1.6;
       const coilPts = [];
-      let cx = p.x + p.w / 2 - 2.5, side = 1;
-      while (cx > p.x - p.w / 2 + 2.0) {
-        coilPts.push(V(cx, COIL_Y, p.z + side * (p.d / 2 - 2.2)));
-        coilPts.push(V(cx, COIL_Y, p.z - side * (p.d / 2 - 2.2)));
-        cx -= 1.5; side *= -1;
+      let cx = RUP, side = 1;
+      while (cx < p.x + p.w / 2 - 2.0) {
+        coilPts.push(V(cx, COIL_Y, p.z + side * (p.d / 2 - 2.0)));
+        coilPts.push(V(cx, COIL_Y, p.z - side * (p.d / 2 - 2.0)));
+        cx += 1.5; side *= -1;
       }
       // One run of water that goes in hot and comes out cold, with the change
       // happening along it: the same picture as the boiler tubes, because it
       // is the same job being done by a different means.
       this.poolCoil = fluidRod(coilPts, 0.22, 0.7);
       g.add(this.poolCoil.mesh);
+      // and straight back down the other side into the reactor, because that
+      // is what cooled water does.
+      const RDN = p.x + p.w / 2 - 2.0;
       const dn = pipe([
-        coilPts[coilPts.length - 1].clone(),
-        V(p.x - p.w / 2 + 1, COIL_Y, r.z - 1.4),
-        V(r.x + 5.5, COIL_Y, r.z - 1.6), V(r.x + 5.5, COLD_Y, r.z - 1.6),
-        V(r.x + 3.2, COLD_Y, r.z - 1.6)
+        coilPts[coilPts.length - 1].clone(), V(RDN, COIL_Y, r.z),
+        V(RDN, COLD_Y + 1.4, r.z), V(r.x + 3.1, COLD_Y + 1.4, r.z)
       ], 0.45, m, { bend: 1.6 });
       dn.leg = this.legPrhrDn; g.add(dn.group);
       this.pipes.push(up, dn);
@@ -907,7 +922,7 @@ export class Unit {
       g.add(this.sumpWater);
       this.leakJet = new THREE.Mesh(
         new THREE.CylinderGeometry(0.22, 0.45, p.y - 0.2, 12), liquidMaterial(0.6));
-      this.leakJet.position.set(p.x + p.w / 2 - 1.0, (p.y - 0.2) / 2, p.z + p.d / 2 - 0.9);
+      this.leakJet.position.set(p.x + p.w / 2 - 1.0, (p.y - 0.2) / 2, p.z);
       this.leakJet.material.normalMap.repeat.set(2, 6);
       this.leakJet.visible = false;
       g.add(this.leakJet);
@@ -922,22 +937,23 @@ export class Unit {
       this.gravity = new Circuit('gravity', [this.legGrav]);
       this.recircC = new Circuit('recirculation', [this.legRecirc]);
       this.fillC = new Circuit('into the reactor', [this.legFill]);
-      const TEE = V(p.x + 3, 12.6, p.z + p.d / 2 - 1.5);
-      const grav = pipe([
-        V(p.x + 3, p.y + 0.5, p.z + p.d / 2 - 1.5), TEE.clone()
-      ], 0.5, m, { bend: 1.4 });
+      // One vertical line from the pool to the reactor head, with a valve in
+      // it and a second line up from the floor of the building joining below
+      // the valve. Straight down is what gravity does, so straight down is
+      // what it is drawn as.
+      const GX = r.x - 1.6;
+      const TEE = V(GX, 18.6, r.z);
+      const grav = pipe([V(GX, p.y + 0.4, r.z), TEE.clone()], 0.5, m, { bend: 1.4 });
       grav.leg = this.legGrav; g.add(grav.group);
       const recirc = pipe([
-        V(p.x + 3, 0.8, p.z + p.d / 2 - 1.5), TEE.clone()
+        V(GX - 3.2, 0.8, r.z), V(GX - 3.2, 18.6, r.z), TEE.clone()
       ], 0.5, m, { bend: 1.4 });
       recirc.leg = this.legRecirc; g.add(recirc.group);
       // Into the top of the vessel, not into its side: the water has to be
       // seen arriving somewhere, and a line that stops against a wall is a
       // line that goes nowhere.
-      const IN = V(r.x + CUT_T.x * 1.5, r.base + 16.1, r.z + CUT_T.z * 1.5);
-      const fill = pipe([
-        TEE.clone(), V(IN.x, 18.4, IN.z), V(IN.x, IN.y + 0.9, IN.z)
-      ], 0.5, m, { bend: 1.4 });
+      const IN = V(GX, r.base + 15.9, r.z);
+      const fill = pipe([TEE.clone(), V(IN.x, IN.y + 0.9, IN.z)], 0.5, m, { bend: 0.6 });
       fill.leg = this.legFill; g.add(fill.group);
       this.pipes.push(grav, recirc, fill);
 
@@ -1003,16 +1019,16 @@ export class Unit {
       this.legInj = new Leg('injection', 0.25, 2, { rho: FLUID.rhoCold });
       this.inject = new Circuit('inject', [this.legSuct, this.legInj]);
       const suct = pipe([
-        V(t.x + t.w / 2 - 2, -t.h + 1.5, t.z), V(e.x, -t.h + 1.5, t.z),
-        V(e.x, -t.h + 1.5, e.z), V(e.x, 1.2, e.z)
+        V(t.x + t.w / 2 - 1.5, -t.h + 1.5, t.z), V(e.x, -t.h + 1.5, e.z),
+        V(e.x, 1.2, e.z)
       ], 0.5, m, { bend: 1.8 });
       suct.leg = this.legSuct; g.add(suct.group);
-      // the long way round: up the outside and back down in
+      // Along the floor and straight up into the cold leg. It has to pass
+      // under the boiler, which is why the boiler stands on legs.
       const inj = pipe([
-        V(e.x, 4.2, e.z), V(e.x, 24, e.z), V(e.x + 8, 30, e.z),
-        V(e.x + 8, 30, r.z), V(r.x + 6, 30, r.z), V(r.x + 6, COLD_Y, r.z),
-        V(r.x + 2.4, COLD_Y, r.z)
-      ], 0.4, m, { bend: 2.2 });
+        V(e.x, 4.2, e.z), V(e.x, 1.4, e.z), V(r.x - 6.0, 1.4, r.z),
+        V(r.x - 6.0, COLD_Y, r.z)
+      ], 0.4, m, { bend: 1.6 });
       inj.leg = this.legInj; g.add(inj.group);
       this.pipes.push(suct, inj);
     }

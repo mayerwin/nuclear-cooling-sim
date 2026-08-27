@@ -54,11 +54,11 @@ export class Labels {
         u.passive ? L.pool.y + 3.5 : 2.5,
         u.passive ? L.pool.z : L.tank.z, 'L');
       if (!u.passive) add('eccs', 'part', L.eccs.x, 5.2, L.eccs.z, 'L');
-      add('turb', 'part', L.turb.x - 7, 12.5, L.turb.z, 'R');
-      add('gen', 'part', L.turb.x + 1.5, 12, L.turb.z, 'R');
-      add('vent', 'part', L.stack.x, L.stack.h + 1.5, L.stack.z, 'R');
-      add('sea', 'part', L.turb.x - 4, 4.2, L.turb.z - 4.5, 'R');
-      add('power', 'part', L.turb.x + 16.7, 11.4, L.turb.z - 4, 'R');
+      add('turb', 'part', L.turb.x - 7, 12.4, L.turb.z, 'R');
+      add('gen', 'part', L.turb.x + 1.2, 11.6, L.turb.z, 'R');
+      add('vent', 'part', L.stack.x, L.stack.h + 1.5, L.stack.z, 'L');
+      add('sea', 'part', L.turb.x + 8, -1.6, L.turb.z, 'R');
+      add('power', 'part', L.turb.x + 20.8, 9.4, L.turb.z, 'R');
       u.labels = set;
     }
   }

@@ -9,7 +9,7 @@ import { Sim } from './sim.js';
 import { Renderer } from './site/renderer.js';
 import { unproject } from './site/iso.js';
 import { Stage } from './view/stage.js';
-import { Unit } from './view/unit.js';
+import { Unit, CUT_AZ } from './view/unit.js';
 import { Labels } from './view/labels.js';
 import { UI } from './ui.js';
 import { initPhysics } from './machines.js';
@@ -74,21 +74,27 @@ function setFocus(f) {
   // Only the station that is being looked at is drawn. Its neighbour standing
   // half in frame is scenery competing with the subject.
   units.forEach((x, i) => { x.root.visible = f === 'both' || (f === 'active') === (i === 0); });
+  // The station is laid out in one plane and the frame is given in that plane's
+  // own coordinates, so it means the same thing whichever way the model is
+  // turned. The camera looks square on to it: what you get is an elevation.
+  const box = (u, x0, x1, y0, y1, zz) => {
+    u.root.updateWorldMatrix(true, false);
+    const b = new THREE.Box3(), v = new THREE.Vector3();
+    for (let i = 0; i < 8; i++) {
+      v.set(i & 1 ? x1 : x0, i & 2 ? y1 : y0, i & 4 ? zz : -zz)
+        .applyMatrix4(u.root.matrixWorld);
+      b.expandByPoint(v);
+    }
+    return b;
+  };
   if (f === 'both') {
-    // The two buildings and their turbine halls, not the line leaving the
-    // site: framing to everything drawn puts the reactors in the far distance.
-    stage.frameBox(narrow
-      ? new THREE.Box3(new THREE.Vector3(-SPAN - 18, -3, -17), new THREE.Vector3(SPAN + 18, 46, 17))
-      : new THREE.Box3(new THREE.Vector3(-SPAN - 23, -3, -19), new THREE.Vector3(SPAN + 36, 48, 19)),
-    { azimuth: 1.30, elev: narrow ? 0.62 : 0.24, snap: firstFocus, fill: 0.92, ...u });
+    const b = box(units[0], -24, 47, -3, 38, 8);
+    b.union(box(units[1], -24, 47, -3, 38, 8));
+    stage.frameBox(b,
+      { azimuth: CUT_AZ, elev: narrow ? 0.5 : 0.22, snap: firstFocus, fill: 0.92, ...u });
   } else {
-    // On one station the frame is the reactor building and the turbine hall.
-    // Framing the whole site puts the interesting part in the middle distance.
-    const x = units[f === 'active' ? 0 : 1].worldX;
-    stage.frameBox(narrow
-      ? new THREE.Box3(new THREE.Vector3(x - 19, -2, -17), new THREE.Vector3(x + 23, 42, 17))
-      : new THREE.Box3(new THREE.Vector3(x - 21, -2, -18), new THREE.Vector3(x + 38, 40, 18)),
-    { azimuth: 1.02, elev: narrow ? 0.46 : 0.24, snap: firstFocus, fill: 0.96, ...u });
+    stage.frameBox(box(units[f === 'active' ? 0 : 1], -24, 47, -3, 38, 8),
+      { azimuth: CUT_AZ, elev: narrow ? 0.42 : 0.18, snap: firstFocus, fill: 0.88, ...u });
   }
   firstFocus = false;
   labels.setFocus(f);

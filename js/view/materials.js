@@ -83,6 +83,16 @@ export function build() {
   });
   // The bulb on the pole outside the turbine hall: the one thing in the model
   // whose whole job is to say whether electricity is being made.
+  // What the downcomer carries. Air bubbles rise; anything drawn as a white
+  // bubble travelling downwards reads as wrong before the viewer can say why.
+  // These are specks of the water itself, the colour of the water, so they
+  // read as the stream being carried rather than as air falling.
+  m.mote = new THREE.MeshStandardMaterial({
+    color: 0x7fc4ee, roughness: 0.25, metalness: 0,
+    transparent: true, opacity: 0.55,
+    emissive: new THREE.Color(0x2b6d96), emissiveIntensity: 0.5,
+    depthWrite: false
+  });
   m.bulb = new THREE.MeshStandardMaterial({
     color: 0x2a2a26, roughness: 0.25, metalness: 0,
     emissive: new THREE.Color(0xffcf87), emissiveIntensity: 0
