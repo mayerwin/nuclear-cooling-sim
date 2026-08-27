@@ -90,7 +90,7 @@ export const LIQUID = { COLD: 0x1f6fa8, HOT: 0xd8571e, STEAM: 0xdcecf8 };
 export function liquidMaterial(dia) {
   const n = flowNormal().clone();
   n.needsUpdate = true;
-  return new THREE.MeshPhysicalMaterial({
+  return gradientise(new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
     roughness: 0.045,
     metalness: 0,
@@ -111,7 +111,42 @@ export function liquidMaterial(dia) {
     opacity: 1,
     side: THREE.DoubleSide,
     depthWrite: true
-  });
+  }));
+}
+
+// Water changes temperature *along* a pipe, not all at once at a joint. The
+// fuel heats it on the way up through the core; the boiler tubes and the pool
+// coil give that heat back on the way through. Drawing each run as one flat
+// colour puts the whole change on a flange, which is a lie you can see. So the
+// liquid carries two colours and mixes between them along its own length.
+export function gradientise(mat, axis = 0) {
+  mat.defines = Object.assign({}, mat.defines, { USE_UV: '' });
+  mat.userData.g = {
+    c0: { value: new THREE.Color(1, 1, 1) },
+    c1: { value: new THREE.Color(1, 1, 1) },
+    axis: { value: axis }
+  };
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uC0 = mat.userData.g.c0;
+    sh.uniforms.uC1 = mat.userData.g.c1;
+    sh.uniforms.uAxis = mat.userData.g.axis;
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>',
+        '#include <common>\nuniform vec3 uC0;\nuniform vec3 uC1;\nuniform float uAxis;')
+      .replace('#include <color_fragment>',
+        '#include <color_fragment>\n\tdiffuseColor.rgb *= mix( uC0, uC1,'
+        + ' clamp( mix( vUv.x, vUv.y, uAxis ), 0.0, 1.0 ) );');
+  };
+  mat.customProgramCacheKey = () => 'fluid-gradient';
+  return mat;
+}
+
+// Set both ends at once. Pass one colour for a run at a single temperature.
+export function setGradient(mat, c0, c1 = c0) {
+  const g = mat.userData.g;
+  if (!g) return;
+  g.c0.value.copy(c0);
+  g.c1.value.copy(c1);
 }
 
 // --- vapour -----------------------------------------------------------------

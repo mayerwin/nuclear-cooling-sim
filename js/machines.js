@@ -28,6 +28,7 @@ class Spinner {
       R.ColliderDesc.ball(radius).setDensity(1).setCollisionGroups(0), this.body);
   }
   torque(n, dt) { if (dt > 0) this.body.applyTorqueImpulse(n * dt, true); }
+  spinAt(w) { this.body.setAngvel(w, true); }
   get angle() { return this.body.rotation(); }
   get speed() { return this.body.angvel(); }
 }
@@ -41,6 +42,14 @@ export class Machines {
     this.impeller = new Spinner(this.world, 0.55, 2.2, 0);
     this.shaft = new Spinner(this.world, 1.25, 0.05, 1);
     this.aux = new Spinner(this.world, 0.4, 2.6, 2);
+  }
+
+  // The station is at full power when you arrive, so its machines are already
+  // turning. Starting them from rest means the first thing a visitor sees is a
+  // generator winding up and a lamp that is out, which says the plant is off.
+  running(pumpSpeed, shaftSpeed) {
+    this.impeller.spinAt(pumpSpeed);
+    this.shaft.spinAt(shaftSpeed);
   }
   // Sub-stepped, so the machines run at the same rate whatever the frame rate.
   step(dt, o) {

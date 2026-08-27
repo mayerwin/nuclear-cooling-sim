@@ -14,6 +14,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { build as buildMaterials } from './materials.js';
+import { surfaceMaterial, setGradient } from './fluid.js';
 
 // A vertical sky gradient, baked once into an equirectangular strip.
 function skyTexture() {
@@ -110,7 +111,30 @@ export class Stage {
     grid.material.opacity = 0.28;
     this.scene.add(grid);
 
+    // Water standing on the site after a wave has been over it. It is one
+    // sheet across the whole model, not one per building, because the sea does
+    // not stop at a property line.
+    this.flood = new THREE.Mesh(
+      new THREE.PlaneGeometry(1400, 1400).rotateX(-Math.PI / 2), surfaceMaterial(4));
+    this.flood.material.attenuationDistance = 4;
+    this.flood.material.clearcoat = 0;
+    this.flood.material.emissiveIntensity = 0.04;
+    this.flood.material.roughness = 0.16;
+    this.flood.material.normalMap.repeat.set(60, 60);
+    this.flood.visible = false;
+    this.scene.add(this.flood);
+
     this.resize();
+  }
+
+  // depth is metres of water standing above grade.
+  setFlood(depth, dt) {
+    this.flood.visible = depth > 0.05;
+    if (!this.flood.visible) return;
+    this.flood.position.y = -2.6 + depth;
+    const m = this.flood.material;
+    m.normalMap.offset.x += dt * 0.012;
+    m.normalMap.offset.y += dt * 0.008;
   }
 
   resize() {

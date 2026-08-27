@@ -58,7 +58,7 @@ export class Labels {
       add('gen', 'part', L.turb.x + 1.5, 12, L.turb.z, 'R');
       add('vent', 'part', L.stack.x, L.stack.h + 1.5, L.stack.z, 'R');
       add('sea', 'part', L.turb.x - 4, 4.2, L.turb.z - 4.5, 'R');
-      add('power', 'part', L.turb.x + 13, 15.5, L.turb.z - 11, 'R');
+      add('power', 'part', L.turb.x + 16.7, 11.4, L.turb.z - 4, 'R');
       u.labels = set;
     }
   }
@@ -166,7 +166,13 @@ export class Labels {
             : 'the intake is lost, the heat has nowhere to go'}</em>`);
       const src = st.s.grid ? 'grid' : st.s.diesel ? 'diesels'
         : st.s.battery > 0 ? `batteries, ${(st.s.battery * p.batteryHours).toFixed(0)} h left` : 'none';
-      set('power', `<b>Power</b><span class="${st.live ? 'power' : st.s.battery > 0 ? 'warn' : 'bad'}">${src}</span>`);
+      // The lamp is the whole point of the machine: two wires and something
+      // that lights up. The station's own supply goes underneath it, because
+      // when it fails that is the whole story of the accident.
+      set('power', `<b>Electricity</b><span class="${mwe ? 'power' : 'bad'}">${mwe
+        ? 'the lamp is lit' : 'the lamp is out'}</span>`
+        + `<em>${mwe ? 'this station is running on what it makes'
+          : 'nothing is being made here'}; the plant itself is on ${src}</em>`);
       set('vent', st.s.vent
         ? '<b class="warn">Vent open</b><em>the way pressure is let out on purpose</em>'
         : '<b>Vent</b><span>closed</span>');

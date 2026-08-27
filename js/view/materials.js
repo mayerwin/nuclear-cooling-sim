@@ -81,6 +81,12 @@ export function build() {
     color: 0x6f7d88, roughness: 0.6, metalness: 0.5,
     emissive: 0x000000, emissiveIntensity: 1
   });
+  // The bulb on the pole outside the turbine hall: the one thing in the model
+  // whose whole job is to say whether electricity is being made.
+  m.bulb = new THREE.MeshStandardMaterial({
+    color: 0x2a2a26, roughness: 0.25, metalness: 0,
+    emissive: new THREE.Color(0xffcf87), emissiveIntensity: 0
+  });
   m.lamp = new THREE.MeshStandardMaterial({ color: 0x101820, emissive: 0x63e08a, emissiveIntensity: 2 });
   return m;
 }

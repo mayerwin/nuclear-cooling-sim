@@ -136,6 +136,10 @@ function frame(now) {
   sim.update(dt);
   if (sim.view === 'plant') {
     for (const u of units) if (u.root.visible) u.update(state(u.plant), dt);
+    // The wave clears the seawall by this much, and what gets past it stands
+    // on the site: that is what drowns the diesels in the basement.
+    stage.setFlood(Math.max(...sim.plants.map(
+      (p) => clamp((p.flooded - 5.7) * 0.42, 0, 4.6))), dt);
     stage.update(dt);
     labels.update();
     stage.render();
