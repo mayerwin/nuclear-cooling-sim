@@ -377,7 +377,7 @@ export class Unit {
     for (const sgn of [1, -1]) {
       const px = r.x + 2.58 * sgn, pz = r.z;
       const fr = frameOf(roundedPath([V(px, W_HI - 0.4, pz), V(px, W_LO + 0.6, pz)], 0.2), 40);
-      const b = new Bubbles(fr, 0.15, 30, m.mote);
+      const b = new Bubbles(fr, 0.11, 34, m.mote);
       g.add(b.mesh);
       this.downFlow.push(b);
     }
@@ -612,9 +612,11 @@ export class Unit {
     // Cut open the way the building is: the top comes off and the near side
     // with it, so the wheels are seen standing inside the machine instead of
     // being a row of teeth on the lid of a drum.
+    // The lid comes off, and the near side comes off on the same plane the
+    // building does, so the machine is opened the same way everything else is.
     casMat.clippingPlanes = [
       new THREE.Plane(new THREE.Vector3(0, -1, 0), AX + 1.1),
-      new THREE.Plane(new THREE.Vector3(0, 0, -1), t.z + 0.2)
+      this.cut[0]
     ];
     this.turbCut = casMat.clippingPlanes;
     const cas = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 3.6, X1 - X0, 44, 1, true), casMat);
