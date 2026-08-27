@@ -112,14 +112,26 @@ export class Stage {
     this.scene.add(grid);
 
     // Water standing on the site after a wave has been over it. It is one
-    // sheet across the whole model, not one per building, because the sea does
-    // not stop at a property line.
+    // sheet across the whole model because the sea does not stop at a property
+    // line, but it stops at the containment wall: the sheet has a hole punched
+    // where each sealed building stands, because a flood does not pass through
+    // a metre of concrete, and water appearing inside the one building whose
+    // whole job is keeping things out would say the opposite of the truth.
+    const floodShape = new THREE.Shape();
+    floodShape.moveTo(-700, -700);
+    floodShape.lineTo(700, -700); floodShape.lineTo(700, 700);
+    floodShape.lineTo(-700, 700); floodShape.closePath();
+    for (const ux of [-38, 38]) {
+      const hole = new THREE.Path();
+      hole.absarc(ux, 0, 17.0, 0, Math.PI * 2, true);
+      floodShape.holes.push(hole);
+    }
     this.flood = new THREE.Mesh(
-      new THREE.PlaneGeometry(1400, 1400).rotateX(-Math.PI / 2), surfaceMaterial(4));
+      new THREE.ShapeGeometry(floodShape, 48).rotateX(-Math.PI / 2), surfaceMaterial(4));
     this.flood.material.attenuationDistance = 4;
     this.flood.material.clearcoat = 0;
     this.flood.material.emissiveIntensity = 0.04;
-    this.flood.material.roughness = 0.16;
+    this.flood.material.roughness = 0.3;
     this.flood.material.normalMap.repeat.set(60, 60);
     this.flood.visible = false;
     this.scene.add(this.flood);
@@ -127,11 +139,16 @@ export class Stage {
     this.resize();
   }
 
-  // depth is metres of water standing above grade.
+  // depth is metres of water standing above grade. The drawn level chases the
+  // model's level instead of jumping to it: the wave arrives in a moment in
+  // the log, but water on the ground rises, it does not teleport.
   setFlood(depth, dt) {
-    this.flood.visible = depth > 0.05;
+    const cur = this.floodDepth || 0;
+    const next = cur + Math.sign(depth - cur) * Math.min(Math.abs(depth - cur), dt * 0.9);
+    this.floodDepth = next;
+    this.flood.visible = next > 0.05;
     if (!this.flood.visible) return;
-    this.flood.position.y = -2.6 + depth;
+    this.flood.position.y = -2.6 + next;
     const m = this.flood.material;
     m.normalMap.offset.x += dt * 0.012;
     m.normalMap.offset.y += dt * 0.008;

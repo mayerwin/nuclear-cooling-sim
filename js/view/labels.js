@@ -51,7 +51,7 @@ export class Labels {
       add('pump', 'part', L.rcp.x, 11.5, L.rcp.z + 2, 'L');
       add('store', 'part',
         u.passive ? L.pool.x : L.tank.x,
-        u.passive ? L.pool.y + 3.5 : 2.5,
+        u.passive ? L.pool.y + 3.5 : 4.5,
         u.passive ? L.pool.z : L.tank.z, 'L');
       if (!u.passive) add('eccs', 'part', L.eccs.x, 5.2, L.eccs.z, 'L');
       add('turb', 'part', L.turb.x - 7, 12.4, L.turb.z, 'R');
@@ -144,11 +144,11 @@ export class Labels {
           + ((st.s.pccs || 0) > 0.05 && st.poolFrac < 0.985
             ? '<em>steam condenses on the shell and drains back in</em>' : ''));
       } else {
-        set('store', '<b>Water in the basement</b><span class="'
+        set('store', '<b>Emergency water tank</b><span class="'
           + (st.injecting ? '' : (st.live && p.pumpsOk) ? '' : 'bad') + '">'
-          + (st.injecting ? 'being pumped up'
+          + (st.injecting ? 'being pumped in'
             : !st.live ? 'cannot reach the reactor'
-              : !p.pumpsOk ? 'the pumps have failed' : 'waiting down here') + '</span>');
+              : !p.pumpsOk ? 'the pumps have failed' : 'full, waiting') + '</span>');
         set('eccs', `<b>Backup pump</b><span class="${st.injecting ? 'ok'
           : (st.live && p.pumpsOk) ? 'warn' : 'bad'}">${st.steamOnly ? 'running on steam'
             : st.injecting ? 'pumping' : !st.live ? 'no power'

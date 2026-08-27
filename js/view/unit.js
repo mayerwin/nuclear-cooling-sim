@@ -178,7 +178,9 @@ export class Unit {
     this.buildSteamSide();
     this.buildSafety();
 
-    this.riseCore = new Riser(2.1, 150, stage.mat.bubble);
+    // Inside the core barrel only: the ring outside it is the downcomer,
+    // where the flow is downward and rising bubbles would contradict it.
+    this.riseCore = new Riser(1.65, 150, stage.mat.bubble);
     this.root.add(this.riseCore.mesh);
     this.riseSg = new Riser(2.3, 150, stage.mat.bubble);
     this.root.add(this.riseSg.mesh);
@@ -506,7 +508,9 @@ export class Unit {
     // cannot tell is turning.
     this.impeller = new THREE.Group();
     const vaneMat = new THREE.MeshStandardMaterial({ color: 0x9fb3c2, roughness: 0.35, metalness: 0.9 });
-    const markMat = new THREE.MeshStandardMaterial({ color: 0xffa23c, roughness: 0.4, metalness: 0.5 });
+    // Dark, not orange: an orange vane inside the volute reads as hot water
+    // being pumped, which is the one thing this pump never touches.
+    const markMat = new THREE.MeshStandardMaterial({ color: 0x27313a, roughness: 0.5, metalness: 0.6 });
     for (let i = 0; i < 7; i++) {
       const a = (i / 7) * Math.PI * 2;
       // Backward-curved, which means the tip trails the root in the direction
@@ -541,11 +545,11 @@ export class Unit {
     casing.position.set(p.x, COLD_Y, p.z);
     g.add(casing);
     this.pumpCase.visible = false;
-    const motor = tube(1.1, 1.1, 3.4, this.stage.mat.painted, 32);
-    motor.position.set(p.x, COLD_Y + 3.4, p.z);
+    const motor = tube(1.1, 1.1, 2.0, this.stage.mat.painted, 32);
+    motor.position.set(p.x, COLD_Y + 2.6, p.z);
     g.add(motor);
     this.pumpLamp = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 8), this.m.lamp);
-    this.pumpLamp.position.set(p.x, COLD_Y + 5.3, p.z);
+    this.pumpLamp.position.set(p.x + 1.35, COLD_Y + 2.6, p.z);
     g.add(this.pumpLamp);
   }
 
@@ -573,9 +577,12 @@ export class Unit {
     this.hot = pipe([V(r.x - 3.1, HOT_Y, r.z), sgHot], 1.1, m, { bend: 1.0 });
     g.add(this.hot.group);
 
+    // Down out of the channel head, under, and up into the pump from below,
+    // which is how a coolant pump is actually fed. Going in over the top means
+    // going through the motor.
     this.cold = pipe([
-      sgCold, V(p.x, XOVER_Y, p.z), V(p.x, COLD_Y + 1.4, p.z)
-    ], 1.0, m, { bend: 1.5 });
+      sgCold, V(sgCold.x, 5.4, s.z), V(p.x, 5.4, p.z), V(p.x, COLD_Y - 0.9, p.z)
+    ], 1.0, m, { bend: 1.6 });
     g.add(this.cold.group);
 
     this.coldB = pipe([
@@ -708,36 +715,74 @@ export class Unit {
       g.add(band);
     }
 
-    // The condenser: the steam gives its heat to sea water running through a
-    // second set of tubes and turns back into water. That sea water is the
-    // ultimate heat sink, so it is drawn: when it stops, the reason the plant
-    // is in trouble is on the screen. It lies along the same axis as the
-    // machine above it, so the exhaust drops straight into it.
+    // The condenser, cut open on the same plane as everything else: the sea
+    // water runs through a bank of tubes, the steam condenses on their
+    // outsides, and the water it becomes lies in the bottom, where the
+    // feedwater line picks it up. That pool is the whole point of the machine,
+    // so it is drawn.
     const CX = (X0 + X1) / 2;
+    const condShell = this.stage.mat.steel.clone();
+    condShell.side = THREE.DoubleSide;
+    condShell.clippingPlanes = this.cut;
     this.cond = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 9, 32, 1, true)
-      .rotateZ(Math.PI / 2), this.stage.mat.steel);
+      .rotateZ(Math.PI / 2), condShell);
     this.cond.position.set(CX, 1.8, t.z);
-    this.cond.material.side = THREE.DoubleSide;
     g.add(this.cond);
+    const condHead = this.stage.mat.painted.clone();
+    condHead.side = THREE.DoubleSide;
+    condHead.clippingPlanes = this.cut;
     for (const xx of [-4.5, 4.5]) {
       const head = new THREE.Mesh(new THREE.SphereGeometry(2.6, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2)
-        .rotateZ(xx > 0 ? -Math.PI / 2 : Math.PI / 2), this.stage.mat.painted);
+        .rotateZ(xx > 0 ? -Math.PI / 2 : Math.PI / 2), condHead);
       head.position.set(CX + xx, 1.8, t.z);
       g.add(head);
     }
+    // the tube bank the sea water runs through, drawn cold
+    this.condTubes = new THREE.InstancedMesh(
+      new THREE.CylinderGeometry(0.14, 0.14, 8.6, 8).rotateZ(Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: 0x77b4d8, roughness: 0.35, metalness: 0.5,
+        emissive: new THREE.Color(0x123a52), emissiveIntensity: 0.4 }), 12);
+    {
+      const mm = new THREE.Matrix4(), q0 = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1);
+      let n = 0;
+      for (let row = 0; row < 4; row++) {
+        for (let col = 0; col < 3; col++) {
+          const yy = 1.5 + row * 0.75, zz = -0.55 - col * 0.62;
+          mm.compose(new THREE.Vector3(CX, yy, t.z + zz), q0, one);
+          this.condTubes.setMatrixAt(n++, mm);
+        }
+      }
+    }
+    g.add(this.condTubes);
+    // the condensate lying in the bottom
+    this.condWater = new THREE.Mesh(new THREE.BoxGeometry(8.4, 0.7, 3.6), ownWater(m.poolWater));
+    this.condWater.material.clippingPlanes = this.cut;
+    this.condWater.position.set(CX, 0.45, t.z - 0.4);
+    g.add(this.condWater);
+
     this.legCw = new Leg('sea water', 2.2, 2, { rho: FLUID.rhoCold });
     this.cw = new Circuit('sea water', [this.legCw]);
-    // In and out at their own heights, straight, and away to the right where
-    // the sea is. Two lines you can follow with a finger.
+    // In at the bottom of one head, out at the top, and both lines run to an
+    // open intake basin at the edge of the yard, so the water visibly comes
+    // from somewhere and goes back there.
+    const BAS = t.x + 5;
     const cwIn = pipe([
-      V(t.x + 8, -2.4, t.z), V(t.x + 8, 0.7, t.z), V(CX + 5.0, 0.7, t.z)
-    ], 2.2, m, { bend: 1.2 });
+      V(BAS + 2.4, 0.5, t.z), V(CX + 5.0, 0.5, t.z)
+    ], 1.6, m, { bend: 1.2 });
     const cwOut = pipe([
-      V(CX + 5.0, 3.2, t.z), V(t.x + 8, 3.2, t.z), V(t.x + 8, -2.4, t.z)
-    ], 2.2, m, { bend: 1.2 });
+      V(CX + 5.0, 3.0, t.z), V(BAS + 1.4, 3.0, t.z), V(BAS + 1.4, 1.3, t.z)
+    ], 1.6, m, { bend: 1.2 });
     cwIn.leg = cwOut.leg = this.legCw;
     g.add(cwIn.group); g.add(cwOut.group);
     this.pipes.push(cwIn, cwOut);
+    // the basin itself: an open box of sea water let into the ground
+    const basWalls = slab(5.2, 2.4, 6.4,
+      new THREE.MeshStandardMaterial({ color: 0x4e5a66, roughness: 0.9, side: THREE.BackSide }));
+    basWalls.position.set(BAS + 2.6, 1.2, t.z);
+    g.add(basWalls);
+    this.basinWater = slab(4.6, 1.5, 5.8, ownWater(m.poolWater));
+    this.basinWater.position.set(BAS + 2.6, 0.95, t.z);
+    g.add(this.basinWater);
 
     // Transformer and lamp stand at the generator's own height, so the wiring
     // between them is straight. Every bend in a cable is one more thing to
@@ -813,9 +858,14 @@ export class Unit {
     // Back the other way at its own height, so the two halves of the second
     // circuit run as one straight pair across the top of the picture: white
     // going right to the turbine, blue coming back to the boiler.
+    // Out of the bottom of the condenser, up outside the turbine hall, back
+    // across the picture above the steam line, and into the boiler's side.
+    // The two runs of the second circuit read as a pair going opposite ways,
+    // and they never touch: steam rides at 33, feedwater at 36.5.
     this.feed = pipe([
-      V(X0 - 3.4, 1.8, t.z), V(X0 - 3.4, 36.5, t.z),
-      V(s.x, 36.5, s.z), V(s.x, SG_BASE + 16.2, s.z)
+      V(CX - 4.6, 1.6, t.z), V(X0 - 3.4, 1.6, t.z), V(X0 - 3.4, 36.5, t.z),
+      V(s.x - 5.2, 36.5, s.z), V(s.x - 5.2, SG_BASE + 13.6, s.z),
+      V(s.x - 3.4, SG_BASE + 13.6, s.z)
     ], 0.7, m, { bend: 2.4 });
     this.feed.leg = this.legFeed;
     g.add(this.feed.group);
@@ -994,16 +1044,26 @@ export class Unit {
       this.fillPour.visible = false;
       g.add(this.fillPour);
     } else {
+      // The emergency water stands in an open tank on the ground, because the
+      // point of drawing it is that you can see how much is left. A buried
+      // tank under a concrete lid is realistic and invisible, which is the
+      // wrong trade here.
       const t = L.tank;
-      const pit = slab(t.w + 4, 0.6, t.d + 4, this.stage.mat.deck);
-      pit.position.set(t.x, -0.3, t.z);
-      g.add(pit);
+      const pad = slab(t.w + 2, 0.5, t.d + 2, this.stage.mat.deck);
+      pad.position.set(t.x, 0.25, t.z);
+      g.add(pad);
       const walls = slab(t.w, t.h, t.d,
         new THREE.MeshStandardMaterial({ color: 0x4e5a66, roughness: 0.9, side: THREE.BackSide }));
-      walls.position.set(t.x, -t.h / 2 + 0.4, t.z);
+      walls.position.set(t.x, t.h / 2 + 0.5, t.z);
       g.add(walls);
-      this.tankWater = slab(t.w - 0.8, 3.4, t.d - 0.8, this.m.poolWater);
-      this.tankWater.position.set(t.x, -t.h + 2.3, t.z);
+      for (const [ax, az] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const lip = slab(ax ? 0.5 : t.w + 1, 0.5, az ? 0.5 : t.d + 1, this.stage.mat.painted);
+        lip.position.set(t.x + ax * (t.w / 2 + 0.25), t.h + 0.5, t.z + az * (t.d / 2 + 0.25));
+        g.add(lip);
+      }
+      this.tankWater = slab(t.w - 0.8, 1, t.d - 0.8, ownWater(this.m.poolWater));
+      this.tankWater.scale.y = 4.6;
+      this.tankWater.position.set(t.x, 0.5 + 2.3, t.z);
       g.add(this.tankWater);
 
       const e = L.eccs;
@@ -1021,9 +1081,8 @@ export class Unit {
       this.legInj = new Leg('injection', 0.25, 2, { rho: FLUID.rhoCold });
       this.inject = new Circuit('inject', [this.legSuct, this.legInj]);
       const suct = pipe([
-        V(t.x + t.w / 2 - 1.5, -t.h + 1.5, t.z), V(e.x, -t.h + 1.5, e.z),
-        V(e.x, 1.2, e.z)
-      ], 0.5, m, { bend: 1.8 });
+        V(t.x + t.w / 2 - 0.8, 1.1, t.z), V(e.x, 1.1, e.z), V(e.x, 1.4, e.z)
+      ], 0.5, m, { bend: 1.2 });
       suct.leg = this.legSuct; g.add(suct.group);
       // Along the floor and straight up into the cold leg. It has to pass
       // under the boiler, which is why the boiler stands on legs.
@@ -1288,12 +1347,14 @@ Object.assign(Unit.prototype, {
     ripple(this.coreTop, this.surfCore, 2.94);
     waterColor(mean, cTmp);
     tintWater(this.coreWater.material, cTmp, dt);
-    // Cold in at the bottom from the cold leg, hot out at the top: the water
-    // picks the heat up on its way through the fuel, and it should be seen
-    // doing it rather than changing colour at a flange somewhere else.
+    // Cold in at the bottom from the cold leg, hot out at the top, and the top
+    // has to MATCH the hot leg leaving beside it: the pipe is the same water.
+    // The base colour is left white so the gradient is the only tint; tinting
+    // both multiplies them together and turns the hot end to mud.
+    this.coreWater.material.color.setHex(0xffffff);
     setGradient(this.coreWater.material,
-      waterColor(cold, new THREE.Color()).lerp(WHITE, 0.62),
-      waterColor(heat, new THREE.Color()).lerp(WHITE, 0.62));
+      waterColor(cold, new THREE.Color()).lerp(WHITE, 0.35),
+      waterColor(heat, new THREE.Color()).lerp(WHITE, 0.25));
     this.coreWater.visible = st.lvl > 0.01;
     this.coreTop.visible = st.lvl > 0.01;
 
@@ -1387,6 +1448,8 @@ Object.assign(Unit.prototype, {
       waterColor(warm, cTmp);
       tintWater(this.poolWater.material, cTmp, dt);
     }
+
+    if (this.tankWater) tintWater(this.tankWater.material, waterColor(0.04, cTmp), dt);
 
     // ---- the water that got out of the tank and is lying on the floor ----
     if (this.sumpWater) {

@@ -88,12 +88,12 @@ function setFocus(f) {
     return b;
   };
   if (f === 'both') {
-    const b = box(units[0], -24, 47, -3, 38, 8);
-    b.union(box(units[1], -24, 47, -3, 38, 8));
+    const b = box(units[0], -37, 47, -3, 40, 8);
+    b.union(box(units[1], -37, 47, -3, 40, 8));
     stage.frameBox(b,
       { azimuth: CUT_AZ, elev: narrow ? 0.5 : 0.22, snap: firstFocus, fill: 0.92, ...u });
   } else {
-    stage.frameBox(box(units[f === 'active' ? 0 : 1], -24, 47, -3, 38, 8),
+    stage.frameBox(box(units[f === 'active' ? 0 : 1], -37, 47, -3, 40, 8),
       { azimuth: CUT_AZ, elev: narrow ? 0.42 : 0.18, snap: firstFocus, fill: 0.88, ...u });
   }
   firstFocus = false;
