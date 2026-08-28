@@ -76,8 +76,12 @@ export function pipe(pts, dia, mats, opts = {}) {
   if (steam) core.renderOrder = 3;
   group.add(core);
 
-  const count = Math.max(10, Math.min(90, Math.round(len * 2.4)));
-  const bub = new Bubbles(frame, bore * (steam ? 0.22 : 0.34), count, mats.bubble);
+  // Tracers, spaced by length so a long run carries more of them than a short
+  // one and the spacing means the same thing everywhere. They are advected
+  // along this pipe's own centreline at this pipe's own velocity, so a run
+  // added at any time shows its flow with nothing else to set up.
+  const count = Math.max(12, Math.min(110, Math.round(len * 3.2)));
+  const bub = new Bubbles(frame, bore * (steam ? 0.3 : 0.44), count, mats.bubble);
   group.add(bub.mesh);
 
   return { group, casing, core, bub, len, path, mat, dia, bore, steam, tint: mat };

@@ -111,7 +111,7 @@ export class Labels {
           ? `shut down, still making ${MW < 10 ? MW.toFixed(1) : Math.round(MW)} MW of heat`
           : `running, making ${Math.round(MW).toLocaleString('en-US')} MW of heat`}</em>`);
       set('sg', `<b>Boiler</b><span>${st.sink === 'turbine'
-        ? (u.spin > 4 ? 'taking the heat away' : 'boiling the heat off')
+        ? (u.spin > 1.2 ? 'taking the heat away' : 'boiling the heat off')
         : st.sink === 'pool' ? 'not needed, the pool has it'
           : st.sink === 'shell' ? 'not needed, the shell has it' : 'not taking any heat'}</span>`
         + `<em>${st.sink === 'turbine' && u.spin <= 4
@@ -125,13 +125,13 @@ export class Labels {
             : st.live ? 'the backups must take over' : 'the backups have no power');
       set('pump', `<b>Pump</b><span class="${st.s.rcp ? '' : st.P ? 'ok' : 'bad'}">`
         + `${st.s.rcp ? 'spinning' : 'stopped'}</span><em>${pumpTx}</em>`);
-      set('turb', `<b>Turbine</b><span>${u.spin > 4 ? 'steam is turning it'
-        : u.spin > 0.6 ? 'running down' : 'stopped'}</span>`);
-      const mwe = u.spin > 12 ? Math.round((u.qSec || 0) / 1e6 * 0.33) : 0;
+      set('turb', `<b>Turbine</b><span>${u.spin > 1.2 ? 'steam is turning it'
+        : u.spin > 0.2 ? 'running down' : 'stopped'}</span>`);
+      const mwe = u.spin > 3.5 ? Math.round((u.qSec || 0) / 1e6 * 0.33) : 0;
       const steaming = (u.secondary.mdot || 0) > 1;
       set('gen', `<b>Generator</b><span class="${mwe ? 'power' : ''}">${mwe
         ? mwe.toLocaleString('en-US') + ' MW of electricity'
-        : u.spin > 1 ? (steaming ? 'running up to speed' : 'coasting down, no load')
+        : u.spin > 0.3 ? (steaming ? 'running up to speed' : 'coasting down, no load')
           : 'no electricity'}</span>`);
       if (u.passive) {
         set('store', `<b>${st.onFloor ? 'Water on the floor' : 'The pool, higher than the reactor'}</b>`

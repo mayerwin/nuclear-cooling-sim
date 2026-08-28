@@ -135,7 +135,7 @@ export class Stage {
     for (const [ux, uz] of centres) {
       const hole = new THREE.Path();
       // Shape space is x, y; after rotateX(-PI/2) shape y maps to world -z.
-      hole.absarc(ux, -uz, 17.0, 0, Math.PI * 2, true);
+      hole.absarc(ux, -uz, 21.0, 0, Math.PI * 2, true);
       floodShape.holes.push(hole);
     }
     this.flood = new THREE.Mesh(

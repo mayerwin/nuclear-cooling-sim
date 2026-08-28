@@ -175,7 +175,10 @@ function buildPump(stage, m, x, y, z, sc) {
 // it into the water on the other side. A pipe that stops at a surface can
 // drift a hand's breadth and float; a pipe that penetrates cannot.
 function collar(stage, x, y, z, axis, r, len = 1.0) {
-  const geo = new THREE.CylinderGeometry(r, r * 1.12, len, 18);
+  // Open-ended. A capped cylinder round a pipe end reads as a plug welded
+  // over it, which says the water stops there: the exact opposite of what a
+  // nozzle means.
+  const geo = new THREE.CylinderGeometry(r, r * 1.12, len, 18, 1, true);
   if (axis === 'x') geo.rotateZ(Math.PI / 2);
   if (axis === 'z') geo.rotateX(Math.PI / 2);
   const mesh = new THREE.Mesh(geo, stage.mat.steel);
@@ -261,7 +264,7 @@ export class Unit {
     // The plant is at 100% when the page opens, so its machines are already at
     // speed. Spinning them up from rest on the first frame shows a station
     // starting, which is not the story.
-    this.mach.running(11.5, 20.5);
+    this.mach.running(11.5, 5.8);
   }
 
   // ---- the building -------------------------------------------------------
@@ -529,6 +532,15 @@ export class Unit {
     this.sgTop = new THREE.Mesh(new THREE.CircleGeometry(2.62, 40).rotateX(-Math.PI / 2),
       this.sgWater.material);
     g.add(this.sgTop);
+    // The steam space above the water. This is what the boiler is FOR: the
+    // water boils, the steam collects here, and the line at the top takes it
+    // away. Without it the dome is an empty glass hat.
+    this.sgSteam = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.55, 2.9, 1, 32, 1, true), steamMaterial());
+    this.sgSteam.material.normalMap.repeat.set(3, 4);
+    this.sgSteam.material.alphaMap.repeat.set(2, 3);
+    this.sgSteam.material.clippingPlanes = this.cut;
+    g.add(this.sgSteam);
 
     // the tube sheet the bundle stands on, and the plate that keeps the water
     // going in from the water coming out
@@ -570,14 +582,8 @@ export class Unit {
       g.add(u.mesh);
       this.sgTubes.push(u);
     }
-    // the separators the steam has to get through on its way out
-    for (const r of [-1.3, 0.2, 1.7]) {
-      const sep = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.62, 3.0, 14, 1, true),
-        new THREE.MeshStandardMaterial({
-          color: 0x8894a0, roughness: 0.6, metalness: 0.5, side: THREE.DoubleSide }));
-      sep.position.set(s.x + bx + dx * r, SG_BASE + 15.5, s.z + bz + dz * r);
-      g.add(sep);
-    }
+    // Nothing else goes in the dome. Three grey cylinders standing in the
+    // steam space are real hardware and read as three unexplained objects.
 
     // ---- pump ----
     const p = L.rcp;
@@ -653,9 +659,8 @@ export class Unit {
     this.legFeed = new Leg('feedwater', 0.45, 4, { rho: FLUID.rhoFeed });
     this.secondary = new Circuit('secondary', [this.legSteam, this.legFeed]);
 
-    const pad = slab(26, 1.2, 18, this.stage.mat.deck);
-    pad.position.set(t.x, 0.6, t.z);
-    g.add(pad);
+    // No pad. A twenty-six metre concrete slab under the turbine hall carried
+    // nothing the eye needed and took a quarter of the picture's width.
 
     // One turbine on one shaft turning one generator. The casing is opened
     // along its own axis, the way the building is, so the wheels are seen
@@ -674,22 +679,6 @@ export class Unit {
     cas.position.set((X0 + X1) / 2, AX, t.z);
     cas.castShadow = true;
     g.add(cas);
-    // The steam chest: where the line actually joins the machine. A pipe that
-    // stops a hand's breadth above a curved casing reads as two things near
-    // each other, not as one thing feeding another.
-    const chest = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.15, 1.15, 2.6, 20), this.stage.mat.steel);
-    chest.position.set(X0 + 0.9, AX + 2.0, t.z);
-    g.add(chest);
-    const chestFlange = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.45, 1.45, 0.3, 20), this.stage.mat.flange);
-    chestFlange.position.set(X0 + 0.9, AX + 3.1, t.z);
-    g.add(chestFlange);
-    const throat = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.0, 1.5, 1.6, 20, 1, true), casMat);
-    throat.position.set(X0 + 0.9, AX + 0.6, t.z);
-    g.add(throat);
-
     // the rim of the cut, so an opened machine reads as opened and not as burst
     for (const xx of [X0, X1]) {
       const lip = new THREE.Mesh(
@@ -703,46 +692,53 @@ export class Unit {
       .rotateZ(Math.PI / 2), this.stage.mat.steel);
     shaft.position.set(t.x - 5, AX, t.z);
     g.add(shaft);
-
-    // Three wheels, each wider than the last, because the steam expands as it
-    // gives up its heat. That widening is the whole machine in one picture.
-    this.rotor = new THREE.Group();
-    const bladeMat = new THREE.MeshStandardMaterial({ color: 0x8b9dab, roughness: 0.32, metalness: 0.9 });
-    const WHEELS = [[X0 + 1.6, 1.35], [X0 + 4.0, 1.85], [X0 + 6.4, 2.45]];
-    for (const [wx, wr] of WHEELS) {
-      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.5, 20)
-        .rotateZ(Math.PI / 2), bladeMat);
-      hub.position.set(wx - t.x, 0, 0);
-      this.rotor.add(hub);
-      // Real blades: thin, twisted out of the plane of the wheel so the steam
-      // pushing along the shaft has something to push against, and a shroud
-      // ring round the tips. A row of flat boxes reads as gear teeth.
-      // Wide-chord blades with a modest pitch, nearly touching, so the wheel
-      // reads as a solid fan disc rather than a ring of teeth.
-      const n = 22, span = wr - 0.68;
-      for (let i = 0; i < n; i++) {
-        const ang = (i / n) * Math.PI * 2;
-        const bl = new THREE.Mesh(new THREE.BoxGeometry(0.6, span, 0.09), bladeMat);
-        const mid = 0.68 + span / 2;
-        bl.position.set(wx - t.x, Math.cos(ang) * mid, Math.sin(ang) * mid);
-        bl.rotation.x = -ang;
-        bl.rotateY(0.5);
-        this.rotor.add(bl);
-      }
-      // A translucent disc fills the wheel between hub and rim. Blades seen
-      // edge-on are a millimetre wide and disappear, and without the disc a
-      // wheel viewed from the side collapsed to two teeth and a floating ring.
-      const disc = new THREE.Mesh(new THREE.CylinderGeometry(wr - 0.05, wr - 0.05, 0.3, 40)
-        .rotateZ(Math.PI / 2), new THREE.MeshStandardMaterial({
-        color: 0x6c7d8b, roughness: 0.4, metalness: 0.85,
-        transparent: true, opacity: 0.55 }));
-      disc.position.set(wx - t.x, 0, 0);
-      this.rotor.add(disc);
-      const shroud = new THREE.Mesh(new THREE.TorusGeometry(wr, 0.09, 6, 40)
-        .rotateY(Math.PI / 2), bladeMat);
-      shroud.position.set(wx - t.x, 0, 0);
-      this.rotor.add(shroud);
+    // Slim pedestals, because with the slab gone the machines stood in the
+    // air. Two under the casing, one under the generator, and nothing else.
+    for (const px of [X0 + 1.0, X1 - 1.0, t.x + 0.6]) {
+      const ped = new THREE.Mesh(
+        new THREE.BoxGeometry(0.7, AX - 1.4, 1.6), this.stage.mat.deck);
+      ped.position.set(px, (AX - 1.4) / 2, t.z - 1.9);
+      g.add(ped);
     }
+
+    // One wheel. A real single-stage turbine is a disc carrying a ring of
+    // curved buckets: the steam comes in along the axis, turns through them
+    // and leaves. Three wheels of growing size was a cutaway of a machine
+    // nobody asked about, and the first of them sat inside the inlet.
+    this.rotor = new THREE.Group();
+    const bladeMat = new THREE.MeshStandardMaterial({
+      color: 0x8b9dab, roughness: 0.32, metalness: 0.9 });
+    const WR = 2.5, WX = (X0 + X1) / 2 - t.x;
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 1.1, 24)
+      .rotateZ(Math.PI / 2), bladeMat);
+    hub.position.set(WX, 0, 0);
+    this.rotor.add(hub);
+    // The buckets: a curved sweep, not a flat plate, because the curve is what
+    // turns the steam and therefore what makes it a turbine.
+    const NB = 32;
+    for (let i = 0; i < NB; i++) {
+      const ang = (i / NB) * Math.PI * 2;
+      const curve = new THREE.CatmullRomCurve3([
+        V(-0.42, Math.cos(ang) * 0.9, Math.sin(ang) * 0.9),
+        V(0.0, Math.cos(ang + 0.12) * (WR * 0.6), Math.sin(ang + 0.12) * (WR * 0.6)),
+        V(0.42, Math.cos(ang + 0.34) * (WR - 0.1), Math.sin(ang + 0.34) * (WR - 0.1))]);
+      const bl = new THREE.Mesh(new THREE.TubeGeometry(curve, 12, 0.1, 4, false), bladeMat);
+      bl.position.set(WX, 0, 0);
+      this.rotor.add(bl);
+    }
+    // A translucent disc fills the wheel between hub and rim. Blades seen
+    // edge-on are a millimetre wide and disappear, and without the disc a
+    // wheel viewed from the side collapses to two teeth and a floating ring.
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.25, 0.34, 44)
+      .rotateZ(Math.PI / 2), new THREE.MeshStandardMaterial({
+      color: 0x6c7d8b, roughness: 0.4, metalness: 0.85,
+      transparent: true, opacity: 0.5 }));
+    disc.position.set(WX, 0, 0);
+    this.rotor.add(disc);
+    const shroud = new THREE.Mesh(new THREE.TorusGeometry(WR, 0.1, 6, 44)
+      .rotateY(Math.PI / 2), bladeMat);
+    shroud.position.set(WX, 0, 0);
+    this.rotor.add(shroud);
     this.rotor.position.set(t.x, AX, t.z);
     g.add(this.rotor);
 
@@ -767,16 +763,17 @@ export class Unit {
       0.34, 54, wispMat);
     g.add(this.turbWisp.mesh);
 
-    this.gen = slab(7.2, 5.2, 5.2, this.stage.mat.painted);
-    this.gen.position.set(t.x + 1.2, AX, t.z);
+    // The generator: the smallest block that still reads as the machine that
+    // turns shaft work into electricity, with the one copper band that says
+    // which machine it is. It stands right at the end of the shaft and the
+    // lamp stands right next to it, so the whole electrical story is three
+    // metres wide instead of twenty.
+    this.gen = slab(3.4, 2.8, 2.8, this.stage.mat.painted);
+    this.gen.position.set(t.x + 0.6, AX, t.z);
     g.add(this.gen);
-    for (let i = 0; i < 3; i++) {
-      // copper, because it is the one machine in the building whose job is
-      // electricity, and the bars leaving it are the same metal
-      const band = new THREE.Mesh(new THREE.BoxGeometry(0.4, 5.5, 5.5), this.stage.mat.copper);
-      band.position.set(t.x - 0.6 + i * 1.8, AX, t.z);
-      g.add(band);
-    }
+    const band = new THREE.Mesh(new THREE.BoxGeometry(0.5, 3.1, 3.1), this.stage.mat.copper);
+    band.position.set(t.x + 0.6, AX, t.z);
+    g.add(band);
 
     // The condenser, cut open on the same plane as everything else: the sea
     // water runs through a bank of tubes, the steam condenses on their
@@ -821,76 +818,51 @@ export class Unit {
 
     this.legCw = new Leg('sea water', 2.2, 2, { rho: FLUID.rhoCold });
     this.cw = new Circuit('sea water', [this.legCw]);
-    // In at the bottom of one head, out at the top, and both lines run to an
-    // open intake basin at the edge of the yard, so the water visibly comes
-    // from somewhere and goes back there.
-    const BAS = t.x + 5;
-    // Both lines run above the pad the whole way, one into the bottom water
-    // box and one out of the top, so the water can be followed from the basin
-    // to the machine and back without either line vanishing into concrete.
-    const cwIn = pipe([
-      V(BAS + 2.4, 1.6, t.z), V(CX + 5.4, 1.6, t.z), V(CX + 4.6, 1.5, t.z)
-    ], 1.4, m, { bend: 1.2 });
-    const cwOut = pipe([
-      V(CX + 4.6, 2.4, t.z), V(CX + 5.6, 2.7, t.z), V(BAS + 1.4, 2.7, t.z)
-    ], 1.4, m, { bend: 1.2 });
+    // One place in, one place out. Both connections are on the SAME head,
+    // which is what a two-pass condenser actually has, so the two lines are
+    // dead straight and parallel and there is nothing to untangle: out of the
+    // intake into the bottom of the head, back out of the top of it and into
+    // the intake again.
+    const BAS = t.x + 8.6;
+    const cwIn = pipe([V(BAS - 1.6, 1.15, t.z), V(CX + 3.8, 1.15, t.z)],
+      1.3, m, { bend: 0.8 });
+    const cwOut = pipe([V(CX + 3.8, 2.9, t.z), V(BAS - 1.6, 2.9, t.z)],
+      1.3, m, { bend: 0.8 });
     cwIn.kindBreak = cwOut.kindBreak = 'cw';
     cwIn.leg = cwOut.leg = this.legCw;
     g.add(cwIn.group); g.add(cwOut.group);
     this.pipes.push(cwIn, cwOut);
-    // The basin the lines serve: an open box of sea water standing proud of
-    // the pad, fed from the sea. The culvert under the yard is drawn leaving
-    // it towards the water, so the basin has a source and not just a surface.
-    const basWalls = slab(5.2, 2.6, 6.4,
+    g.add(collar(this.stage, CX + 4.4, 1.15, t.z, 'x', 0.75, 1.0));
+    g.add(collar(this.stage, CX + 4.4, 2.9, t.z, 'x', 0.75, 1.0));
+    // The intake: an open box of sea water, which is where both lines begin
+    // and end. It is the sea, as far as this picture needs one.
+    const basWalls = slab(3.6, 3.4, 5.0,
       new THREE.MeshStandardMaterial({ color: 0x4e5a66, roughness: 0.9, side: THREE.BackSide }));
-    basWalls.position.set(BAS + 2.6, 1.9, t.z);
+    basWalls.position.set(BAS, 1.7, t.z);
     g.add(basWalls);
-    this.basinWater = slab(4.6, 1.5, 5.8, ownWater(m.poolWater));
-    this.basinWater.position.set(BAS + 2.6, 2.05, t.z);
+    this.basinWater = slab(3.1, 2.6, 4.5, ownWater(m.poolWater));
+    this.basinWater.position.set(BAS, 1.5, t.z);
     g.add(this.basinWater);
-    // the culvert to the sea, big and half-buried, running off frame right
-    const culvert = pipe([
-      V(BAS + 5.4, 0.9, t.z), V(BAS + 16, 0.9, t.z)
-    ], 1.8, m, { bend: 1.0 });
-    culvert.kindBreak = 'cw';
-    culvert.leg = this.legCw;
-    g.add(culvert.group);
-    this.pipes.push(culvert);
 
-    // Transformer and lamp stand at the generator's own height, so the wiring
-    // between them is straight. Every bend in a cable is one more thing to
-    // follow, and there is nothing here that needs one.
-    const XF = t.x + 13, POLE = t.x + 19;
-    const xf = slab(4.4, 5.2, 4.4, this.stage.mat.painted);
-    xf.position.set(XF, AX, t.z);
-    g.add(xf);
-    for (let i = 0; i < 3; i++) {
-      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.25, 4.0, 4.8), this.stage.mat.dark);
-      fin.position.set(XF - 1.4 + i * 1.4, AX, t.z);
-      g.add(fin);
-    }
-    const xfPlinth = slab(5.0, AX - 2.6, 5.0, this.stage.mat.deck);
-    xfPlinth.position.set(XF, (AX - 2.6) / 2, t.z);
-    g.add(xfPlinth);
-
+    // The lamp: two straight conductors out of the generator and a bulb that
+    // is lit exactly when electricity is being made. No transformer, no pylon,
+    // no yard: they were twenty metres of scenery that pushed the reactor out
+    // of frame in the side-by-side view.
+    const POLE = t.x + 5.4;
     const poleMat = this.stage.mat.rail;
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.26, 12, 8), poleMat);
-    pole.position.set(POLE, 6, t.z);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, AX + 2.4, 8), poleMat);
+    pole.position.set(POLE, (AX + 2.4) / 2, t.z);
     g.add(pole);
-    const bracket = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 1.8, 6)
-      .rotateZ(Math.PI / 2), poleMat);
-    bracket.position.set(POLE + 0.9, AX + 0.9, t.z);
-    g.add(bracket);
     this.lampGlass = new THREE.Mesh(
-      new THREE.SphereGeometry(0.66, 18, 12), this.stage.mat.bulb.clone());
-    this.lampGlass.position.set(POLE + 1.8, AX + 0.5, t.z);
+      new THREE.SphereGeometry(0.6, 18, 12), this.stage.mat.bulb.clone());
+    this.lampGlass.position.set(POLE, AX + 2.9, t.z);
     g.add(this.lampGlass);
     const shade = new THREE.Mesh(
-      new THREE.ConeGeometry(1.0, 0.7, 18, 1, true), this.stage.mat.painted);
-    shade.position.set(POLE + 1.8, AX + 1.15, t.z);
+      new THREE.ConeGeometry(0.9, 0.6, 18, 1, true), this.stage.mat.painted);
+    shade.position.set(POLE, AX + 3.5, t.z);
     g.add(shade);
     this.lampLight = new THREE.PointLight(0xffd9a0, 0, 24, 2);
-    this.lampLight.position.set(POLE + 1.8, AX + 0.1, t.z);
+    this.lampLight.position.set(POLE, AX + 2.5, t.z);
     g.add(this.lampLight);
 
     this.busMat = new THREE.MeshStandardMaterial({
@@ -899,11 +871,10 @@ export class Unit {
     });
     this.bus = new THREE.Group();
     for (let i = 0; i < 2; i++) {
-      const dy = i ? 0.75 : -0.75;
+      const dz = i ? 0.5 : -0.5;
       this.bus.add(pipeLike([
-        V(t.x + 4.9, AX + dy, t.z), V(XF - 2.1, AX + dy, t.z)], 0.19, this.busMat));
-      this.bus.add(pipeLike([
-        V(XF + 2.1, AX + dy, t.z), V(POLE - 0.2, AX + dy, t.z)], 0.13, this.busMat));
+        V(t.x + 2.4, AX + 0.9, t.z + dz), V(POLE, AX + 0.9, t.z + dz),
+        V(POLE, AX + 2.4, t.z + dz)], 0.13, this.busMat, 0.5));
     }
     g.add(this.bus);
 
@@ -912,20 +883,28 @@ export class Unit {
     // is going nowhere.
     // Out of the top of the boiler, up under the dome, out through the wall
     // and down into the top of the turbine's inlet end.
+    // Out of the top of the boiler, across under the dome, down outside the
+    // machine and IN THROUGH ITS LEFT END, on the axis. Steam arriving down a
+    // spout on the lid had to be given a box to arrive in, and the box hid the
+    // thing it was feeding.
     this.steam = pipe([
       V(s.x, SG_BASE + 18.6, s.z), V(s.x, 33, s.z),
-      V(X0 + 0.9, 33, t.z), V(X0 + 0.9, AX + 2.9, t.z)
+      V(X0 - 4.5, 33, t.z), V(X0 - 4.5, AX, t.z), V(X0 + 0.9, AX, t.z)
     ], 1.2, m, { bend: 3.0, steam: true });
     this.steam.kindBreak = 'steamline';
     this.steam.leg = this.legSteam;
     g.add(this.steam.group);
     g.add(collar(this.stage, s.x, SG_BASE + 19.0, s.z, 'y', 0.8, 0.9));
+    g.add(collar(this.stage, X0, AX, t.z, 'x', 0.8, 1.1));
 
     // What comes out of the turbine has to go somewhere: down the neck into
     // the condenser, where it turns back into water.
     this.legExh = new Leg('to the condenser', 1.9, 1, { rho: 12, kind: 'steam' });
+    // Downstream of the wheel, because that is where spent steam is: dropping
+    // it from directly under the buckets put the exhaust plume on top of the
+    // thing it had just come through.
     this.exh = pipe([
-      V((X0 + X1) / 2, 6.2, t.z), V((X0 + X1) / 2, 3.4, t.z)
+      V(X1 - 1.6, 6.2, t.z), V(X1 - 1.6, 3.4, t.z)
     ], 1.7, m, { bend: 0.8, steam: true });
     this.exh.kindBreak = 'steamline';
     this.exh.leg = this.legExh;
@@ -970,15 +949,42 @@ export class Unit {
     mouth.material.side = THREE.DoubleSide;
     mouth.position.set(st.x, st.h + 0.4, st.z);
     g.add(mouth);
+    // The vent starts somewhere: an upturned bell hanging in the containment
+    // atmosphere, which is the thing being vented, then out through a collar
+    // in the wall and up the stack. A pipe beginning in mid air read as a
+    // decoration lying across the building.
+    const VY = 27;
     this.vent = pipe([
-      V(R_IN * 0.72, 22, -R_IN * 0.5), V(st.x, 22, st.z), V(st.x, st.h, st.z)
-    ], 0.8, m, { bend: 2.4, steam: true });
+      V(-12.6, VY - 1.2, 0), V(-12.6, VY, 0), V(st.x, VY, st.z), V(st.x, st.h, st.z)
+    ], 0.8, m, { bend: 1.6, steam: true });
     this.legVent = new Leg('vent', 0.8, 1, { rho: FLUID.rhoSteam, kind: 'steam' });
     this.vent.kindBreak = 'vent';
     this.vent.leg = this.legVent;
     this.ventCircuit = new Circuit('vent', [this.legVent]);
     g.add(this.vent.group);
+    const bell = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 0.42, 1.1, 18, 1, true),
+      this.stage.mat.painted);
+    bell.material.side = THREE.DoubleSide;
+    bell.position.set(-12.6, VY - 1.7, 0);
+    g.add(bell);
+    g.add(collar(this.stage, -R_IN - WALL / 2, VY, 0, 'x', 0.62, 1.6));
     this.pipes.push(this.vent);
+  }
+
+  // Add a pipe while the app is running. Geometry, tracers, break behaviour
+  // and colour all come from the same two things every other pipe has: a
+  // centreline and a leg carrying a velocity. Nothing else has to be told.
+  //   __units[0].addPipe([[0,20,0],[14,20,0]], 0.8, 'primary')
+  addPipe(points, dia, kindBreak, legName) {
+    const pts = points.map((q) => (q.isVector3 ? q : V(q[0], q[1], q[2])));
+    const q = pipe(pts, dia, this.m, { bend: dia * 2 });
+    q.leg = (legName && this.pipes.find((x) => x.leg && x.leg.name === legName)?.leg)
+      || (this.pipes.find((x) => x.kindBreak === kindBreak) || {}).leg
+      || this.legCold;
+    q.kindBreak = kindBreak || null;
+    this.root.add(q.group);
+    this.pipes.push(q);
+    return q;
   }
 
   // Any pipe can be broken, and breaking it is not paint: the kind of pipe
@@ -1179,21 +1185,21 @@ export class Unit {
       // tank under a concrete lid is realistic and invisible, which is the
       // wrong trade here.
       const t = L.tank;
-      const pad = slab(t.w + 2, 0.5, t.d + 2, this.stage.mat.deck);
-      pad.position.set(t.x, 0.25, t.z);
-      g.add(pad);
+      // On the ground, at the same grade as everything else. Standing it on a
+      // plinth put the emergency water above the reactor's cold nozzle, which
+      // says gravity could do the job and the pump is decoration.
       const walls = slab(t.w, t.h, t.d,
         new THREE.MeshStandardMaterial({ color: 0x4e5a66, roughness: 0.9, side: THREE.BackSide }));
-      walls.position.set(t.x, t.h / 2 + 0.5, t.z);
+      walls.position.set(t.x, t.h / 2, t.z);
       g.add(walls);
       for (const [ax, az] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const lip = slab(ax ? 0.5 : t.w + 1, 0.5, az ? 0.5 : t.d + 1, this.stage.mat.painted);
-        lip.position.set(t.x + ax * (t.w / 2 + 0.25), t.h + 0.5, t.z + az * (t.d / 2 + 0.25));
+        const lip = slab(ax ? 0.4 : t.w + 0.8, 0.4, az ? 0.4 : t.d + 0.8, this.stage.mat.painted);
+        lip.position.set(t.x + ax * (t.w / 2 + 0.2), t.h, t.z + az * (t.d / 2 + 0.2));
         g.add(lip);
       }
-      this.tankWater = slab(t.w - 0.8, 1, t.d - 0.8, ownWater(this.m.poolWater));
-      this.tankWater.scale.y = 3.0;
-      this.tankWater.position.set(t.x, 0.5 + 1.5, t.z);
+      this.tankWater = slab(t.w - 0.7, 1, t.d - 0.7, ownWater(this.m.poolWater));
+      this.tankWater.scale.y = t.h - 0.7;
+      this.tankWater.position.set(t.x, (t.h - 0.7) / 2, t.z);
       g.add(this.tankWater);
 
       const e = L.eccs;
@@ -1207,7 +1213,7 @@ export class Unit {
       this.legInj = new Leg('injection', 0.25, 2, { rho: FLUID.rhoCold });
       this.inject = new Circuit('inject', [this.legSuct, this.legInj]);
       const suct = pipe([
-        V(t.x + t.w / 2 - 0.8, 0.6, t.z), V(e.x, 0.6, e.z), V(e.x, 1.0, e.z)
+        V(t.x + t.w / 2 - 0.8, 0.9, t.z), V(e.x, 0.9, e.z), V(e.x, 1.1, e.z)
       ], 0.5, m, { bend: 1.2 });
       suct.kindBreak = 'inject';
       suct.leg = this.legSuct; g.add(suct.group);
@@ -1327,7 +1333,11 @@ Object.assign(Unit.prototype, {
       pumpDriven: (st.s.rcp || 0) > 0.01,
       pumpTarget: (vOut / 1.62) * 0.6,
       steamTorque: (this.secondary.mdot || 0) * 0.023,
-      loadCoef: 2.6,
+      // A real set turns at 3000 rpm, which at any drawable scale is a blur.
+      // The load coefficient is what the generator pulls back with, and it is
+      // set so the wheel settles at about one turn a second: fast enough to be
+      // unmistakably driven, slow enough to watch a bucket go round.
+      loadCoef: 9.0,
       auxDriven: !!st.injecting,
       auxTarget: 22
     });
@@ -1348,7 +1358,7 @@ Object.assign(Unit.prototype, {
       // The busbars carry what the generator is actually making. A live
       // conductor gets a warm sheen and no more: the reactor is the subject of
       // the picture and a glowing cable was winning the frame.
-      const mw = this.spin > 4 ? clamp(this.secondary.mdot / 1900, 0, 1) : 0;
+      const mw = this.spin > 1.2 ? clamp(this.secondary.mdot / 1900, 0, 1) : 0;
       this.busMat.emissiveIntensity = mw * 0.10;
       // and the lamp at the end of them is lit exactly when it is being made
       this.lampGlass.material.emissiveIntensity = mw * 3.2;
@@ -1570,6 +1580,19 @@ Object.assign(Unit.prototype, {
     this.sgWater.scale.y = sgH;
     this.sgWater.position.set(L.sg.x, SG_TS + sgH / 2, L.sg.z);
     this.sgTop.position.set(L.sg.x, SG_TS + sgH, L.sg.z);
+    // the steam space is whatever the water is not, and it thickens as the
+    // boiler is actually asked to carry heat
+    {
+      const top = SG_BASE + 17.6, surf = SG_TS + sgH;
+      const h = Math.max(0.4, top - surf);
+      this.sgSteam.scale.y = h;
+      this.sgSteam.position.set(L.sg.x, surf + h / 2, L.sg.z);
+      const sm = this.sgSteam.material;
+      sm.alphaMap.offset.y -= dt * (carrying ? 0.5 : 0.12);
+      sm.normalMap.offset.y -= dt * (carrying ? 0.35 : 0.08);
+      sm.opacity = carrying ? 0.5 : 0.2;
+      sm.emissiveIntensity = carrying ? 0.35 : 0.12;
+    }
     this.surfSg.step(dt, { boil: carrying ? 0.5 : 0.05 });
     this.riseSg.step(dt, SG_TS + 0.2, Math.max(0.4, sgH), carrying ? 0.85 : 0.08, L.sg.x, L.sg.z, 0.42);
     ripple(this.sgTop, this.surfSg, 2.62);
