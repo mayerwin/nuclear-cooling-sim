@@ -13,8 +13,8 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { build as buildMaterials } from './materials.js?v=f4ed110be1';
-import { surfaceMaterial, setGradient, rippleNormal, LOWFX } from './fluid.js?v=f4ed110be1';
+import { build as buildMaterials } from './materials.js?v=c9e7ae8639';
+import { surfaceMaterial, setGradient, rippleNormal, LOWFX } from './fluid.js?v=c9e7ae8639';
 
 // A vertical sky gradient, baked once into an equirectangular strip.
 function skyTexture() {
@@ -84,7 +84,8 @@ export class Stage {
     this.scene.fog = new THREE.Fog(0x93b3c9, 900, 2600);
 
     const pmrem = new THREE.PMREMGenerator(this.renderer);
-    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    this.envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    this.scene.environment = this.envTex;
     this.scene.environmentIntensity = 0.55;
 
     this.camera = new THREE.PerspectiveCamera(26, 1, 0.5, 2600);
@@ -121,6 +122,14 @@ export class Stage {
     this.controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
     this.controls.enablePan = true;
     this.controls.screenSpacePanning = true;
+
+    // What is switched on. A phone starts with the expensive half off; the
+    // settings panel lets any of it be turned back on, one at a time, which is
+    // the only way to find out which one a given device cannot afford.
+    this.q = {
+      refraction: !mobile, bloom: !mobile, shadows: !mobile,
+      reflections: true, hidpi: !mobile, particles: true, steam: true
+    };
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
@@ -235,6 +244,7 @@ export class Stage {
   resize(fw, fh) {
     const w = fw || this.host.clientWidth || window.innerWidth;
     const h = fh || this.host.clientHeight || window.innerHeight;
+    this.lastW = w; this.lastH = h;
     this.camera.aspect = w / h;
     // A portrait phone is a keyhole, and 26 degrees is a telephoto lens. Fitting
     // a station eighty metres wide through both put the camera three quarters
@@ -245,7 +255,10 @@ export class Stage {
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
     this.composer.setSize(w, h);
-    this.bloom.resolution.set(w, h);
+    // Bloom at three fifths. It is a chain of blurs of a blur: at full
+    // resolution it is four times the fill for a glow nobody can tell apart
+    // from this one.
+    this.bloom.setSize(Math.max(2, Math.round(w * 0.6)), Math.max(2, Math.round(h * 0.6)));
     this.labels.setSize(w, h);
   }
 
@@ -396,10 +409,86 @@ export class Stage {
     // Nothing to draw into while the context is gone, and calling in anyway
     // throws every frame until it comes back.
     if (this.lost) return;
-    // The bloom pass is two more full-screen passes plus a chain of blurs. On
-    // a handset it buys a glow round the lamp and costs the frame.
-    if (this.mobile) this.renderer.render(this.scene, this.camera);
-    else this.composer.render();
+    // Counted by hand rather than left on auto: three resets the counters at
+    // the top of every render call, so with a post chain the panel would only
+    // ever see the last full-screen quad. Reset once a frame and the number is
+    // what the whole frame cost, post included.
+    this.renderer.info.autoReset = false;
+    this.renderer.info.reset();
+    // The bloom pass is two more full-screen passes plus a chain of blurs.
+    if (this.q.bloom) this.composer.render();
+    else this.renderer.render(this.scene, this.camera);
     this.labels.render(this.scene, this.camera);
+  }
+
+  // ---- quality ------------------------------------------------------------
+  // Each of these is one of the things that costs a phone its frame, and each
+  // can be turned off on its own so it can be told which one it was.
+  setQuality(key, on) {
+    this.q[key] = on;
+    const r = this.renderer;
+    switch (key) {
+      case 'refraction':
+        // Remembered per material the first time it is touched, so turning it
+        // back on restores what the material was actually built with rather
+        // than a guess. Changing transmission changes the shader, so the
+        // program has to be rebuilt.
+        this.eachMaterial((m) => {
+          if (!m.isMeshPhysicalMaterial) return;
+          if (m.userData.tr0 === undefined) {
+            m.userData.tr0 = m.transmission;
+            m.userData.op0 = m.opacity;
+            m.userData.rg0 = m.roughness;
+          }
+          if (!m.userData.tr0) return;
+          m.transmission = on ? m.userData.tr0 : 0;
+          m.opacity = on ? m.userData.op0 : Math.min(m.userData.op0, 0.84);
+          m.roughness = on ? m.userData.rg0 : Math.max(m.userData.rg0, 0.2);
+          m.needsUpdate = true;
+        });
+        break;
+      case 'bloom': break;                       // read in render()
+      case 'shadows':
+        r.shadowMap.enabled = on;
+        this.key.castShadow = on;
+        r.shadowMap.needsUpdate = true;
+        this.eachMaterial((m) => { m.needsUpdate = true; });
+        break;
+      case 'reflections':
+        this.scene.environment = on ? this.envTex : null;
+        break;
+      case 'hidpi':
+        r.setPixelRatio(on ? Math.min(2, window.devicePixelRatio || 1) : 1);
+        this.resize(this.lastW, this.lastH);
+        break;
+      case 'particles':
+        this.scene.traverse((n) => { if (n.isInstancedMesh) n.visible = on; });
+        break;
+      case 'steam':
+        this.scene.traverse((n) => {
+          if (n.isMesh && n.material && n.material.userData.steam) n.visible = on;
+        });
+        break;
+      default: break;
+    }
+  }
+
+  eachMaterial(fn) {
+    const seen = new Set();
+    this.scene.traverse((n) => {
+      if (!n.isMesh && !n.isPoints && !n.isLine) return;
+      for (const m of (Array.isArray(n.material) ? n.material : [n.material])) {
+        if (!m || seen.has(m.uuid)) continue;
+        seen.add(m.uuid);
+        fn(m);
+      }
+    });
+  }
+
+  // What the last frame actually cost, for the settings panel to show.
+  stats() {
+    const i = this.renderer.info;
+    return { calls: i.render.calls, tris: i.render.triangles,
+      programs: i.programs ? i.programs.length : 0, textures: i.memory.textures };
   }
 }

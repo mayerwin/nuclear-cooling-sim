@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Passive cooling, watched</title>
 <meta name="description" content="Two nuclear stations, one with active cooling and one with passive cooling, taken through the same accidents. Watch which one survives.">
-<link rel="stylesheet" href="css/app.css?v=f4ed110be1">
+<link rel="stylesheet" href="css/app.css?v=c9e7ae8639">
 <script type="importmap">
 { "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
 </script>
@@ -33,6 +33,7 @@
   <button class="icon" id="btnHelp" title="Controls">?</button>
   <button class="icon" id="btnSound" title="Sound">🔊</button>
   <button class="icon" id="btnView" title="Reset the view (WASD moves it)">⛶</button>
+  <button class="icon" id="btnCfg" title="Graphics settings">⚙</button>
   <button class="icon" id="btnReset" title="Restart the scenario">↺</button>
 </header>
 
@@ -52,6 +53,21 @@
 
 <section id="feed"><div id="feedInner"></div></section>
 
+<!-- Graphics settings. Each row is one of the things that costs a frame, so a
+     slow device can be told which one it cannot afford. -->
+<aside id="cfg">
+  <h4>Graphics</h4>
+  <label><input type="checkbox" data-q="refraction"> Refraction <small>see-through water and glass</small></label>
+  <label><input type="checkbox" data-q="bloom"> Bloom <small>glow round hot and lit things</small></label>
+  <label><input type="checkbox" data-q="shadows"> Shadows</label>
+  <label><input type="checkbox" data-q="reflections"> Reflections <small>on metal and glass</small></label>
+  <label><input type="checkbox" data-q="hidpi"> Full pixel density <small>sharper, four times the fill</small></label>
+  <label><input type="checkbox" data-q="particles"> Bubbles and drops</label>
+  <label><input type="checkbox" data-q="steam"> Steam volumes</label>
+  <div class="cfgStats" id="cfgStats">-</div>
+  <button class="btn" id="cfgOk">Close</button>
+</aside>
+
 <!-- Shown the first time the inside view opens, and from the ? button after
      that. Controls read before you have seen the thing they control are
      controls nobody remembers. -->
@@ -67,17 +83,25 @@
 
 <div id="modal" class="modalWrap open">
   <div class="modal">
-    <h1>Two reactors, the same bad day</h1>
-    <p class="lede">Left: a station that keeps its core cool with pumps, so it needs
-      electricity. Right: one that uses gravity, boiling and the outside air, so it needs
-      nothing. Pick an accident and watch both.</p>
-    <ul class="howto">
-      <li>Both buildings are <b>cut open</b> so you can see inside. Nothing has burst.</li>
-      <li>The <b>fuel</b> stands in the water inside the reactor. Covered, it stays grey.
-        Uncovered, it glows, then melts.</li>
-      <li><b>Click any pipe to break it</b>, and watch what the plant loses.</li>
-    </ul>
-    <button class="btn primary big" id="startBtn">Start</button>
+    <div class="kicker">A working nuclear station, cut open</div>
+    <h1>Same accident.<br>Two reactors.<br><em>One of them melts.</em></h1>
+    <p class="lede">Fukushima. Three Mile Island. Chernobyl. A total blackout. Run any of
+      them at both stations at once and watch where they part company.</p>
+    <div class="vs">
+      <div class="card a">
+        <b>Needs power</b>
+        <span>Pumps hold the water over the fuel. Take the electricity away and
+          the clock starts running.</span>
+      </div>
+      <div class="card b">
+        <b>Needs nothing</b>
+        <span>Water falls, steam rises, the outside air carries the heat off.
+          There is nothing to switch on.</span>
+      </div>
+    </div>
+    <button class="btn primary big" id="startBtn">Pick an accident</button>
+    <p class="foot">Nine of them, from the design-basis case to everything at once.
+      Break any pipe you like with a click.</p>
     <script>
       /* The module code wires this button too, but the module can take a
          moment to load on a slow connection, or fail outright on a device
@@ -92,6 +116,6 @@
   </div>
 </div>
 
-<script type="module" src="js/main.js?v=f4ed110be1"></script>
+<script type="module" src="js/main.js?v=c9e7ae8639"></script>
 </body>
 </html>

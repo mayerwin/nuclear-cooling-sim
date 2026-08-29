@@ -212,13 +212,16 @@ export function steamMaterial() {
   n.needsUpdate = true;
   const a = streakTexture().clone();
   a.needsUpdate = true;
-  return new THREE.MeshStandardMaterial({
+  const m = new THREE.MeshStandardMaterial({
     color: 0xdfeefb, roughness: 0.95, metalness: 0,
     emissive: new THREE.Color(0x7fa9c8), emissiveIntensity: 0.35,
     normalMap: n, normalScale: new THREE.Vector2(0.8, 0.8),
     alphaMap: a, transparent: true, opacity: 0.9,
     depthWrite: false, side: THREE.DoubleSide
   });
+  // tagged so the settings panel can switch every vapour volume off at once
+  m.userData.steam = true;
+  return m;
 }
 
 export function surfaceMaterial(depth = 4) {

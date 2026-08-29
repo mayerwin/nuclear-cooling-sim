@@ -56,6 +56,10 @@ was attempted.
 | 2.30 | **The frame is cleared by something that cannot be reclaimed.** A clear that depends on blitting an offscreen bitmap is a clear the browser can drop under memory pressure, and then everything drawn above the ground smears. |
 | 2.31 | **Touch is a first-class input.** One finger pans, two fingers pinch to zoom, and every control in the toolbar is reachable without knowing that a row scrolls sideways. |
 | 2.32 | **The inside view works on a handset.** It is cheap enough to keep its WebGL context (no refraction, no bloom, no shadow maps, one device pixel per pixel), it recovers if it loses it, and both stations fit on a portrait screen. |
+| 2.33 | **Colour never changes abruptly along a run.** One fluid at one temperature is one colour from the pipe into the vessel it lands in, and where it does change it changes as a gradient. A body of water and the line feeding it are the same material treatment, so the same water cannot read as two liquids. |
+| 2.34 | **Every expensive graphics feature can be switched off on its own**, from a panel that shows the frame rate and the draw count while you do it. A device that cannot afford something must be able to say which thing. |
+| 2.35 | **A pump stands between what it draws from and what it feeds.** Suction on the supply side, discharge toward the load; a line that leaves a pump and doubles back under the tank it came from reads as a pump delivering into the ground. |
+| 2.36 | **Every machine's outlet is visible.** If steam leaves a turbine there is a throat you can see it fall down; a machine sitting flush on the thing it discharges into reads as sealed. |
 
 ## 3. The machinery that must be shown
 

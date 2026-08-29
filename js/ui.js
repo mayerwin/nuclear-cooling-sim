@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
 // ui.js - the panels round the picture.
 // ---------------------------------------------------------------------------
-import { SCENARIOS } from './scenarios.js?v=f4ed110be1';
-import { SPEEDS, SPEED_LABELS, AUTO_IDX } from './sim.js?v=f4ed110be1';
-import { MODE } from './plant.js?v=f4ed110be1';
+import { SCENARIOS } from './scenarios.js?v=c9e7ae8639';
+import { SPEEDS, SPEED_LABELS, AUTO_IDX } from './sim.js?v=c9e7ae8639';
+import { MODE } from './plant.js?v=c9e7ae8639';
 
 const $ = (s) => document.querySelector(s);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -55,6 +55,23 @@ export class UI {
         this.showHelp(true);
       }
     });
+
+    // ---- graphics settings ----
+    // The point of these is diagnosis: turn one off, watch the frame rate. So
+    // the panel carries the frame rate and the draw count with it, live.
+    const cfg = $('#cfg');
+    const showCfg = (on) => {
+      cfg.classList.toggle('show', on);
+      $('#btnCfg').classList.toggle('on', on);
+    };
+    $('#btnCfg').onclick = () => showCfg(!cfg.classList.contains('show'));
+    $('#cfgOk').onclick = () => showCfg(false);
+    const stage = this.hooks.stage;
+    for (const box of cfg.querySelectorAll('input[data-q]')) {
+      box.checked = stage ? !!stage.q[box.dataset.q] : false;
+      box.disabled = !stage;
+      box.onchange = () => stage.setQuality(box.dataset.q, box.checked);
+    }
 
     const help = $('#help');
     this.showHelp = (on) => {
@@ -123,40 +140,110 @@ export class UI {
   }
   closeMobile() { document.querySelectorAll('.panel').forEach((p) => p.classList.remove('show')); }
 
-  gauge(label, val, unit, frac, band) {
-    const f = clamp(frac, 0, 1);
-    const col = band === 'bad' ? 'var(--bad)' : band === 'warn' ? 'var(--warn)' : 'var(--ok)';
-    return `<div class="g"><div class="row"><span>${label}</span><b>${val}${unit ? ' ' + unit : ''}</b></div>`
-      + `<div class="track"><div class="fill" style="width:${(f * 100).toFixed(1)}%;background:${col}"></div></div></div>`;
+  // ---- the telemetry panel ------------------------------------------------
+  // Built once, then patched.
+  //
+  // It used to be rebuilt from a template string four or five times a second,
+  // which makes the browser parse the HTML, throw away every node and lay the
+  // whole panel out again, twelve gauges at a time, for the sake of six
+  // numbers that changed. Now the nodes are made once and the only things
+  // written are the text and the width of each bar.
+  gauge(label) {
+    const el = document.createElement('div');
+    el.className = 'g';
+    el.innerHTML = `<div class="row"><span>${label}</span><b></b></div>`
+      + '<div class="track"><div class="fill"></div></div>';
+    return { el, val: el.querySelector('b'), fill: el.querySelector('.fill') };
+  }
+
+  buildTelemetry() {
+    const host = $('#telemetry');
+    host.textContent = '';
+    this.tel = this.sim.plants.map((p, i) => {
+      const P = p.mode === MODE.PASSIVE;
+      const box = document.createElement('div');
+      box.className = 'unit';
+      box.innerHTML = `<h3>${P ? 'Unit B' : 'Unit A'}</h3>`
+        + `<div class="sub">${P ? 'Gen III+, passive' : 'Gen II, active'}</div>`
+        + '<div class="st"></div>';
+      const rows = {};
+      const add = (key, label, note) => {
+        const gg = this.gauge(label);
+        box.appendChild(gg.el);
+        rows[key] = gg;
+        if (note) {
+          const n = document.createElement('div');
+          n.className = 'note';
+          n.textContent = note;
+          box.appendChild(n);
+        }
+      };
+      add('decay', 'Heat still in the fuel', i === 0
+        ? 'Shutting a reactor down stops the chain reaction, not the heat. This is'
+          + ' the number that has to be carried away, for days.'
+        : null);
+      add('level', 'Water over the fuel');
+      add('temp', 'Cladding temperature');
+      add('press', 'Containment pressure');
+      add('dmg', 'Core damage');
+      add('cs', 'Caesium-137 released');
+      host.appendChild(box);
+      return { st: box.querySelector('.st'), rows };
+    });
+  }
+
+  setGauge(g, text, frac, band) {
+    if (g.text !== text) { g.val.textContent = text; g.text = text; }
+    const w = (clamp(frac, 0, 1) * 100).toFixed(1) + '%';
+    if (g.w !== w) { g.fill.style.width = w; g.w = w; }
+    if (g.band !== band) {
+      g.fill.style.background = band === 'bad' ? 'var(--bad)'
+        : band === 'warn' ? 'var(--warn)' : 'var(--ok)';
+      g.band = band;
+    }
   }
 
   update() {
     const sim = this.sim;
     $('#clock').textContent = hhmmss(sim.t);
-    $('#telemetry').innerHTML = sim.plants.map((p, i) => {
-      const P = p.mode === MODE.PASSIVE;
-      const dmg = p.coreDamage;
+    if (!this.tel) this.buildTelemetry();
+    sim.plants.forEach((p, i) => {
+      const u = this.tel[i], dmg = p.coreDamage, T = p.Tclad - 273;
       const good = !(p.vesselBreach || dmg > 0.01 || p.level < 0.97);
-      const T = p.Tclad - 273;
-      return `<div class="unit">
-        <h3>${P ? 'Unit B' : 'Unit A'}</h3>
-        <div class="sub">${P ? 'Gen III+, passive' : 'Gen II, active'}</div>
-        <div class="st ${good ? 'ok' : 'bad'}">${p.state}</div>
-        ${this.gauge('Heat still in the fuel', (p.qDecay / 1e6).toFixed(p.qDecay < 1e7 ? 1 : 0), 'MW',
-    p.qDecay / 3400e6, 'ok')}
-        ${i === 0 ? `<div class="note">Shutting a reactor down stops the chain reaction,
-          not the heat. This is the number that has to be carried away, for days.</div>` : ''}
-        ${this.gauge('Water over the fuel', Math.round(p.level * 100), '%', p.level,
-    p.level > 0.9 ? 'ok' : p.level > 0.71 ? 'warn' : 'bad')}
-        ${this.gauge('Cladding temperature', Math.round(T), '°C', T / 2200,
-    T < 400 ? 'ok' : T < 900 ? 'warn' : 'bad')}
-        ${this.gauge('Containment pressure', p.pCtmt.toFixed(2), 'MPa', p.pCtmt / 0.9,
-    p.pCtmt < 0.4 ? 'ok' : p.pCtmt < 0.7 ? 'warn' : 'bad')}
-        ${this.gauge('Core damage', (dmg * 100).toFixed(0), '%', dmg, dmg < 0.01 ? 'ok' : 'bad')}
-        ${this.gauge('Caesium-137 released', (p.releasedBq / 1e15).toFixed(2), 'PBq',
-    p.releasedBq / 8.5e16, p.releasedBq < 1e13 ? 'ok' : 'bad')}
-      </div>`;
-    }).join('');
+      if (u.state !== p.state) {
+        u.st.textContent = p.state;
+        u.st.className = 'st ' + (good ? 'ok' : 'bad');
+        u.state = p.state;
+      }
+      const r = u.rows;
+      this.setGauge(r.decay, (p.qDecay / 1e6).toFixed(p.qDecay < 1e7 ? 1 : 0) + ' MW',
+        p.qDecay / 3400e6, 'ok');
+      this.setGauge(r.level, Math.round(p.level * 100) + ' %', p.level,
+        p.level > 0.9 ? 'ok' : p.level > 0.71 ? 'warn' : 'bad');
+      this.setGauge(r.temp, Math.round(T) + ' °C', T / 2200,
+        T < 400 ? 'ok' : T < 900 ? 'warn' : 'bad');
+      this.setGauge(r.press, p.pCtmt.toFixed(2) + ' MPa', p.pCtmt / 0.9,
+        p.pCtmt < 0.4 ? 'ok' : p.pCtmt < 0.7 ? 'warn' : 'bad');
+      this.setGauge(r.dmg, (dmg * 100).toFixed(0) + ' %', dmg, dmg < 0.01 ? 'ok' : 'bad');
+      this.setGauge(r.cs, (p.releasedBq / 1e15).toFixed(2) + ' PBq',
+        p.releasedBq / 8.5e16, p.releasedBq < 1e13 ? 'ok' : 'bad');
+    });
+  }
+
+  // Frame rate, measured over the last second, next to what the frame drew.
+  // Called from the render loop, which is the only place that knows.
+  tick(dt) {
+    this.fpsN = (this.fpsN || 0) + 1;
+    this.fpsT = (this.fpsT || 0) + dt;
+    if (this.fpsT < 0.5) return;
+    const fps = this.fpsN / this.fpsT;
+    this.fpsN = 0; this.fpsT = 0;
+    const el = $('#cfgStats');
+    if (!el || !$('#cfg').classList.contains('show')) return;
+    const st = this.hooks.stage ? this.hooks.stage.stats() : null;
+    el.textContent = st
+      ? `${fps.toFixed(0)} fps · ${st.calls} draws · ${(st.tris / 1000).toFixed(0)}k triangles`
+      : `${fps.toFixed(0)} fps`;
   }
 
   renderFeed() {

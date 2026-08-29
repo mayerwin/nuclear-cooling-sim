@@ -113,6 +113,20 @@ body:not(.viewplant) #focusSeg{display:none}
    a phone's address bar, and the panel clears it. */
 /* The controls card. It sits over the picture, near the buttons it is about,
    and it is gone the moment it is read. */
+/* Settings, under the gear that opens them. */
+#cfg{position:fixed;top:calc(var(--sceneTop,0px) + 62px);right:12px;z-index:40;
+  width:min(272px,calc(100vw - 24px));background:#0e1720;border:1px solid var(--line);
+  border-radius:12px;padding:12px 14px;box-shadow:0 14px 40px rgba(0,0,0,.5);display:none}
+#cfg.show{display:block}
+#cfg h4{margin:0 0 8px;font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim)}
+#cfg label{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;
+  color:#c3d3e0;font-size:12.5px;line-height:1.5;padding:3px 0;cursor:pointer}
+#cfg label small{flex:1 0 100%;padding-left:22px;color:var(--dim);font-size:10.5px}
+#cfg input{accent-color:#3f9ddd;margin:0}
+.cfgStats{margin-top:9px;padding-top:8px;border-top:1px solid var(--line);
+  color:var(--dim);font-size:11px;font-variant-numeric:tabular-nums;line-height:1.6}
+#cfg .btn{margin-top:9px;padding:6px 12px;font-size:12px}
+
 #help{position:fixed;top:calc(var(--sceneTop,0px) + 68px);left:50%;transform:translateX(-50%);z-index:30;
   width:min(320px,calc(100vw - 24px));background:#0e1720;border:1px solid var(--line);
   border-radius:12px;padding:13px 15px 12px;box-shadow:0 14px 40px rgba(0,0,0,.5);display:none}
@@ -131,13 +145,36 @@ body:not(.viewplant) #focusSeg{display:none}
 #feed .t{color:#5f7284;font-variant-numeric:tabular-nums;min-width:62px}
 #feed .crit{color:#ff9c88} #feed .ok{color:#8ff0b4}
 
-.modalWrap{position:fixed;inset:0;background:rgba(4,8,13,.9);z-index:60;display:none;
+/* The island is drawn behind this the whole time. Blacking it out at 90%
+   wasted the one thing on the page that makes anyone want to press the button,
+   so the scrim is thin enough to see the place you are about to go into. */
+.modalWrap{position:fixed;inset:0;background:rgba(4,8,13,.66);z-index:60;display:none;
+  backdrop-filter:blur(3px);
   align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
 .modalWrap.open{display:flex}
-.modal{max-width:640px;max-height:90vh;overflow:auto;background:#0c141d;
+.modal{max-width:620px;max-height:90vh;overflow:auto;
+  background:linear-gradient(160deg,#12203097,#0a1119f2) , #0b1219;
   border:1px solid var(--line);border-radius:17px;padding:26px 28px}
-.modal h1{margin:0 0 10px;font-size:25px;letter-spacing:-.01em}
+.modal h1{margin:0 0 12px;font-size:38px;line-height:1.08;letter-spacing:-.025em;
+  font-weight:800}
+.modal h1 em{font-style:normal;color:#ff8a5c}
+.kicker{color:#57d9ff;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+  margin-bottom:11px}
 .lede{color:#c3d3e0;font-size:14.5px;line-height:1.65;margin:0 0 18px}
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 20px}
+.vs .card{background:rgba(255,255,255,.04);border:1px solid var(--line);
+  border-left-width:3px;border-radius:10px;padding:11px 13px}
+.vs .card.a{border-left-color:#ff8a5c}
+.vs .card.b{border-left-color:#57d9ff}
+.vs .card b{display:block;font-size:13.5px;margin-bottom:4px}
+.vs .card.a b{color:#ff8a5c}
+.vs .card.b b{color:#57d9ff}
+.vs .card span{color:#a9bccb;font-size:12px;line-height:1.6}
+.foot{color:var(--dim);font-size:11.5px;line-height:1.6;margin:10px 0 0;text-align:center}
+@media (max-width:560px){
+  .modal h1{font-size:29px}
+  .vs{grid-template-columns:1fr}
+}
 .modal h3{margin:16px 0 8px;font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim)}
 .howto{margin:0;padding-left:18px;color:#b7c8d6;font-size:12.5px;line-height:1.7}
 .howto li{margin-bottom:6px}

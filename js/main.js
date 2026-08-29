@@ -5,16 +5,16 @@
 // inside of the buildings in 3-D. Only one is on screen at a time.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { Sim } from './sim.js?v=f4ed110be1';
-import { Renderer } from './site/renderer.js?v=f4ed110be1';
-import { unproject } from './site/iso.js?v=f4ed110be1';
-import { Stage } from './view/stage.js?v=f4ed110be1';
-import { Unit, CUT_AZ } from './view/unit.js?v=f4ed110be1';
-import { Labels } from './view/labels.js?v=f4ed110be1';
-import { UI } from './ui.js?v=f4ed110be1';
-import { initPhysics } from './machines.js?v=f4ed110be1';
-import { state } from './view/state.js?v=f4ed110be1';
-import { clamp } from './util.js?v=f4ed110be1';
+import { Sim } from './sim.js?v=c9e7ae8639';
+import { Renderer } from './site/renderer.js?v=c9e7ae8639';
+import { unproject } from './site/iso.js?v=c9e7ae8639';
+import { Stage } from './view/stage.js?v=c9e7ae8639';
+import { Unit, CUT_AZ } from './view/unit.js?v=c9e7ae8639';
+import { Labels } from './view/labels.js?v=c9e7ae8639';
+import { UI } from './ui.js?v=c9e7ae8639';
+import { initPhysics } from './machines.js?v=c9e7ae8639';
+import { state } from './view/state.js?v=c9e7ae8639';
+import { clamp } from './util.js?v=c9e7ae8639';
 
 const SPAN = 29;
 const siteCanvas = document.getElementById('site');
@@ -173,6 +173,7 @@ function setFocus(f) {
   labels.setFocus(f);
 }
 const ui = new UI(sim, {
+  stage,
   focus: setFocus,
   // Resize on the way in: the scene host is display:none until this moment, so
   // until it is shown there is nothing to measure.
@@ -320,6 +321,7 @@ function frame(now) {
   } else {
     renderer.draw(sim);
   }
+  ui.tick(dt);
   acc += dt;
   if (acc > 0.22) { ui.update(); acc = 0; }
   requestAnimationFrame(frame);
