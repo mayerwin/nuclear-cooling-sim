@@ -13,8 +13,8 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { build as buildMaterials } from './materials.js';
-import { surfaceMaterial, setGradient, rippleNormal } from './fluid.js';
+import { build as buildMaterials } from './materials.js?v=cbd6bb0a1b';
+import { surfaceMaterial, setGradient, rippleNormal } from './fluid.js?v=cbd6bb0a1b';
 
 // A vertical sky gradient, baked once into an equirectangular strip.
 function skyTexture() {

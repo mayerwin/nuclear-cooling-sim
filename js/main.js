@@ -5,16 +5,16 @@
 // inside of the buildings in 3-D. Only one is on screen at a time.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { Sim } from './sim.js';
-import { Renderer } from './site/renderer.js';
-import { unproject } from './site/iso.js';
-import { Stage } from './view/stage.js';
-import { Unit, CUT_AZ } from './view/unit.js';
-import { Labels } from './view/labels.js';
-import { UI } from './ui.js';
-import { initPhysics } from './machines.js';
-import { state } from './view/state.js';
-import { clamp } from './util.js';
+import { Sim } from './sim.js?v=cbd6bb0a1b';
+import { Renderer } from './site/renderer.js?v=cbd6bb0a1b';
+import { unproject } from './site/iso.js?v=cbd6bb0a1b';
+import { Stage } from './view/stage.js?v=cbd6bb0a1b';
+import { Unit, CUT_AZ } from './view/unit.js?v=cbd6bb0a1b';
+import { Labels } from './view/labels.js?v=cbd6bb0a1b';
+import { UI } from './ui.js?v=cbd6bb0a1b';
+import { initPhysics } from './machines.js?v=cbd6bb0a1b';
+import { state } from './view/state.js?v=cbd6bb0a1b';
+import { clamp } from './util.js?v=cbd6bb0a1b';
 
 const SPAN = 29;
 const siteCanvas = document.getElementById('site');
@@ -110,12 +110,12 @@ function setFocus(f) {
     return b;
   };
   if (f === 'both') {
-    const b = box(units[0], -23, 30, -3, 37, 10);
-    b.union(box(units[1], -23, 30, -3, 37, 10));
+    const b = box(units[0], -23, 34, -4, 37, 12);
+    b.union(box(units[1], -23, 34, -4, 37, 12));
     stage.frameBox(b,
       { azimuth: CUT_AZ, elev: narrow ? 0.5 : 0.22, snap: firstFocus, fill: 0.92, ...u });
   } else {
-    stage.frameBox(box(units[f === 'active' ? 0 : 1], -23, 30, -3, 37, 10),
+    stage.frameBox(box(units[f === 'active' ? 0 : 1], -23, 34, -4, 37, 12),
       { azimuth: CUT_AZ, elev: narrow ? 0.42 : 0.18, snap: firstFocus, fill: 0.88, ...u });
   }
   firstFocus = false;

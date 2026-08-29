@@ -11,6 +11,11 @@ const out = process.argv[3] || '/tmp/check';
 mkdirSync(out, { recursive: true });
 const errs = [];
 const notes = [];
+// The stamp must be current, or a returning visitor gets last week's modules.
+{
+  const { execFileSync } = await import('node:child_process');
+  execFileSync(process.execPath, ['tools/stamp.mjs', '--check'], { stdio: 'inherit' });
+}
 const browser = await chromium.launch({
   executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
   args: ['--no-sandbox', '--enable-unsafe-swiftshader', '--use-gl=swiftshader']

@@ -9,8 +9,8 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { L } from './unit.js';
-import { state } from './state.js';
+import { L } from './unit.js?v=cbd6bb0a1b';
+import { state } from './state.js?v=cbd6bb0a1b';
 
 function tag(cls) {
   const el = document.createElement('div');
@@ -57,7 +57,7 @@ export class Labels {
       add('turb', 'part', L.turb.x - 6.4, 10.6, L.turb.z, 'R');
       add('gen', 'part', L.turb.x - 1.0, 9.8, L.turb.z, 'R');
       add('vent', 'part', L.stack.x, L.stack.h + 1.5, L.stack.z, 'L');
-      add('sea', 'part', L.turb.x - 1.0, 2.6, L.turb.z - 14, 'R');
+      add('sea', 'part', L.turb.x + 6.4, -1.2, L.turb.z - 1.5, 'R');
       add('power', 'part', L.turb.x - 1.0, 13.4, L.turb.z, 'R');
       u.labels = set;
     }

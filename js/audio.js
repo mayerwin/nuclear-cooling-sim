@@ -55,10 +55,12 @@ export class Sound {
     // is a horror-film drone: it sits in the chest and it buzzes. An octave up,
     // as a triangle, with the filter open enough to let the tone through, is a
     // machine room humming to itself.
-    this.layers.pump = this.hum(116, 'triangle', 520);
+    this.layers.pump = this.hum(174, 'triangle', 620);
     this.layers.flow = this.rush(560, 0.9);
     this.layers.boil = this.rush(1500, 2.4);
-    this.layers.grid = this.hum(120, 'sine', 260);
+    // mains at its second harmonic: 120 Hz sine is the exact frequency that
+    // reads as dread, and nothing is lost by taking it up an octave
+    this.layers.grid = this.hum(240, 'sine', 420);
     // The room tone: two quiet sines a fifth apart, well above the chest. A
     // working station is not a threat, and the ambience should not imply one.
     this.layers.airA = this.hum(196, 'sine', 900);
@@ -216,10 +218,10 @@ export class Sound {
     // a view that no longer exists, which left the inside view silent and put
     // the whole ambience on the site view alone.
     const on = true;
-    this.layers.pump.gain.setTargetAtTime(on ? pump * 0.016 : 0, t, ramp);
-    this.layers.flow.gain.setTargetAtTime(on ? (0.25 + flow * 0.75) * 0.055 : 0, t, ramp);
+    this.layers.pump.gain.setTargetAtTime(on ? pump * 0.011 : 0, t, ramp);
+    this.layers.flow.gain.setTargetAtTime(on ? (0.35 + flow * 0.65) * 0.062 : 0, t, ramp);
     this.layers.boil.gain.setTargetAtTime(on ? boil * 0.05 : 0, t, ramp);
-    this.layers.grid.gain.setTargetAtTime(on && grid ? grid * 0.008 : 0, t, ramp);
+    this.layers.grid.gain.setTargetAtTime(on && grid ? grid * 0.005 : 0, t, ramp);
     this.layers.airA.gain.setTargetAtTime(on ? 0.012 : 0, t, 0.8);
     this.layers.airB.gain.setTargetAtTime(on ? 0.008 : 0, t, 0.8);
     // a hotter core hisses higher

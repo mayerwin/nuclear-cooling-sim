@@ -7,12 +7,12 @@
 // in at the water.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js';
+import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=cbd6bb0a1b';
 import { liquidMaterial, steamMaterial, Riser, Bubbles, frameOf, setGradient,
-  gradientise } from './fluid.js';
-import { tempColor, waterColor, heatOf, loopHeat } from './materials.js';
-import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js';
-import { Machines } from '../machines.js';
+  gradientise } from './fluid.js?v=cbd6bb0a1b';
+import { tempColor, waterColor, heatOf, loopHeat } from './materials.js?v=cbd6bb0a1b';
+import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=cbd6bb0a1b';
+import { Machines } from '../machines.js?v=cbd6bb0a1b';
 
 const R_IN = 15.4, WALL = 1.0, SHELL_H = 31, DOME_R = R_IN + WALL;
 
@@ -548,6 +548,17 @@ export class Unit {
     // the top carries. Without it the surface is a hard line between blue and
     // white and the change of state happens at a boundary rather than in a
     // place.
+    // The downcomer: the feedwater arrives at the top, runs DOWN the gap
+    // between the bundle and the shell, turns at the tube sheet and comes back
+    // up through the bundle boiling. Drawn as a cold annulus with its own
+    // downward flow, it is the whole recirculation in one shape.
+    this.sgDown = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.5, 2.5, 1, 36, 1, true), liquidMaterial(0.9));
+    this.sgDown.material.normalMap.repeat.set(8, 3);
+    this.sgDown.material.attenuationDistance = 3.5;
+    this.sgDown.material.clippingPlanes = this.cut;
+    g.add(this.sgDown);
+
     this.sgBoil = new THREE.Mesh(
       new THREE.CylinderGeometry(2.6, 2.6, 1, 32, 1, true), steamMaterial());
     this.sgBoil.material.normalMap.repeat.set(4, 2);
@@ -709,7 +720,7 @@ export class Unit {
     g.add(shaft);
     // Slim pedestals, because with the slab gone the machines stood in the
     // air. Two under the casing, one under the generator, and nothing else.
-    for (const px of [X0 + 0.8, X1 - 0.8, t.x - 1.0]) {
+    for (const px of [X0 + 0.8, X1 - 0.8, t.x - 2.4]) {
       const ped = new THREE.Mesh(
         new THREE.BoxGeometry(0.7, AX - 1.4, 1.6), this.stage.mat.deck);
       ped.position.set(px, (AX - 1.4) / 2, t.z - 1.9);
@@ -805,31 +816,29 @@ export class Unit {
     const shell = new THREE.Mesh(new THREE.BoxGeometry(CW, CH, CD), condGlass);
     shell.position.set(CX, CY, t.z);
     g.add(shell);
-    // a frame round the section, so the box reads as a vessel and not as haze
-    for (const [ex, ey] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-      const post = new THREE.Mesh(
-        new THREE.BoxGeometry(0.16, ey ? CH : 0.16, 0.16), this.stage.mat.steel);
-      post.position.set(CX + ex * CW / 2, CY, t.z - CD / 2);
-      g.add(post);
-    }
-    for (const ey of [-1, 1]) {
-      const beam = new THREE.Mesh(
-        new THREE.BoxGeometry(CW, 0.16, 0.16), this.stage.mat.steel);
-      beam.position.set(CX, CY + ey * CH / 2, t.z - CD / 2);
-      g.add(beam);
-    }
+    // A steel tray under it and a steel hood over it, and nothing else. The
+    // scaffold of posts and beams round the glass was six more solids the eye
+    // had to account for and it taught nothing.
+    const tray = new THREE.Mesh(new THREE.BoxGeometry(CW + 0.2, 0.3, CD + 0.2),
+      this.stage.mat.steel);
+    tray.position.set(CX, CY - CH / 2, t.z);
+    g.add(tray);
+    const hood = new THREE.Mesh(new THREE.BoxGeometry(CW + 0.2, 0.3, CD + 0.2),
+      this.stage.mat.steel);
+    hood.position.set(CX, CY + CH / 2, t.z);
+    g.add(hood);
 
     this.legCw = new Leg('sea water', 2.2, 2, { rho: FLUID.rhoCold });
     this.cw = new Circuit('sea water', [this.legCw]);
     // The tube bank: cold sea water crossing the falling steam. These are the
-    // cold surface, so they are what the steam condenses on. They run out
-    // past the shell on both sides, so the lines that serve them join
-    // something rather than stopping at a wall.
-    const TX = CX + CW / 2 + 1.7;
+    // cold surface, so they are what the steam condenses on. They overhang on
+    // the right only, where the lines that serve them are: an overhang on the
+    // left was four stubs ending in nothing.
+    const TX = CX + CW / 2 + 1.6;
     this.condTubes = [];
     for (let row = 0; row < 4; row++) {
       const yy = CY - 0.6 + row * 0.85;
-      const u = fluidRod([V(CX - CW / 2 - 1.7, yy, t.z - 0.5), V(TX, yy, t.z - 0.5)],
+      const u = fluidRod([V(CX - CW / 2 + 0.2, yy, t.z - 0.5), V(TX, yy, t.z - 0.5)],
         0.19, 0.4);
       g.add(u.mesh);
       this.condTubes.push(u);
@@ -837,13 +846,19 @@ export class Unit {
     // the drops the tubes make, falling out of the steam into the pool
     this.condDrip = new Riser(CW * 0.36, 150, m.drop);
     g.add(this.condDrip.mesh);
-    // the steam falling in from the turbine, above the tubes
+    // The steam filling the space above the tubes. Wide and soft: run through
+    // a fat pipe the vapour shader tears into a lumpy sack, which read as a
+    // bag hanging off the machine rather than as steam in a space.
+    // It fills the whole space the tubes stand in, from just above the pool to
+    // the hood, so the tubes are IN the steam and the drops come off them into
+    // the water. A thin band above the top tube made the steam a separate
+    // object sitting on the machine.
     this.condSteam = new THREE.Mesh(
-      new THREE.BoxGeometry(CW - 0.5, 1.6, CD - 0.6), steamMaterial());
+      new THREE.BoxGeometry(CW - 0.4, 3.3, CD - 0.5), steamMaterial());
     this.condSteam.material.clippingPlanes = this.cut;
-    this.condSteam.material.normalMap.repeat.set(3, 2);
-    this.condSteam.material.alphaMap.repeat.set(2, 2);
-    this.condSteam.position.set(CX, CY + CH / 2 - 1.1, t.z);
+    this.condSteam.material.normalMap.repeat.set(5, 3);
+    this.condSteam.material.alphaMap.repeat.set(4, 3);
+    this.condSteam.position.set(CX, CY + 0.75, t.z);
     g.add(this.condSteam);
     // and the water it becomes, lying in the bottom with a surface on it
     const POOL_Y = CY - CH / 2 + 0.05;
@@ -856,15 +871,14 @@ export class Unit {
     this.cond = shell;
 
     // The condensate pump, and the two pipes that make it a pump: one out of
-    // the bottom of the pool into it, one out of it into the feed line. A
-    // machine with nothing joined to it is an ornament.
+    // the bottom of the pool into it, one out of it into the feed line.
     const PX = CX - CW / 2 - 2.2;
     const cp = buildPump(this.stage, this.m, PX, 1.6, t.z, 0.42);
     g.add(cp.group);
     this.condPump = cp;
     this.legCond = new Leg('condensate', 0.45, 1, { rho: FLUID.rhoFeed });
     const cSuct = pipe([
-      V(CX - CW / 2 + 0.6, POOL_Y + 0.35, t.z), V(PX, POOL_Y + 0.35, t.z),
+      V(CX - CW / 2 + 0.4, POOL_Y + 0.35, t.z), V(PX, POOL_Y + 0.35, t.z),
       V(PX, 1.6 - 0.5, t.z)
     ], 0.55, m, { bend: 0.7 });
     cSuct.leg = this.legCond;
@@ -873,22 +887,34 @@ export class Unit {
     this.pipes.push(cSuct);
     g.add(collar(this.stage, CX - CW / 2, POOL_Y + 0.35, t.z, 'x', 0.4, 0.8));
 
-    // ---- the sea --------------------------------------------------------
-    // Two lines run back from the tube bank to the water: in from the sea,
-    // out to the sea. There is no tank, because the sea is not a tank. What
-    // they reach is drawn by the stage as one sheet running to the horizon.
-    // Both lines leave the tube bank on the same side and run back to the
-    // water as one parallel pair, one low one high. Taking them off opposite
-    // ends made a tangle of diagonals with no readable direction.
-    const SEAZ = -30;
+    // ---- where the sea comes in -----------------------------------------
+    // An open forebay cut into the ground beside the machine, with a channel
+    // running back from it to the water. The two lines go straight out and
+    // straight down into it, all in the plane of the section: run back into
+    // the distance instead, they turned into a pair of hooks with no readable
+    // direction. A recess full of moving sea water is not a tank, and the
+    // channel says where it came from.
+    const SEA_Y = -1.6, BX = TX + 3.4;
+    const bayWall = slab(6.4, 3.2, 8.0, new THREE.MeshStandardMaterial({
+      color: 0x51606c, roughness: 0.94, side: THREE.BackSide }));
+    bayWall.position.set(BX, -1.6, t.z - 1.5);
+    g.add(bayWall);
+    this.bayWater = slab(6.0, 1.5, 7.6, ownWater(m.poolWater));
+    this.bayWater.position.set(BX, SEA_Y - 0.75, t.z - 1.5);
+    g.add(this.bayWater);
+    // the channel out to the open water, so the forebay has a source
+    this.chanWater = slab(4.2, 1.5, 24, ownWater(m.poolWater));
+    this.chanWater.position.set(BX, SEA_Y - 0.75, t.z - 17);
+    g.add(this.chanWater);
+
     const cwIn = pipe([
-      V(TX, CY - 0.6, t.z - 0.5), V(TX, CY - 0.6, t.z + SEAZ),
-      V(TX, -0.9, t.z + SEAZ)
-    ], 1.0, m, { bend: 1.2 });
+      V(TX, CY - 0.6, t.z - 0.5), V(BX - 1.6, CY - 0.6, t.z - 0.5),
+      V(BX - 1.6, SEA_Y - 0.2, t.z - 0.5)
+    ], 1.0, m, { bend: 1.0 });
     const cwOut = pipe([
-      V(TX, -0.9, t.z + SEAZ - 2.4), V(TX, CY + 1.95, t.z + SEAZ - 2.4),
+      V(BX + 1.6, SEA_Y - 0.2, t.z - 0.5), V(BX + 1.6, CY + 1.95, t.z - 0.5),
       V(TX, CY + 1.95, t.z - 0.5)
-    ], 1.0, m, { bend: 1.2 });
+    ], 1.0, m, { bend: 1.0 });
     cwIn.kindBreak = cwOut.kindBreak = 'cw';
     cwIn.leg = cwOut.leg = this.legCw;
     g.add(cwIn.group); g.add(cwOut.group);
@@ -946,16 +972,26 @@ export class Unit {
 
     // What comes out of the turbine has to go somewhere: down the neck into
     // the condenser, where it turns back into water.
-    this.legExh = new Leg('to the condenser', 1.9, 1, { rho: 12, kind: 'steam' });
     // Downstream of the wheel, because that is where spent steam is: dropping
     // it from directly under the buckets put the exhaust plume on top of the
     // thing it had just come through.
-    this.exh = pipe([
-      V(X1 - 1.4, 6.2, t.z), V(X1 - 1.4, 5.3, t.z)
-    ], 1.7, m, { bend: 0.5, steam: true });
-    this.exh.kindBreak = 'steamline';
-    this.exh.leg = this.legExh;
-    g.add(this.exh.group);
+    // A short steel duct with a column of steam inside it. Run through the
+    // pipe builder at this diameter the vapour shader tore into a lumpy sack
+    // that read as a bag slung under the machine.
+    const EX = X1 - 1.4, EY0 = 5.35, EY1 = 6.4;
+    const duct = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.95, 1.15, EY1 - EY0, 22, 1, true),
+      this.stage.mat.steel.clone());
+    duct.material.side = THREE.BackSide;
+    duct.position.set(EX, (EY0 + EY1) / 2, t.z);
+    g.add(duct);
+    this.exhSteam = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.8, 1.0, EY1 - EY0 + 0.4, 22, 1, true), steamMaterial());
+    this.exhSteam.material.normalMap.repeat.set(6, 2);
+    this.exhSteam.material.alphaMap.repeat.set(5, 2);
+    this.exhSteam.material.clippingPlanes = this.cut;
+    this.exhSteam.position.set(EX, (EY0 + EY1) / 2, t.z);
+    g.add(this.exhSteam);
 
     // Back the other way at its own height, so the two halves of the second
     // circuit run as one straight pair across the top of the picture: white
@@ -978,14 +1014,34 @@ export class Unit {
     g.add(this.feed.group);
     // and the water arriving inside the shell, falling to the surface, so the
     // line coming in at the top left visibly DOES something
+    // The feed ring the water arrives through, and the sheet of water falling
+    // off it into the boiler. This is the answer to how the cold water gets
+    // back in, so it is drawn at a size you cannot miss: a pipe that arrives
+    // at a shell and stops reads as a pipe with a cap on it.
+    const FY = SG_BASE + 13.4;
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(2.15, 0.16, 8, 28), this.stage.mat.steel);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(s.x, FY, s.z);
+    ring.material = this.stage.mat.steel.clone();
+    ring.material.clippingPlanes = this.cut;
+    g.add(ring);
+    g.add(pipeLike([V(s.x - 3.4, FY, s.z), V(s.x - 2.15, FY, s.z)],
+      0.3, this.stage.mat.steel));
     this.feedPour = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.2, 0.3, 2.6, 10), liquidMaterial(0.5));
-    this.feedPour.material.normalMap.repeat.set(2, 6);
-    this.feedPour.position.set(s.x - 2.4, SG_BASE + 12.2, s.z);
+      new THREE.CylinderGeometry(0.26, 0.4, 3.0, 12), liquidMaterial(0.7));
+    this.feedPour.material.normalMap.repeat.set(2, 7);
+    this.feedPour.material.clippingPlanes = this.cut;
+    this.feedPour.position.set(s.x - 2.15, FY - 1.6, s.z - 0.5);
     g.add(this.feedPour);
+    // and a second one on the other side of the ring, because a ring that
+    // pours on one side only is a spout
+    this.feedPour2 = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.26, 0.4, 3.0, 12), this.feedPour.material);
+    this.feedPour2.position.set(s.x + 2.15, FY - 1.6, s.z - 0.5);
+    g.add(this.feedPour2);
     g.add(collar(this.stage, s.x - 3.7, SG_BASE + 13.6, s.z, 'x', 0.5, 0.9));
-    this.secondary.legs.push(this.legExh);
-    this.pipes.push(this.steam, this.exh, this.feed);
+    this.pipes.push(this.steam, this.feed);
 
     // the stack the containment can be vented through
     // The stack is the vent line itself, standing up on a frame. A fat grey
@@ -1000,20 +1056,20 @@ export class Unit {
     mouth.material.side = THREE.DoubleSide;
     mouth.position.set(st.x, st.h + 0.4, st.z);
     g.add(mouth);
-    // Straight out through the wall, well clear of the boiler and of the feed
-    // line running up beside it. The funnel that used to hang on the end of it
-    // sat on the boiler's shoulder and overlapped the feedwater pipe, so it
-    // read as a part of the boiler rather than a tap on the building's air.
+    // From the wall outward, and no further in. The containment's air is what
+    // is being vented, so the pipe's inboard end is the wall itself: a stub
+    // hanging in the middle of the building was a pipe with one end joined to
+    // nothing, which is exactly how it read.
     const VY = 26;
     this.vent = pipe([
-      V(-14.4, VY, 0), V(st.x, VY, st.z), V(st.x, st.h, st.z)
+      V(-R_IN - WALL, VY, 0), V(st.x, VY, st.z), V(st.x, st.h, st.z)
     ], 0.8, m, { bend: 1.6, steam: true });
     this.legVent = new Leg('vent', 0.8, 1, { rho: FLUID.rhoSteam, kind: 'steam' });
     this.vent.kindBreak = 'vent';
     this.vent.leg = this.legVent;
     this.ventCircuit = new Circuit('vent', [this.legVent]);
     g.add(this.vent.group);
-    g.add(collar(this.stage, -R_IN - WALL / 2, VY, 0, 'x', 0.62, 1.8));
+    g.add(collar(this.stage, -R_IN - WALL / 2, VY, 0, 'x', 0.62, 1.4));
     this.pipes.push(this.vent);
   }
 
@@ -1279,8 +1335,8 @@ export class Unit {
 // ---------------------------------------------------------------------------
 // per frame: solve the flows, step the machines, and let the geometry follow
 // ---------------------------------------------------------------------------
-import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js';
-import { Plume } from './plume.js';
+import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=cbd6bb0a1b';
+import { Plume } from './plume.js?v=cbd6bb0a1b';
 
 Object.assign(Unit.prototype, {
 
@@ -1458,6 +1514,7 @@ Object.assign(Unit.prototype, {
         const u = leg.name === 'feedwater' || leg.name === 'back from the pool'
           || leg.name === 'suction' || leg.name === 'injection' || leg.name === 'gravity'
           || leg.name === 'sea water' || leg.name === 'coil out'
+          || leg.name === 'condensate'
           ? 0.06
           : (leg.name === 'cold leg' || leg.name === 'boiler tubes') ? cold : heat;
         // Lightened towards white, because the gradient replaces the base
@@ -1518,9 +1575,13 @@ Object.assign(Unit.prototype, {
       // condense anything, which is the secondary flow.
       {
         const rate = clamp((this.secondary.mdot || 0) / 1400, 0, 1);
+        const em = this.exhSteam.material;
+        em.alphaMap.offset.y -= dt * (0.6 + rate * 3.2);
+        em.opacity = 0.1 + rate * 0.5;
+        em.emissiveIntensity = 0.05 + rate * 0.4;
         const sm = this.condSteam.material;
         sm.alphaMap.offset.y -= dt * (0.4 + rate * 1.6);
-        sm.opacity = 0.06 + rate * 0.44;
+        sm.opacity = 0.05 + rate * 0.3;
         sm.emissiveIntensity = 0.05 + rate * 0.35;
         this.condDrip.step(dt, this.condWater.position.y + 0.4,
           3.0, rate, this.cond.position.x, L.turb.z - 0.5, 0.4, -1);
@@ -1540,10 +1601,15 @@ Object.assign(Unit.prototype, {
       // and the feedwater falling to the surface inside the boiler's dome
       const feeding = Math.abs(this.legFeed.v) > 0.02;
       this.feedPour.visible = feeding;
+      this.feedPour2.visible = feeding;
       if (feeding) {
         this.feedPour.material.normalMap.offset.y -= dt * 2.2;
         setGradient(this.feedPour.material,
           waterColor(0.06, new THREE.Color()).lerp(WHITE, 0.3));
+      }
+      if (this.bayWater) {
+        tintWater(this.bayWater.material, waterColor(0.02, cTmp), dt);
+        tintWater(this.chanWater.material, waterColor(0.02, cTmp), dt);
       }
       if (this.poolCoil) {
         const on = (st.s.prhr || 0) > 0;
@@ -1660,6 +1726,19 @@ Object.assign(Unit.prototype, {
       sm.normalMap.offset.y -= dt * sv * 0.7;
       sm.opacity = carrying ? 0.5 : 0.2;
       sm.emissiveIntensity = carrying ? 0.35 : 0.12;
+      // the downcomer runs from the feed nozzle to the tube sheet, and its
+      // water moves DOWNWARD, which is the direction the recirculation goes
+      {
+        const dTop = Math.min(surf, SG_BASE + 13.2), dBot = SG_TS + 0.2;
+        const dh = Math.max(0.6, dTop - dBot);
+        this.sgDown.scale.y = dh;
+        this.sgDown.position.set(L.sg.x, dBot + dh / 2, L.sg.z);
+        const dm = this.sgDown.material;
+        dm.normalMap.offset.y += dt * (carrying ? 1.4 : 0.35);
+        setGradient(dm, waterColor(0.05, new THREE.Color()).lerp(WHITE, 0.2));
+        dm.attenuationColor.setHex(0xffffff);
+        dm.opacity = 0.3;
+      }
       // and the boiling band rides on the surface, thicker the harder it boils
       const bh = 0.5 + (carrying ? 1.5 : 0.3);
       this.sgBoil.scale.y = bh;

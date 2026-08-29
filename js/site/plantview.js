@@ -8,8 +8,8 @@
 import {
   project, box, prism, cylinder, revolve, coolingTower, dome, cone, pylon,
   shadow, shade, rgba, mix, hash2, poly, polyLine, TW, TH, TZ, EDGE
-} from './iso.js';
-import { MODE } from '../plant.js';
+} from './iso.js?v=cbd6bb0a1b';
+import { MODE } from '../plant.js?v=cbd6bb0a1b';
 
 const CONCRETE = '#cfccc2';
 const CONCRETE_D = '#a9a69c';

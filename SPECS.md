@@ -45,6 +45,7 @@ was attempted.
 | 2.19 | **Nothing opaque that does not earn it.** Every solid the eye cannot explain is a defect: no casings hiding the machine inside, no slabs carrying nothing, no decorative pipework running to nowhere. |
 | 2.21 | The sea is **the sea**: one sheet running past both edges of the frame to the horizon, not a tank. Anything unlimited must look unlimited. |
 | 2.23 | Pipes that belong to one circuit run as **an adjacent pair**, not as separate rectangles round the building: two runs side by side read as out-and-back, two runs apart read as scaffolding. |
+| 2.25 | **Every module URL carries a content hash** (`tools/stamp.mjs`), so a returning visitor cannot run last week's code against this week's page. `tools/check.mjs` fails if the stamp is stale. |
 | 2.24 | The ambience is **calm**. A working station is not a threat and must not be scored like one. |
 | 2.22 | The view can be **moved as well as orbited**: WASD on a desktop, two fingers on a phone, and one button that puts it back. |
 | 2.20 | **Flow is carried by advected tracers** along each pipe's own centreline at its own velocity, so a pipe added at any time (`unit.addPipe`) shows its flow with nothing else to set up. |

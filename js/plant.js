@@ -15,7 +15,7 @@
 // and a source term anchored to measured releases (Fukushima ~15 PBq Cs-137
 // across three units, Chernobyl ~85 PBq).
 // ---------------------------------------------------------------------------
-import { clamp, smoothstep } from './util.js';
+import { clamp, smoothstep } from './util.js?v=cbd6bb0a1b';
 
 export const P0 = 3.4e9;             // 3400 MW thermal (~1100 MWe)
 const CORE_ZR = 24000;               // kg zircaloy cladding
