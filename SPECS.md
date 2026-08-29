@@ -52,6 +52,10 @@ was attempted.
 | 2.26 | **A big pipe never becomes a small one in mid air.** Where one line feeds many tubes there is a header or water box, drawn, that does the dividing, and the lines land square on its face. |
 | 2.27 | **A change of state is shown where it happens**, with the right shape: boiling is vapour leaving a surface and filling the space above it up to the outlet, condensation is drops clinging to a cold tube, letting go and stretching as they fall into the water they make. Neither is bubbles with the sign flipped. |
 | 2.28 | **The fewest parts that still explain it.** Two tubes that show a tube bank beat four that show the same thing. |
+| 2.29 | **The page is sized from the visual viewport**, and the size is checked every frame. A phone's address bar moves without firing an event, and a canvas sized to a stale height is stretched by the browser to fit its box. |
+| 2.30 | **The frame is cleared by something that cannot be reclaimed.** A clear that depends on blitting an offscreen bitmap is a clear the browser can drop under memory pressure, and then everything drawn above the ground smears. |
+| 2.31 | **Touch is a first-class input.** One finger pans, two fingers pinch to zoom, and every control in the toolbar is reachable without knowing that a row scrolls sideways. |
+| 2.32 | **The inside view works on a handset.** It is cheap enough to keep its WebGL context (no refraction, no bloom, no shadow maps, one device pixel per pixel), it recovers if it loses it, and both stations fit on a portrait screen. |
 
 ## 3. The machinery that must be shown
 

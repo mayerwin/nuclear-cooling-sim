@@ -5,16 +5,16 @@
 // inside of the buildings in 3-D. Only one is on screen at a time.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { Sim } from './sim.js?v=59c18d378c';
-import { Renderer } from './site/renderer.js?v=59c18d378c';
-import { unproject } from './site/iso.js?v=59c18d378c';
-import { Stage } from './view/stage.js?v=59c18d378c';
-import { Unit, CUT_AZ } from './view/unit.js?v=59c18d378c';
-import { Labels } from './view/labels.js?v=59c18d378c';
-import { UI } from './ui.js?v=59c18d378c';
-import { initPhysics } from './machines.js?v=59c18d378c';
-import { state } from './view/state.js?v=59c18d378c';
-import { clamp } from './util.js?v=59c18d378c';
+import { Sim } from './sim.js?v=b19f8e6485';
+import { Renderer } from './site/renderer.js?v=b19f8e6485';
+import { unproject } from './site/iso.js?v=b19f8e6485';
+import { Stage } from './view/stage.js?v=b19f8e6485';
+import { Unit, CUT_AZ } from './view/unit.js?v=b19f8e6485';
+import { Labels } from './view/labels.js?v=b19f8e6485';
+import { UI } from './ui.js?v=b19f8e6485';
+import { initPhysics } from './machines.js?v=b19f8e6485';
+import { state } from './view/state.js?v=b19f8e6485';
+import { clamp } from './util.js?v=b19f8e6485';
 
 const SPAN = 29;
 const siteCanvas = document.getElementById('site');
@@ -54,18 +54,62 @@ if (GL_OK) {
   b.title = 'This device has no WebGL2, so the inside view cannot be drawn.';
 }
 
+// How big the page actually is RIGHT NOW. On a phone this is not
+// window.innerHeight and it is not what `position:fixed; inset:0` gives you:
+// the address bar slides in and out, the visual viewport changes under the
+// layout viewport, and no resize event need fire for it. A canvas sized to a
+// stale height is stretched or squashed by the browser to fit its box, which
+// is what makes the island look wrong the moment you move around on a handset.
+function viewport() {
+  const vv = window.visualViewport;
+  return {
+    w: Math.max(1, Math.round(vv ? vv.width : window.innerWidth)),
+    h: Math.max(1, Math.round(vv ? vv.height : window.innerHeight))
+  };
+}
+let applied = { w: 0, h: 0, dpr: 0 };
 function resize() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  siteCanvas.width = Math.floor(window.innerWidth * dpr);
-  siteCanvas.height = Math.floor(window.innerHeight * dpr);
-  siteCanvas.style.width = window.innerWidth + 'px';
-  siteCanvas.style.height = window.innerHeight + 'px';
+  const { w, h } = viewport();
+  applied = { w, h, dpr };
+  // Every full-screen layer takes its height from here, so the canvas, the
+  // WebGL host and the label layer can never disagree about how tall the page
+  // is.
+  document.documentElement.style.setProperty('--appH', h + 'px');
+  // On a phone the 3-D view is the band between the toolbar and the log, not
+  // the whole page. Both stations stand in a row eighty metres wide, so fitting
+  // them across a portrait screen leaves two thirds of it empty grass and the
+  // plant the size of a stamp. Give the view the space that is actually free
+  // and the same fit fills it.
+  const narrow = w < 700;
+  const barH = document.getElementById('bar').getBoundingClientRect().height;
+  const feedH = document.getElementById('feed').getBoundingClientRect().height;
+  const sceneH = narrow ? Math.max(220, h - barH - feedH - 26) : h;
+  document.documentElement.style.setProperty('--sceneTop', (narrow ? barH : 0) + 'px');
+  document.documentElement.style.setProperty('--sceneH', sceneH + 'px');
+  siteCanvas.width = Math.round(w * dpr);
+  siteCanvas.height = Math.round(h * dpr);
+  siteCanvas.style.width = w + 'px';
+  siteCanvas.style.height = h + 'px';
   sim.cam.resize(siteCanvas.width, siteCanvas.height);
+  renderer.topInset = narrow ? barH : 0;
   if (sim.view === 'site') sim.overview();
-  if (stage) stage.resize();
+  if (stage) stage.resize(w, sceneH);
   if (sim.focus) setFocus(sim.focus);
 }
 addEventListener('resize', resize);
+addEventListener('orientationchange', resize);
+if (window.visualViewport) {
+  visualViewport.addEventListener('resize', resize);
+  visualViewport.addEventListener('scroll', resize);
+}
+// And a belt-and-braces check once a frame, because the address bar can finish
+// moving without telling anyone.
+function syncSize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const { w, h } = viewport();
+  if (w !== applied.w || h !== applied.h || dpr !== applied.dpr) resize();
+}
 
 let firstFocus = true;
 
@@ -79,9 +123,13 @@ function usable() {
   const free = wide ? Math.max(320, r.left - l.right - 24) : w - 24;
   const top = document.getElementById('bar').getBoundingClientRect().height;
   const bot = document.getElementById('feed').getBoundingClientRect().height;
+  // On a phone the scene canvas is already only the free band, so all of it is
+  // usable; taking the chrome off twice would frame it smaller again.
+  if (!wide && w < 700) return { usableW: 0.98, usableH: 0.96 };
+  const h = window.innerHeight;
   return {
     usableW: Math.min(1, free / w),
-    usableH: Math.min(1, Math.max(0.4, (window.innerHeight - top - bot - 40) / window.innerHeight))
+    usableH: Math.min(1, Math.max(0.4, (h - top - bot - 40) / h))
   };
 }
 
@@ -99,47 +147,90 @@ function setFocus(f) {
   // The station is laid out in one plane and the frame is given in that plane's
   // own coordinates, so it means the same thing whichever way the model is
   // turned. The camera looks square on to it: what you get is an elevation.
-  const box = (u, x0, x1, y0, y1, zz) => {
+  // The eight world corners of the frame, kept as points. Collapsed into a
+  // world-axis box they measured a volume much larger than the station, because
+  // the station is turned to face the cut.
+  const corners = (u, x0, x1, y0, y1, zz) => {
     u.root.updateWorldMatrix(true, false);
-    const b = new THREE.Box3(), v = new THREE.Vector3();
+    const out = [];
     for (let i = 0; i < 8; i++) {
-      v.set(i & 1 ? x1 : x0, i & 2 ? y1 : y0, i & 4 ? zz : -zz)
-        .applyMatrix4(u.root.matrixWorld);
-      b.expandByPoint(v);
+      out.push(new THREE.Vector3(i & 1 ? x1 : x0, i & 2 ? y1 : y0, i & 4 ? zz : -zz)
+        .applyMatrix4(u.root.matrixWorld));
     }
-    return b;
+    return out;
   };
   if (f === 'both') {
-    const b = box(units[0], -23, 34, -4, 37, 12);
-    b.union(box(units[1], -23, 34, -4, 37, 12));
-    stage.frameBox(b,
-      { azimuth: CUT_AZ, elev: narrow ? 0.5 : 0.22, snap: firstFocus, fill: 0.92, ...u });
+    stage.framePoints(
+      [...corners(units[0], -23, 34, -4, 37, 12), ...corners(units[1], -23, 34, -4, 37, 12)],
+      { azimuth: CUT_AZ, elev: narrow ? 0.24 : 0.22, snap: firstFocus,
+        fill: narrow ? 1.02 : 0.92, ...u });
   } else {
-    stage.frameBox(box(units[f === 'active' ? 0 : 1], -23, 34, -4, 37, 12),
-      { azimuth: CUT_AZ, elev: narrow ? 0.42 : 0.18, snap: firstFocus, fill: 0.88, ...u });
+    stage.framePoints(corners(units[f === 'active' ? 0 : 1], -23, 34, -4, 37, 12),
+      { azimuth: CUT_AZ, elev: narrow ? 0.2 : 0.18, snap: firstFocus,
+        fill: narrow ? 1.0 : 0.88, ...u });
   }
   firstFocus = false;
   labels.setFocus(f);
 }
-const ui = new UI(sim, { focus: setFocus, view: (v) => sim.setView(GL_OK ? v : 'site') });
+const ui = new UI(sim, {
+  focus: setFocus,
+  // Resize on the way in: the scene host is display:none until this moment, so
+  // until it is shown there is nothing to measure.
+  view: (v) => { sim.setView(GL_OK ? v : 'site'); resize(); }
+});
 setFocus('both');
 resize();
 
 // ---- panning and zooming the island ----
-let drag = null;
+// Every pointer down is tracked, not just the first. One finger drags. Two
+// fingers drag by their midpoint and zoom by the distance between them, which
+// is the only way to zoom the island on a phone: there is no wheel there. The
+// old handler kept a single origin, so a second finger landing overwrote it
+// and the map jumped to the far corner of the world.
+const ptrs = new Map();
+let gesture = null;
+
+function anchor() {
+  const pts = [...ptrs.values()];
+  if (!pts.length) { gesture = null; return; }
+  let cx = 0, cy = 0;
+  for (const q of pts) { cx += q.x; cy += q.y; }
+  cx /= pts.length; cy /= pts.length;
+  const spread = pts.length > 1 ? Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) : 0;
+  gesture = { cx, cy, spread, camX: sim.cam.x, camY: sim.cam.y, zoom: sim.cam.zoom };
+}
+
 siteCanvas.addEventListener('pointerdown', (e) => {
-  drag = { x: e.clientX, y: e.clientY, cx: sim.cam.x, cy: sim.cam.y };
-  siteCanvas.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  // Capture can be refused for a pointer the browser has already finished
+  // with, and an exception here used to abandon the gesture half-built.
+  try { siteCanvas.setPointerCapture(e.pointerId); } catch (err) { /* not fatal */ }
+  anchor();
 });
 siteCanvas.addEventListener('pointermove', (e) => {
-  if (!drag) return;
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const d = unproject((e.clientX - drag.x) * dpr / sim.cam.zoom,
-    (e.clientY - drag.y) * dpr / sim.cam.zoom);
+  const p = ptrs.get(e.pointerId);
+  if (!p || !gesture) return;
+  p.x = e.clientX; p.y = e.clientY;
   sim.cine = null;
-  sim.cam.snap(clamp(drag.cx - d.x, -10, 62), clamp(drag.cy - d.y, -10, 62));
+  const pts = [...ptrs.values()];
+  if (pts.length > 1) {
+    const spread = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    if (gesture.spread > 12 && spread > 12) {
+      sim.cam.targetZoom = sim.cam.zoom =
+        clamp(gesture.zoom * (spread / gesture.spread), 0.32, 3.2);
+    }
+  }
+  let cx = 0, cy = 0;
+  for (const q of pts) { cx += q.x; cy += q.y; }
+  cx /= pts.length; cy /= pts.length;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const d = unproject((cx - gesture.cx) * dpr / sim.cam.zoom,
+    (cy - gesture.cy) * dpr / sim.cam.zoom);
+  sim.cam.snap(clamp(gesture.camX - d.x, -10, 62), clamp(gesture.camY - d.y, -10, 62));
 });
-siteCanvas.addEventListener('pointerup', () => { drag = null; });
+for (const t of ['pointerup', 'pointercancel', 'pointerleave']) {
+  siteCanvas.addEventListener(t, (e) => { ptrs.delete(e.pointerId); anchor(); });
+}
 siteCanvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   sim.cine = null;
@@ -173,8 +264,11 @@ if (stage) {
     const moved = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y);
     downAt = null;
     if (moved > 6 || sim.view !== 'plant') return;
-    ptr.set((e.clientX / window.innerWidth) * 2 - 1,
-      -(e.clientY / window.innerHeight) * 2 + 1);
+    // From the canvas's own box, not the window's: on a phone the two are not
+    // the same rectangle and every tap landed on the wrong pipe.
+    const r = stage.renderer.domElement.getBoundingClientRect();
+    ptr.set(((e.clientX - r.left) / r.width) * 2 - 1,
+      -((e.clientY - r.top) / r.height) * 2 + 1);
     caster.setFromCamera(ptr, stage.camera);
     const targets = [];
     for (const u of units) {
@@ -211,6 +305,7 @@ let last = performance.now(), acc = 0;
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.06);
   last = now;
+  syncSize();
   sim.update(dt);
   if (sim.view === 'plant' && stage) {
     for (const u of units) if (u.root.visible) u.update(state(u.plant), dt);

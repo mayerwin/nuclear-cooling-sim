@@ -6,9 +6,9 @@
 // can never occlude are painted before the pass; anything with a footprint
 // goes into it, keyed on x + y (+ half its footprint for a box).
 // ---------------------------------------------------------------------------
-import { W, H, T } from './world.js?v=59c18d378c';
-import { project, unproject, TW, TH, TZ, poly, polyLine, shade, rgba } from './iso.js?v=59c18d378c';
-import { drawProp, propKey } from './props.js?v=59c18d378c';
+import { W, H, T } from './world.js?v=b19f8e6485';
+import { project, unproject, TW, TH, TZ, poly, polyLine, shade, rgba } from './iso.js?v=b19f8e6485';
+import { drawProp, propKey } from './props.js?v=b19f8e6485';
 
 export class Renderer {
   constructor(canvas, world) {
@@ -69,7 +69,16 @@ export class Renderer {
     const gloom = Math.max(0, Math.min(1, sim.gloom));
     const key = `${CW}x${CH}x${Math.round(gloom * 24)}`;
     if (this.bgKey !== key) this.makeBackdrop(CW, CH, gloom, key);
-    ctx.drawImage(this.bgCanvas, 0, 0);
+    // The sky IS the clear. It used to be blitted from an offscreen canvas,
+    // and that is the whole frame's only clear: if the browser drops that
+    // bitmap - which a phone under memory pressure does, with forty tabs open
+    // it does it readily - nothing wipes the canvas. The ground is repainted
+    // by the terrain blit, so it stays crisp, but every tree and every roof
+    // draws ABOVE the ground line into pixels nobody cleared, and panning
+    // smears them upward into long vertical trails. A gradient fill cannot be
+    // dropped, costs one fill, and cannot fail.
+    ctx.fillStyle = this.sky;
+    ctx.fillRect(0, 0, CW, CH);
 
     cam.applyTransform(ctx);
     const cc = project(cam.x, cam.y, 0);
@@ -110,7 +119,7 @@ export class Renderer {
     if (sim.showZones) this.drawZones(ctx, sim);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (this.vgCanvas) ctx.drawImage(this.vgCanvas, 0, 0);
+    if (this.vignette) { ctx.fillStyle = this.vignette; ctx.fillRect(0, 0, CW, CH); }
     if (sim.whiteout > 0.01) {
       ctx.fillStyle = `rgba(255,250,235,${Math.min(0.85, sim.whiteout)})`;
       ctx.fillRect(0, 0, CW, CH);
@@ -492,7 +501,9 @@ export class Renderer {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const R = 28;
     const cx = (narrow ? 18 : 326) + R;
-    const cy = (narrow ? 100 : 108);
+    // Below whatever the toolbar actually is. On a phone it wraps to three
+    // rows, and a fixed 100 px put the dial behind it.
+    const cy = (narrow ? Math.max(100, (this.topInset || 0) + 46) : 108);
     ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(9,15,23,0.5)'; ctx.fill();
     ctx.strokeStyle = 'rgba(140,190,220,0.26)'; ctx.lineWidth = 1; ctx.stroke();
@@ -531,25 +542,22 @@ export class Renderer {
     ctx.textAlign = 'left';
   }
 
+  // Two gradient objects, not two bitmaps. They belong to this context, they
+  // are rebuilt only when the size or the light changes, and there is nothing
+  // in them for the browser to reclaim.
   makeBackdrop(CW, CH, gloom, key) {
-    if (!this.bgCanvas) {
-      this.bgCanvas = document.createElement('canvas');
-      this.vgCanvas = document.createElement('canvas');
-    }
-    for (const c of [this.bgCanvas, this.vgCanvas]) { c.width = CW; c.height = CH; }
+    const ctx = this.ctx;
     const L = (a, b) => Math.round(a + (b - a) * gloom);
-    const g = this.bgCanvas.getContext('2d');
-    const sky = g.createLinearGradient(0, 0, 0, CH);
+    const sky = ctx.createLinearGradient(0, 0, 0, CH);
     sky.addColorStop(0, `rgb(${L(122, 62)},${L(176, 66)},${L(220, 76)})`);
     sky.addColorStop(0.55, `rgb(${L(176, 104)},${L(210, 98)},${L(234, 102)})`);
     sky.addColorStop(1, `rgb(${L(220, 138)},${L(230, 120)},${L(226, 110)})`);
-    g.fillStyle = sky; g.fillRect(0, 0, CW, CH);
-    const v = this.vgCanvas.getContext('2d');
-    const rg = v.createRadialGradient(CW / 2, CH / 2, Math.min(CW, CH) * 0.36,
+    this.sky = sky;
+    const rg = ctx.createRadialGradient(CW / 2, CH / 2, Math.min(CW, CH) * 0.36,
       CW / 2, CH / 2, Math.max(CW, CH) * 0.78);
     rg.addColorStop(0, 'rgba(0,0,0,0)');
     rg.addColorStop(1, `rgba(6,10,18,${0.3 + gloom * 0.2})`);
-    v.fillStyle = rg; v.fillRect(0, 0, CW, CH);
+    this.vignette = rg;
     this.bgKey = key;
   }
 }

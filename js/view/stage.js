@@ -13,8 +13,8 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { build as buildMaterials } from './materials.js?v=59c18d378c';
-import { surfaceMaterial, setGradient, rippleNormal } from './fluid.js?v=59c18d378c';
+import { build as buildMaterials } from './materials.js?v=b19f8e6485';
+import { surfaceMaterial, setGradient, rippleNormal, LOWFX } from './fluid.js?v=b19f8e6485';
 
 // A vertical sky gradient, baked once into an equirectangular strip.
 function skyTexture() {
@@ -39,22 +39,38 @@ export class Stage {
     this.host = host;
     // A phone GPU handed a 3x-density canvas, refraction and bloom kills the
     // context and the view goes black. Everything scales down on mobile.
-    const mobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+    const mobile = LOWFX;
+    this.mobile = mobile;
     this.renderer = new THREE.WebGLRenderer({
       antialias: !mobile, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(mobile ? 1.3 : 2, window.devicePixelRatio || 1));
-    // If the context is lost anyway, let the browser restore it instead of
-    // staying black for the rest of the session.
-    this.renderer.domElement.addEventListener('webglcontextlost',
-      (e) => e.preventDefault(), false);
-    this.renderer.shadowMap.enabled = true;
+    // One device pixel per pixel on a handset. At 3x the same frame costs nine
+    // times the fill, and this scene is fill-bound.
+    this.renderer.setPixelRatio(Math.min(mobile ? 1 : 2, window.devicePixelRatio || 1));
+    // Losing the context used to be terminal: the default was prevented, which
+    // asks the browser to restore it, and then nothing listened for the
+    // restore, so the canvas stayed blank for the rest of the session. Now the
+    // frame loop stops while it is gone and picks up again when it comes back.
+    this.lost = false;
+    this.renderer.domElement.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      this.lost = true;
+      if (this.onLost) this.onLost();
+    }, false);
+    this.renderer.domElement.addEventListener('webglcontextrestored', () => {
+      this.lost = false;
+      this.renderer.shadowMap.needsUpdate = true;
+      if (this.onRestored) this.onRestored();
+    }, false);
+    // Shadow maps are a second pass over every caster. A phone spends that
+    // budget better on the machinery itself.
+    this.renderer.shadowMap.enabled = !mobile;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.localClippingEnabled = true;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 0.96;
     // The refraction pass is a second render of the whole scene. Half
     // resolution costs nothing visible, because refraction blurs anyway.
-    this.renderer.transmissionResolutionScale = mobile ? 0.22 : 0.4;
+    this.renderer.transmissionResolutionScale = mobile ? 0.2 : 0.4;
     host.appendChild(this.renderer.domElement);
 
     this.labels = new CSS2DRenderer();
@@ -65,18 +81,18 @@ export class Stage {
     // A sky rather than a void: the site view is broad daylight, and an
     // interior that floats in black reads as a screensaver, not a place.
     this.scene.background = skyTexture();
-    this.scene.fog = new THREE.Fog(0x93b3c9, 620, 1800);
+    this.scene.fog = new THREE.Fog(0x93b3c9, 900, 2600);
 
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     this.scene.environmentIntensity = 0.55;
 
-    this.camera = new THREE.PerspectiveCamera(26, 1, 0.5, 900);
+    this.camera = new THREE.PerspectiveCamera(26, 1, 0.5, 2600);
     this.camera.position.set(96, 74, 118);
 
     const key = new THREE.DirectionalLight(0xfff2e2, 2.0);
     key.position.set(90, 130, 70);
-    key.castShadow = true;
+    key.castShadow = !mobile;
     key.shadow.mapSize.set(1536, 1536);
     const s = key.shadow.camera;
     s.left = -140; s.right = 140; s.top = 120; s.bottom = -120; s.near = 20; s.far = 400;
@@ -95,7 +111,10 @@ export class Stage {
     this.controls.minPolarAngle = 0.18;
     this.controls.maxPolarAngle = Math.PI * 0.47;
     this.controls.minDistance = 6;
-    this.controls.maxDistance = 420;
+    // 420 was less than the distance a portrait phone needs to fit both
+    // stations, so the frame was silently clamped and both units were cut off
+    // at the edges however the framing was computed.
+    this.controls.maxDistance = 900;
     this.controls.target.set(0, 20, 0);
     // Two fingers pans and zooms, one finger orbits: the gesture set every
     // map and model viewer uses, so it needs no explaining.
@@ -211,10 +230,18 @@ export class Stage {
     m.normalMap.offset.y += dt * 0.008;
   }
 
-  resize() {
-    const w = this.host.clientWidth || window.innerWidth;
-    const h = this.host.clientHeight || window.innerHeight;
+  // Sized from what the page tells it, because the host is display:none while
+  // the site view is up and a hidden element measures zero.
+  resize(fw, fh) {
+    const w = fw || this.host.clientWidth || window.innerWidth;
+    const h = fh || this.host.clientHeight || window.innerHeight;
     this.camera.aspect = w / h;
+    // A portrait phone is a keyhole, and 26 degrees is a telephoto lens. Fitting
+    // a station eighty metres wide through both put the camera three quarters
+    // of a kilometre away, past the controls' own limit and into the fog, so
+    // the frame was clamped and both units were cut off at the edges. A wider
+    // lens frames the same thing from a sane distance.
+    this.camera.fov = this.camera.aspect < 0.8 ? 44 : 26;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
     this.composer.setSize(w, h);
@@ -262,25 +289,48 @@ export class Stage {
   }
 
   frameBox(box, opts = {}) {
-    const target = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3()).multiplyScalar(0.5);
-    const azimuth = opts.azimuth ?? 1.36, elev = opts.elev ?? 0.26;
+    const pts = [];
+    for (let i = 0; i < 8; i++) {
+      pts.push(new THREE.Vector3(
+        i & 1 ? box.max.x : box.min.x,
+        i & 2 ? box.max.y : box.min.y,
+        i & 4 ? box.max.z : box.min.z));
+    }
+    this.framePoints(pts, opts);
+  }
 
-    // camera basis for that heading
+  // Frame a set of world points, measured ALONG THE CAMERA'S OWN AXES.
+  //
+  // It used to measure an axis-aligned world box instead. Every station in
+  // this model is turned to face the cut, so its world box is far bigger than
+  // the station: on a portrait phone that overestimate pushed the camera back
+  // far enough that the two units filled barely half the width, with the rest
+  // of the screen empty grass. Measuring the real corners against the real
+  // basis frames what is actually there.
+  framePoints(pts, opts = {}) {
+    const azimuth = opts.azimuth ?? 1.36, elev = opts.elev ?? 0.26;
     const dir = new THREE.Vector3(
       Math.cos(azimuth) * Math.cos(elev), Math.sin(elev), Math.sin(azimuth) * Math.cos(elev));
     const fwd = dir.clone().negate();
     const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
     const up = new THREE.Vector3().crossVectors(right, fwd).normalize();
 
-    let halfW = 0, halfH = 0, halfD = 0;
-    for (let i = 0; i < 8; i++) {
-      const c = new THREE.Vector3(
-        (i & 1 ? 1 : -1) * size.x, (i & 2 ? 1 : -1) * size.y, (i & 4 ? 1 : -1) * size.z);
-      halfW = Math.max(halfW, Math.abs(c.dot(right)));
-      halfH = Math.max(halfH, Math.abs(c.dot(up)));
-      halfD = Math.max(halfD, Math.abs(c.dot(fwd)));
+    let minR = Infinity, maxR = -Infinity, minU = Infinity, maxU = -Infinity;
+    let minF = Infinity, maxF = -Infinity;
+    for (const p of pts) {
+      const r = p.dot(right), u = p.dot(up), f = p.dot(fwd);
+      if (r < minR) minR = r; if (r > maxR) maxR = r;
+      if (u < minU) minU = u; if (u > maxU) maxU = u;
+      if (f < minF) minF = f; if (f > maxF) maxF = f;
     }
+    const halfW = (maxR - minR) / 2, halfH = (maxU - minU) / 2, halfD = (maxF - minF) / 2;
+    // The centre of the extents, not the centroid: a cloud of points weighted
+    // to one end would otherwise pull the frame off to that side.
+    const target = new THREE.Vector3()
+      .addScaledVector(right, (minR + maxR) / 2)
+      .addScaledVector(up, (minU + maxU) / 2)
+      .addScaledVector(fwd, (minF + maxF) / 2);
+
     const vTan = Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2);
     const hTan = vTan * this.camera.aspect;
     const usableW = opts.usableW ?? 1, usableH = opts.usableH ?? 1;
@@ -343,7 +393,13 @@ export class Stage {
   }
 
   render() {
-    this.composer.render();
+    // Nothing to draw into while the context is gone, and calling in anyway
+    // throws every frame until it comes back.
+    if (this.lost) return;
+    // The bloom pass is two more full-screen passes plus a chain of blurs. On
+    // a handset it buys a glow round the lamp and costs the frame.
+    if (this.mobile) this.renderer.render(this.scene, this.camera);
+    else this.composer.render();
     this.labels.render(this.scene, this.camera);
   }
 }

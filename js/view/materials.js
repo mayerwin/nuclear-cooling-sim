@@ -2,7 +2,7 @@
 // materials.js - one place where every surface in the plant is defined.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { surfaceMaterial, bubbleMaterial } from './fluid.js?v=59c18d378c';
+import { surfaceMaterial, bubbleMaterial, LOWFX } from './fluid.js?v=b19f8e6485';
 
 export const CUT = [
   new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0),
@@ -45,9 +45,13 @@ export function build() {
 
   // Vessel shells: real glass, so the water and the fuel inside are seen
   // through them rather than beside them.
+  // On a handset the vessel walls are plain transparency rather than real
+  // glass, for the reason given in fluid.js: refraction costs a whole extra
+  // pass of the scene per material, and there are dozens of them here.
   m.glass = new THREE.MeshPhysicalMaterial({
-    color: 0xdce8f2, roughness: 0.05, metalness: 0, transmission: 0.94,
-    thickness: 1.6, ior: 1.4, transparent: true, opacity: 1,
+    color: 0xdce8f2, roughness: LOWFX ? 0.3 : 0.05, metalness: 0,
+    transmission: LOWFX ? 0 : 0.94,
+    thickness: 1.6, ior: 1.4, transparent: true, opacity: LOWFX ? 0.2 : 1,
     side: THREE.DoubleSide, envMapIntensity: 1.4
   });
   m.glassHot = m.glass.clone(); m.glassHot.color = new THREE.Color(0xf0c6b4);

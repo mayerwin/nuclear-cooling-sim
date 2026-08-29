@@ -87,14 +87,35 @@ export function rippleNormal() {
 export const LIQUID = { COLD: 0x1f6fa8, HOT: 0xd8571e, STEAM: 0xdcecf8 };
 
 // One material per pipe: they scroll at different speeds, so they cannot share.
+// A phone cannot afford refraction. Every transmissive material makes the
+// renderer draw the WHOLE scene again into a target before it can shade one
+// pipe, and this model has dozens of them; on a real handset that is what
+// takes the GPU past its budget and loses the WebGL context, which is why the
+// inside view came back as a blank white page. Below, the same materials are
+// built without transmission: the colour then comes from the base colour and
+// the gradient injection, both of which are set every frame anyway, so the
+// water still reads as water and costs one ordinary draw.
+// ?lowfx=1 forces it on and ?lowfx=0 forces it off, so the cheap path can be
+// looked at on a desktop and the expensive one tried on a handset.
+export const LOWFX = (() => {
+  try {
+    const q = new URLSearchParams(location.search).get('lowfx');
+    if (q === '1') return true;
+    if (q === '0') return false;
+    if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) return true;
+    return (navigator.maxTouchPoints || 0) > 1
+      && Math.min(screen.width, screen.height) < 820;
+  } catch (e) { return false; }
+})();
+
 export function liquidMaterial(dia) {
   const n = flowNormal().clone();
   n.needsUpdate = true;
   return gradientise(new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
-    roughness: 0.045,
+    roughness: LOWFX ? 0.22 : 0.045,
     metalness: 0,
-    transmission: 1,
+    transmission: LOWFX ? 0 : 1,
     ior: 1.333,
     thickness: dia * 0.9,
     attenuationColor: new THREE.Color(LIQUID.COLD),
@@ -108,7 +129,7 @@ export function liquidMaterial(dia) {
     emissive: new THREE.Color(0x081d33),
     emissiveIntensity: 0.3,
     transparent: true,
-    opacity: 1,
+    opacity: LOWFX ? 0.82 : 1,
     side: THREE.DoubleSide,
     depthWrite: true
   }));
@@ -204,7 +225,9 @@ export function surfaceMaterial(depth = 4) {
   const n = rippleNormal().clone();
   n.needsUpdate = true;
   return new THREE.MeshPhysicalMaterial({
-    color: 0xffffff, roughness: 0.05, metalness: 0, transmission: 1,
+    color: LOWFX ? 0x86bcdc : 0xffffff, roughness: LOWFX ? 0.24 : 0.05,
+    metalness: 0, transmission: LOWFX ? 0 : 1,
+    opacity: LOWFX ? 0.86 : 1,
     ior: 1.333, thickness: depth * 0.22,
     attenuationColor: new THREE.Color(LIQUID.COLD), attenuationDistance: depth * 2.6,
     normalMap: n, normalScale: new THREE.Vector2(0.16, 0.16),

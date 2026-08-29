@@ -8,15 +8,21 @@
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);
   overflow:hidden;-webkit-font-smoothing:antialiased}
-#site{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+/* --appH is the height the page can actually see, set from the visual
+   viewport every frame. On a phone that is neither 100% nor 100vh: the address
+   bar moves and the layout viewport does not follow it. */
+#site{position:fixed;top:0;left:0;width:100%;height:var(--appH,100%);display:block;
+  touch-action:none;cursor:grab}
 #site:active{cursor:grabbing}
-#scene{position:fixed;inset:0;display:none}
+#scene{position:fixed;top:var(--sceneTop,0px);left:0;width:100%;
+  height:var(--sceneH,var(--appH,100%));display:none}
 body.viewplant #site{display:none}
 body.viewplant #scene{display:block}
 body:not(.viewplant) #labels{display:none}
 body:not(.viewplant) #focusSeg{display:none}
 #scene canvas{display:block}
-#labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+#labels{position:fixed;top:var(--sceneTop,0px);left:0;width:100%;
+  height:var(--sceneH,var(--appH,100%));pointer-events:none;overflow:hidden}
 .labelLayer{position:absolute;inset:0;pointer-events:none}
 
 /* ---- labels on the model ---- */
@@ -98,7 +104,11 @@ body:not(.viewplant) #focusSeg{display:none}
 .g .track{height:4px;border-radius:3px;background:rgba(255,255,255,.09);margin-top:3px;overflow:hidden}
 .g .fill{height:100%;border-radius:3px;transition:width .25s}
 
-#feed{position:fixed;left:12px;right:12px;bottom:12px;height:120px;overflow:auto;
+/* Anchored to the height the page can SEE. For a fixed element a percentage
+   is the layout viewport, so 100% - --appH is exactly the strip hidden under
+   a phone's address bar, and the panel clears it. */
+#feed{position:fixed;left:12px;right:12px;bottom:calc(100% - var(--appH,100%) + 12px);
+  height:120px;overflow:auto;
   background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:9px 12px;
   z-index:14;backdrop-filter:blur(9px);font-size:11.5px;line-height:1.65}
 #feed .e{display:flex;gap:11px}
@@ -127,15 +137,24 @@ body:not(.viewplant) #focusSeg{display:none}
 .disc td{padding:6px 0;border-bottom:1px solid var(--line);color:#a9bccb}
 
 @media (max-width:900px){
-  .panel{position:fixed;top:auto;bottom:142px;width:auto;left:10px;right:10px;
-    max-height:38vh;display:none}
+  .panel{position:fixed;top:auto;bottom:calc(100% - var(--appH,100%) + 118px);
+    width:auto;left:10px;right:10px;max-height:38vh;display:none}
   .panel.show{display:block}
-  #feed{height:96px;bottom:8px}
-  #bar{gap:8px;padding:0 8px;height:52px;overflow-x:auto;scrollbar-width:none}
-  #bar::-webkit-scrollbar{display:none}
+  #feed{height:96px;bottom:calc(100% - var(--appH,100%) + 8px)}
+  /* Wrap instead of scrolling sideways. A row that overflows hides the speed
+     buttons and every icon off the right edge, and nothing says they are
+     there. Two short rows show the lot. */
+  #bar{gap:6px 8px;padding:5px 8px;height:auto;flex-wrap:wrap;justify-content:flex-start}
+  /* No auto margin on a wrapped row: it shoves the last icon to the far right
+     and forces a line of its own with a hole in the middle. */
   #bar .icon:last-of-type{margin-left:0}
+  .clock{order:-1}
+  #speedSeg{order:1}
+  .seg button{padding:6px 8px}
   .icon.mob{display:block}
-  .clock{min-width:96px} .clock b{font-size:16px}
+  /* Three short rows, and the subtitle is the one thing in them that says
+     nothing a person needs while the plant is running. */
+  .clock{min-width:78px} .clock b{font-size:16px} .clock small{display:none}
   .seg button{padding:7px 9px;font-size:11.5px}
   .tag{font-size:11px} .tag.title b{font-size:17px}
 }
