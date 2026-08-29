@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
 // ui.js - the panels round the picture.
 // ---------------------------------------------------------------------------
-import { SCENARIOS } from './scenarios.js?v=b19f8e6485';
-import { SPEEDS, SPEED_LABELS, AUTO_IDX } from './sim.js?v=b19f8e6485';
-import { MODE } from './plant.js?v=b19f8e6485';
+import { SCENARIOS } from './scenarios.js?v=f4ed110be1';
+import { SPEEDS, SPEED_LABELS, AUTO_IDX } from './sim.js?v=f4ed110be1';
+import { MODE } from './plant.js?v=f4ed110be1';
 
 const $ = (s) => document.querySelector(s);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -47,7 +47,29 @@ export class UI {
       const b = e.target.closest('button'); if (!b) return;
       [...$('#viewSeg').children].forEach((c) => c.classList.toggle('on', c === b));
       this.hooks.view(b.dataset.view);
+      // The controls are about the inside view, so they appear the first time
+      // it does. Listing them in the welcome text meant reading them before
+      // there was anything to try them on.
+      if (b.dataset.view === 'plant' && !this.helpSeen) {
+        this.helpSeen = true;
+        this.showHelp(true);
+      }
     });
+
+    const help = $('#help');
+    this.showHelp = (on) => {
+      help.classList.toggle('show', on);
+      $('#btnHelp').classList.toggle('on', on);
+    };
+    this.helpSeen = (() => {
+      try { return localStorage.getItem('ncs.help') === '1'; } catch (e) { return false; }
+    })();
+    $('#btnHelp').onclick = () => this.showHelp(!help.classList.contains('show'));
+    $('#helpOk').onclick = () => {
+      this.showHelp(false);
+      this.helpSeen = true;
+      try { localStorage.setItem('ncs.help', '1'); } catch (e) { /* private mode */ }
+    };
 
     $('#focusSeg').addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
@@ -111,7 +133,7 @@ export class UI {
   update() {
     const sim = this.sim;
     $('#clock').textContent = hhmmss(sim.t);
-    $('#telemetry').innerHTML = sim.plants.map((p) => {
+    $('#telemetry').innerHTML = sim.plants.map((p, i) => {
       const P = p.mode === MODE.PASSIVE;
       const dmg = p.coreDamage;
       const good = !(p.vesselBreach || dmg > 0.01 || p.level < 0.97);
@@ -122,6 +144,8 @@ export class UI {
         <div class="st ${good ? 'ok' : 'bad'}">${p.state}</div>
         ${this.gauge('Heat still in the fuel', (p.qDecay / 1e6).toFixed(p.qDecay < 1e7 ? 1 : 0), 'MW',
     p.qDecay / 3400e6, 'ok')}
+        ${i === 0 ? `<div class="note">Shutting a reactor down stops the chain reaction,
+          not the heat. This is the number that has to be carried away, for days.</div>` : ''}
         ${this.gauge('Water over the fuel', Math.round(p.level * 100), '%', p.level,
     p.level > 0.9 ? 'ok' : p.level > 0.71 ? 'warn' : 'bad')}
         ${this.gauge('Cladding temperature', Math.round(T), '°C', T / 2200,

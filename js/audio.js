@@ -13,16 +13,78 @@
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
-// A short burst of noise, reused by everything that needs texture.
-function noiseBuffer(ctx, seconds) {
-  const n = Math.floor(ctx.sampleRate * seconds);
-  const buf = ctx.createBuffer(1, n, ctx.sampleRate);
+// The whole mix. Quieter than it was: an ambience you have to lean into is an
+// ambience nobody asks to turn off.
+const MASTER = 0.7;
+
+// C major pentatonic across an octave and a half. Warm, open, and incapable of
+// a dissonance whatever order it is played in.
+const SCALE = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25];
+
+// The noise everything textural is made of. Brown rather than white, because
+// white noise is hiss and brown noise is weather.
+//
+// Two things matter as much as the colour. It has no DC, because a wandering
+// integrator drifts off zero and that offset is inaudible on its own but eats
+// headroom and makes filters ring. And its tail is crossfaded into its head,
+// with the loop set to start after the head, so the loop point is continuous:
+// an uncrossfaded brown loop steps discontinuously every time round and ticks,
+// and a tick every three seconds, forever, is its own kind of annoying.
+const LOOP_SECONDS = 9, LOOP_FADE = 0.6;
+function noiseBuffer(ctx) {
+  const rate = ctx.sampleRate;
+  const n = Math.floor(rate * LOOP_SECONDS);
+  const buf = ctx.createBuffer(1, n, rate);
   const d = buf.getChannelData(0);
-  let last = 0;
+  let last = 0, sum = 0;
   for (let i = 0; i < n; i++) {
-    // brown-ish noise: less hiss, more rush of water
     last = (last + (Math.random() * 2 - 1) * 0.08) * 0.985;
-    d[i] = clamp(last * 3.2, -1, 1);
+    d[i] = last * 3.2;
+    sum += d[i];
+  }
+  const dc = sum / n;
+  let peak = 1e-6;
+  for (let i = 0; i < n; i++) { d[i] -= dc; peak = Math.max(peak, Math.abs(d[i])); }
+  for (let i = 0; i < n; i++) d[i] = clamp(d[i] / peak, -1, 1);
+  const fade = Math.floor(rate * LOOP_FADE);
+  for (let i = 0; i < fade; i++) {
+    const k = i / fade;
+    d[n - fade + i] = d[n - fade + i] * (1 - k) + d[i] * k;
+  }
+  return buf;
+}
+
+// Pink rather than brown for the water and the air.
+//
+// Brown noise falls at 6 dB per octave, so however high you set the highpass
+// under it the energy piles up right at the corner: measured, the bed was 56%
+// inside 120 to 400 Hz and the loudest thing in the room was its own low
+// shelf. Pink falls at 3, which is the tilt moving water actually has, and it
+// spreads across the band instead of leaning on the bottom of it.
+// Paul Kellet's filter, which is three one-poles summed and is accurate to
+// about a third of a decibel from 10 Hz up.
+function pinkBuffer(ctx) {
+  const rate = ctx.sampleRate;
+  const n = Math.floor(rate * LOOP_SECONDS);
+  const buf = ctx.createBuffer(1, n, rate);
+  const d = buf.getChannelData(0);
+  let b0 = 0, b1 = 0, b2 = 0, sum = 0;
+  for (let i = 0; i < n; i++) {
+    const w = Math.random() * 2 - 1;
+    b0 = 0.99765 * b0 + w * 0.0990460;
+    b1 = 0.96300 * b1 + w * 0.2965164;
+    b2 = 0.57000 * b2 + w * 1.0526913;
+    d[i] = b0 + b1 + b2 + w * 0.1848;
+    sum += d[i];
+  }
+  const dc = sum / n;
+  let peak = 1e-6;
+  for (let i = 0; i < n; i++) { d[i] -= dc; peak = Math.max(peak, Math.abs(d[i])); }
+  for (let i = 0; i < n; i++) d[i] = clamp(d[i] / peak, -1, 1);
+  const fade = Math.floor(rate * LOOP_FADE);
+  for (let i = 0; i < fade; i++) {
+    const k = i / fade;
+    d[n - fade + i] = d[n - fade + i] * (1 - k) + d[i] * k;
   }
   return buf;
 }
@@ -41,70 +103,161 @@ export class Sound {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     const ctx = this.ctx = new AC();
-    this.noise = noiseBuffer(ctx, 3);
+    this.noise = noiseBuffer(ctx);
+    this.pink = pinkBuffer(ctx);
 
     const master = this.master = ctx.createGain();
-    master.gain.value = this.muted ? 0 : 0.9;
+    master.gain.value = this.muted ? 0 : MASTER;
     // a limiter, so a hydrogen explosion during an alarm cannot clip
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -14; comp.ratio.value = 8; comp.attack.value = 0.004;
     master.connect(comp).connect(ctx.destination);
 
-    // ---- continuous layers ------------------------------------------------
-    // A working power station should sound calm, not ominous. A 58 Hz sawtooth
-    // is a horror-film drone: it sits in the chest and it buzzes. An octave up,
-    // as a triangle, with the filter open enough to let the tone through, is a
-    // machine room humming to itself.
-    // A held sine IS a drone: the two "room tone" voices I added to calm this
-    // down were the second loudest thing in the mix and every joule of them
-    // sat in the 100 to 250 Hz band that was the complaint. There are no
-    // sustained tones in the ambience now. What is left is moving air and
-    // moving water, which is what a quiet plant actually sounds like.
-    this.layers.pump = this.hum(232, 'triangle', 900);
-    this.layers.flow = this.rush(760, 0.7);
-    this.layers.boil = this.rush(1800, 2.0);
-    this.layers.air = this.rush(2600, 0.5);
+    // ---- the ambience -----------------------------------------------------
+    // A quiet coastal station, and it is meant to be a pleasant thing to sit
+    // with. That rules out three things, and every one of them was in here:
+    //
+    //   a sustained tone, at any pitch. A held oscillator is a drone, and a
+    //   232 Hz triangle is a reedy buzz. There is no oscillator in the
+    //   ambience now, only air and water.
+    //
+    //   hiss. Noise with energy above about two kilohertz is sibilance, and
+    //   half an hour of it is fatiguing however quiet it is. Every bed here
+    //   is LOW-passed as well as high-passed, so it is bounded at both ends.
+    //
+    //   a wall. Noise that never moves is a wall, and a wall is tiring. Each
+    //   bed breathes on its own slow oscillator, at rates that share no common
+    //   multiple, so the room swells and settles and never repeats.
+    //
+    // What is left is dark, soft, and slow: the sea beyond the wall and the
+    // air in a big building.
+    //
+    // The bands are where they are because of what came back off the analyser.
+    // Rolled off at 620 Hz this was 76% midbass and nothing above 1.2 kHz:
+    // no longer a rumble, but muffled, and muffled at 300 Hz is still boom.
+    // Moving water and moving air both carry well past a kilohertz; it is only
+    // past three or four that they turn into hiss.
+    this.layers.sea = this.bed({ hp: 220, lp: 1600, rate: 0.055, depth: 0.45, pink: true });
+    this.layers.air = this.bed({ hp: 560, lp: 3000, rate: 0.041, depth: 0.35, pink: true });
+    this.layers.mach = this.bed({ hp: 190, lp: 700, rate: 0.093, depth: 0.22 });
+    this.layers.boil = this.bed({ hp: 480, lp: 2000, rate: 0.13, depth: 0.3 });
+    this.buildChime();
     this.ready = true;
+    this.scheduleNote(6);
     if (ctx.state === 'suspended') ctx.resume();
-    // and it fades up rather than arriving all at once
+    // Arriving should feel like a door opening on a quiet room, not like a
+    // switch being thrown.
     master.gain.setValueAtTime(0, ctx.currentTime);
-    master.gain.setTargetAtTime(this.muted ? 0 : 0.9, ctx.currentTime, 1.1);
+    master.gain.setTargetAtTime(this.muted ? 0 : MASTER, ctx.currentTime, 2.4);
   }
 
-  // a droning voice: oscillator through a lowpass, gain we can ride
-  hum(freq, type, cut) {
-    const ctx = this.ctx;
-    const osc = ctx.createOscillator(); osc.type = type; osc.frequency.value = freq;
-    const det = ctx.createOscillator(); det.type = type; det.frequency.value = freq * 1.008;
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = cut;
-    const g = ctx.createGain(); g.gain.value = 0;
-    osc.connect(lp); det.connect(lp); lp.connect(g).connect(this.master);
-    osc.start(); det.start();
-    return { gain: g.gain, freq: osc.frequency, freq2: det.frequency };
-  }
-
-  // looping noise through a bandpass: water, steam, boiling
-  rush(centre, q) {
+  // One bed of moving air or water: looping brown noise, bounded above and
+  // below, breathing on its own slow oscillator.
+  //
+  // Two gains in series on purpose. The inner one carries the breath, so the
+  // sub-audio oscillator can be summed into it without fighting anything; the
+  // outer one is what the simulation rides, so a pump starting does not have
+  // to know the room is breathing.
+  bed({ hp, lp, rate, depth, peak, pink }) {
     const ctx = this.ctx;
     const src = ctx.createBufferSource();
-    src.buffer = this.noise; src.loop = true;
-    // The noise is brown, so it rises at 6 dB per octave downwards, and a
-    // bandpass at Q under one falls at 6 dB per octave. They cancel, and what
-    // comes out is flat to DC: a rumble, dressed as a water sound. A real
-    // highpass in series is the only thing that removes it.
-    const hp = ctx.createBiquadFilter(); hp.type = 'highpass';
-    hp.frequency.value = 300; hp.Q.value = 0.7;
-    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass';
-    bp.frequency.value = centre; bp.Q.value = q;
-    const g = ctx.createGain(); g.gain.value = 0;
-    src.connect(hp).connect(bp).connect(g).connect(this.master);
+    src.buffer = pink ? this.pink : this.noise;
+    src.loop = true;
+    src.loopStart = LOOP_FADE;
+    src.loopEnd = LOOP_SECONDS;
+
+    const hi = ctx.createBiquadFilter();
+    hi.type = 'highpass'; hi.frequency.value = hp; hi.Q.value = 0.7;
+    const lo = ctx.createBiquadFilter();
+    lo.type = 'lowpass'; lo.frequency.value = lp; lo.Q.value = 0.7;
+    let chain = src.connect(hi).connect(lo);
+    if (peak) {
+      const pk = ctx.createBiquadFilter();
+      pk.type = 'peaking'; pk.frequency.value = peak; pk.Q.value = 1.1; pk.gain.value = 4;
+      chain = chain.connect(pk);
+    }
+    const breath = ctx.createGain();
+    breath.gain.value = 1 - depth * 0.5;
+    const lfo = ctx.createOscillator();
+    lfo.type = 'sine'; lfo.frequency.value = rate;
+    const amt = ctx.createGain(); amt.gain.value = depth * 0.5;
+    lfo.connect(amt).connect(breath.gain);
+    lfo.start();
+
+    const level = ctx.createGain(); level.gain.value = 0;
+    chain.connect(breath).connect(level).connect(this.master);
     src.start();
-    return { gain: g.gain, freq: bp.frequency };
+    return { gain: level.gain, freq: lo.frequency };
+  }
+
+  // ---- the melody ---------------------------------------------------------
+  // Soft bell notes, far apart, over the water. Three rules keep it soothing
+  // rather than decorative:
+  //
+  //   One pentatonic scale and nothing else. No two notes in a pentatonic
+  //   scale are a semitone or a tritone apart, so whatever order they arrive
+  //   in and however their tails overlap, nothing can sound wrong. There is no
+  //   tune to get stuck in your head and no cadence, so it never resolves and
+  //   never demands attention.
+  //
+  //   Slow in and slow out. Half a second to reach full and six to fall away,
+  //   so there is no attack to flinch at, and each note is still ringing when
+  //   the next arrives.
+  //
+  //   It stops when the plant is in trouble. Music over a core melting is
+  //   grotesque, and its absence says more than another siren would: the room
+  //   going quiet is the first sign that something is wrong.
+  buildChime() {
+    const ctx = this.ctx;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 1900; lp.Q.value = 0.7;
+    // A little space round the notes. One delay with feedback is not a room,
+    // but at this spacing it is the difference between a beep and a bell.
+    const dly = ctx.createDelay(3);
+    dly.delayTime.value = 0.62;
+    const fb = ctx.createGain(); fb.gain.value = 0.36;
+    const wet = ctx.createGain(); wet.gain.value = 0.55;
+    const bus = ctx.createGain(); bus.gain.value = 0;
+    lp.connect(bus);
+    lp.connect(dly); dly.connect(fb); fb.connect(dly); dly.connect(wet); wet.connect(bus);
+    bus.connect(this.master);
+    this.chimeIn = lp;
+    this.chime = bus.gain;
+    this.step = 2;
+  }
+
+  // A major pentatonic, low enough to be warm and high enough to be clear.
+  note(freq) {
+    const ctx = this.ctx, t = ctx.currentTime;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.3, t + 0.55);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 6.2);
+    const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = freq;
+    // one quiet partial an octave up, which is what makes it a bell and not a
+    // test tone
+    const o2 = ctx.createOscillator(); o2.type = 'sine'; o2.frequency.value = freq * 2.01;
+    const g2 = ctx.createGain(); g2.gain.value = 0.16;
+    o.connect(g); o2.connect(g2).connect(g);
+    g.connect(this.chimeIn);
+    o.start(t); o2.start(t);
+    o.stop(t + 6.6); o2.stop(t + 6.6);
+  }
+
+  scheduleNote(delay) {
+    clearTimeout(this.noteTimer);
+    this.noteTimer = setTimeout(() => {
+      if (!this.ready) return;
+      // wander up and down the scale by a step or two, never jumping
+      this.step = clamp(this.step + Math.round((Math.random() - 0.5) * 4), 0, SCALE.length - 1);
+      if (!this.muted && !this.grim) this.note(SCALE[this.step]);
+      this.scheduleNote(5.5 + Math.random() * 7);
+    }, delay * 1000);
   }
 
   setMuted(m) {
     this.muted = m;
-    if (this.master) this.master.gain.setTargetAtTime(m ? 0 : 0.9, this.ctx.currentTime, 0.05);
+    if (this.master) this.master.gain.setTargetAtTime(m ? 0 : MASTER, this.ctx.currentTime, 0.05);
   }
 
   // ---- one-shots ----------------------------------------------------------
@@ -221,13 +374,19 @@ export class Sound {
     // Both views are the same station, so both are audible. The old test named
     // a view that no longer exists, which left the inside view silent and put
     // the whole ambience on the site view alone.
-    const on = true;
-    this.layers.pump.gain.setTargetAtTime(on ? pump * 0.006 : 0, t, ramp);
-    this.layers.flow.gain.setTargetAtTime(on ? (0.4 + flow * 0.6) * 0.075 : 0, t, ramp);
-    this.layers.boil.gain.setTargetAtTime(on ? boil * 0.045 : 0, t, ramp);
-    this.layers.air.gain.setTargetAtTime(on ? 0.03 : 0, t, 0.8);
-    // a hotter core hisses higher
-    this.layers.boil.freq.setTargetAtTime(1200 + clamp(hottest - 560, 0, 1600) * 0.9, t, 0.3);
+    // The sea is always there and barely moves; the plant's own layers ride on
+    // top of it. Every one of these numbers is a fifth of what it was: the
+    // room should be something you notice when it stops.
+    this.layers.sea.gain.setTargetAtTime((0.62 + flow * 0.38) * 0.05, t, 0.9);
+    this.layers.air.gain.setTargetAtTime(0.05, t, 1.4);
+    this.layers.mach.gain.setTargetAtTime(0.004 + pump * 0.01, t, ramp);
+    this.layers.boil.gain.setTargetAtTime(boil * 0.026, t, ramp);
+    // a hotter core opens the boiling layer up, so it brightens as it dries
+    this.layers.boil.freq.setTargetAtTime(1100 + clamp(hottest - 560, 0, 1600) * 0.55, t, 0.4);
+    // The melody belongs to a plant that is fine. When one stops being fine it
+    // fades out over a few seconds and leaves the room to the water.
+    this.grim = bad;
+    this.chime.setTargetAtTime(bad ? 0 : 0.075, t, bad ? 2.2 : 4);
     this.alarm(bad);
   }
 }

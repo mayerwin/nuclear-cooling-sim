@@ -7,12 +7,12 @@
 // in at the water.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=b19f8e6485';
+import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=f4ed110be1';
 import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles,
-  frameOf, setGradient, gradientise } from './fluid.js?v=b19f8e6485';
-import { tempColor, waterColor, heatOf, loopHeat } from './materials.js?v=b19f8e6485';
-import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=b19f8e6485';
-import { Machines } from '../machines.js?v=b19f8e6485';
+  frameOf, setGradient, gradientise } from './fluid.js?v=f4ed110be1';
+import { tempColor, waterColor, heatOf, loopHeat } from './materials.js?v=f4ed110be1';
+import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=f4ed110be1';
+import { Machines } from '../machines.js?v=f4ed110be1';
 
 const R_IN = 15.4, WALL = 1.0, SHELL_H = 31, DOME_R = R_IN + WALL;
 
@@ -391,18 +391,14 @@ export class Unit {
     g.add(domeIn);
     this.dome = dome; this.domeIn = domeIn;
 
-    // buttresses up the wall, and the ring where the dome springs from it.
-    // A smooth white capsule reads as a toy; a real containment is ribbed.
-    for (let i = 0; i < 28; i++) {
-      const a = (i / 28) * Math.PI * 2;
-      if (a > bA - halfW && a < bA + halfW) continue;
-      const rib = new THREE.Mesh(new THREE.BoxGeometry(0.55, SHELL_H, 1.5), m.concrete);
-      // same angle convention as the wall bands: theta 0 is +z, turning to +x
-      rib.position.set(Math.sin(a) * (R_IN + WALL), SHELL_H / 2, Math.cos(a) * (R_IN + WALL));
-      rib.rotation.y = a;
-      rib.castShadow = rib.receiveShadow = true;
-      g.add(rib);
-    }
+    // The ring where the dome springs from the wall, and nothing else on it.
+    //
+    // There were twenty-eight buttresses standing up the outside of the wall
+    // here, put in because a smooth white capsule reads as a toy. Twenty-eight
+    // thin vertical bars wrapped round a cylinder do not read as buttresses.
+    // They read as a network of pipes running round the building and joining
+    // nothing, which is exactly what they were told to be and exactly what
+    // this model is not allowed to contain.
     const ring = new THREE.Mesh(new THREE.TorusGeometry(R_IN + WALL + 0.4, 0.55, 8, 96), m.concrete);
     ring.rotation.x = Math.PI / 2; ring.position.y = SHELL_H - 0.4;
     ring.castShadow = true;
@@ -1467,8 +1463,8 @@ export class Unit {
 // ---------------------------------------------------------------------------
 // per frame: solve the flows, step the machines, and let the geometry follow
 // ---------------------------------------------------------------------------
-import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=b19f8e6485';
-import { Plume } from './plume.js?v=b19f8e6485';
+import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=f4ed110be1';
+import { Plume } from './plume.js?v=f4ed110be1';
 
 Object.assign(Unit.prototype, {
 

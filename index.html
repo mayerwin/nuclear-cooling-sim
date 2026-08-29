@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Passive cooling, watched</title>
 <meta name="description" content="Two nuclear stations, one with active cooling and one with passive cooling, taken through the same accidents. Watch which one survives.">
-<link rel="stylesheet" href="css/app.css?v=b19f8e6485">
+<link rel="stylesheet" href="css/app.css?v=f4ed110be1">
 <script type="importmap">
 { "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
 </script>
@@ -30,6 +30,7 @@
   <div class="seg" id="speedSeg"></div>
   <button class="icon mob" id="btnLeft" title="What happened">☰</button>
   <button class="icon mob" id="btnRight" title="Reactors">◧</button>
+  <button class="icon" id="btnHelp" title="Controls">?</button>
   <button class="icon" id="btnSound" title="Sound">🔊</button>
   <button class="icon" id="btnView" title="Reset the view (WASD moves it)">⛶</button>
   <button class="icon" id="btnReset" title="Restart the scenario">↺</button>
@@ -51,36 +52,30 @@
 
 <section id="feed"><div id="feedInner"></div></section>
 
+<!-- Shown the first time the inside view opens, and from the ? button after
+     that. Controls read before you have seen the thing they control are
+     controls nobody remembers. -->
+<aside id="help">
+  <h4>Getting around</h4>
+  <ul>
+    <li><b>Drag</b> to turn the view, <b>scroll</b> or <b>pinch</b> to zoom.</li>
+    <li><b>W A S D</b> moves it; <b>⛶</b> puts it back.</li>
+    <li><b>Click a pipe</b> to break it.</li>
+  </ul>
+  <button class="btn" id="helpOk">Got it</button>
+</aside>
+
 <div id="modal" class="modalWrap open">
   <div class="modal">
     <h1>Two reactors, the same bad day</h1>
-    <p class="lede">On the left, a station that keeps its core cool with pumps, and needs
-      electricity to run them. On the right, one that uses gravity, boiling and the outside
-      air, and needs nothing at all. Pick an accident and watch both.</p>
-    <h3>How to read it</h3>
+    <p class="lede">Left: a station that keeps its core cool with pumps, so it needs
+      electricity. Right: one that uses gravity, boiling and the outside air, so it needs
+      nothing. Pick an accident and watch both.</p>
     <ul class="howto">
-      <li>Both buildings are <b>cut open</b>: the near quarter of the wall is taken off and
-        every vessel is sliced down its own axis. Nothing has burst, that is just how you
-        get to look in.</li>
-      <li>The <b>fuel</b> stands inside the reactor, in the water. Watch the level against
-        the top of it. Covered, it stays grey. Uncovered, it glows, then melts.</li>
-      <li>The water in the pipes is <b>solved, not animated</b>. Each pipe runs at the speed
-        continuity gives it, so the thin lines run fast and the fat ones run slow, and when
-        the pump stops the loop keeps creeping at a twentieth of the speed.</li>
-      <li>Under the reactor: how much water is left, how hot it is, and how much heat the
-        fuel is <b>still making</b>. That last number is the whole problem. Shutting a
-        reactor down stops the chain reaction, not the heat.</li>
-      <li>Follow the steam out to the <b>turbine</b>. It turns the generator, and the
-        megawatts beside it are what the station is putting on the grid. Scram the reactor
-        and all of that stops.</li>
-      <li><b>Site</b> shows the island from above: two stations, the town, the sea,
-        and where anything that gets out would go. <b>Inside</b> opens the buildings up.
-        Drag to look around, scroll to zoom, <b>WASD</b> to move; two fingers on a
-        phone. The ⛶ button puts the view back.</li>
-      <li><b>Click any pipe to break it.</b> The break is physics, not paint: the plant
-        loses whatever that pipe was doing, and everything downstream follows. Cut the
-        sea water line and the heat has nowhere to go; cut the pool's line on the
-        passive unit and see what it still has left.</li>
+      <li>Both buildings are <b>cut open</b> so you can see inside. Nothing has burst.</li>
+      <li>The <b>fuel</b> stands in the water inside the reactor. Covered, it stays grey.
+        Uncovered, it glows, then melts.</li>
+      <li><b>Click any pipe to break it</b>, and watch what the plant loses.</li>
     </ul>
     <button class="btn primary big" id="startBtn">Start</button>
     <script>
@@ -97,6 +92,6 @@
   </div>
 </div>
 
-<script type="module" src="js/main.js?v=b19f8e6485"></script>
+<script type="module" src="js/main.js?v=f4ed110be1"></script>
 </body>
 </html>
