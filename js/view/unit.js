@@ -7,12 +7,12 @@
 // in at the water.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=7211739fec';
+import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=59c18d378c';
 import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles,
-  frameOf, setGradient, gradientise } from './fluid.js?v=7211739fec';
-import { tempColor, waterColor, heatOf, loopHeat } from './materials.js?v=7211739fec';
-import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=7211739fec';
-import { Machines } from '../machines.js?v=7211739fec';
+  frameOf, setGradient, gradientise } from './fluid.js?v=59c18d378c';
+import { tempColor, waterColor, heatOf, loopHeat } from './materials.js?v=59c18d378c';
+import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=59c18d378c';
+import { Machines } from '../machines.js?v=59c18d378c';
 
 const R_IN = 15.4, WALL = 1.0, SHELL_H = 31, DOME_R = R_IN + WALL;
 
@@ -100,6 +100,12 @@ function bodyOfWater(colour, rep, cut) {
     clearcoat: 0.85, clearcoatRoughness: 0.15,
     normalMap: n, normalScale: new THREE.Vector2(0.4, 0.4),
     emissive: new THREE.Color(0x0a2f4a), emissiveIntensity: 0.32,
+    // DoubleSide, or the cut plane opens a hole you look straight through: a
+    // clipped solid is not capped, so with front faces only the near half
+    // vanishes and the far half is back-facing and culled. The body is there
+    // and draws nothing. Every other water in the model is double-sided for
+    // exactly this reason.
+    side: THREE.DoubleSide,
     clippingPlanes: cut
   });
 }
@@ -954,6 +960,13 @@ export class Unit {
       new THREE.PlaneGeometry(CW - 0.3, CD - 0.4, 24, 12).rotateX(-Math.PI / 2),
       bodyOfWater(0x2f81ad, [4, 3], this.cut));
     this.condTop.material.side = THREE.DoubleSide;
+    // A horizontal surface takes the key light square on, and glossy water
+    // under a hard key blows out to a white sheet: rougher, flatter, and with
+    // most of the clearcoat off, it stays blue and still reads as water.
+    this.condTop.material.roughness = 0.34;
+    this.condTop.material.clearcoat = 0.14;
+    this.condTop.material.emissiveIntensity = 0.1;
+    this.condTop.material.normalScale.set(0.22, 0.22);
     this.condTop.position.set(CX, this.condPoolTop + 0.02, t.z);
     g.add(this.condTop);
     this.surfCond = new Surface(24, { c: 2.0, damp: 1.1 });
@@ -984,9 +997,14 @@ export class Unit {
     // the distance instead, they turned into a pair of hooks with no readable
     // direction. A recess full of moving sea water is not a tank, and the
     // channel says where it came from.
-    // -1.6 is the sea's own level in stage.buildSea. The forebay is the sea,
-    // so it stands at the sea's height and not at one of its own.
-    const SEA_Y = -1.6, BX = TX + 3.4;
+    // The sea's own level in stage.buildSea, which is just below grade. The
+    // forebay IS the sea, so it stands at the sea's height and not at one of
+    // its own: a water surface a metre above the ground around it is a tub.
+    // A fifth of a metre above the sea sheet, which is what lets the channel
+    // cut visibly THROUGH the shore strip instead of disappearing under it:
+    // the strip is land drawn over the water's first few metres, so anything
+    // at or below sea level stops dead at the beach.
+    const SEA_Y = -2.7, BX = TX + 3.4;
     // The basin walls stop AT the waterline. Standing them a metre and a half
     // proud of it put a kerb all the way round, and a kerb round water is what
     // makes a tub: an inlet of the sea has banks that go under, not a rim.
@@ -1449,8 +1467,8 @@ export class Unit {
 // ---------------------------------------------------------------------------
 // per frame: solve the flows, step the machines, and let the geometry follow
 // ---------------------------------------------------------------------------
-import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=7211739fec';
-import { Plume } from './plume.js?v=7211739fec';
+import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=59c18d378c';
+import { Plume } from './plume.js?v=59c18d378c';
 
 Object.assign(Unit.prototype, {
 
@@ -1702,10 +1720,17 @@ Object.assign(Unit.prototype, {
             c.y - 0.34, this.condPoolTop, rate);
         }
         // Not tintWater: that mixes 62% white into the colour, which is right
-        // for a body you look THROUGH and leaves this one a pale ghost.
-        this.condWater.material.color.copy(waterColor(0.09, cTmp)).lerp(WHITE, 0.12);
+        // for a body you look THROUGH and leaves this one a pale ghost. Nor
+        // any whitening at all: the colour is a multiplier under a key light
+        // at 2.0 with a filmic curve over it, so a pale blue comes out of the
+        // renderer as grey. The sea reads because its blue is dark. Measured
+        // on the page: the pool's material colour was arriving at #94add6.
+        // The sea's own blue, which is the one blue in this model proven to
+        // survive the key light and the tone curve, warmed a little by what
+        // the machine is actually running at.
+        this.condWater.material.color.setHex(0x17618d).lerp(waterColor(0.09, cTmp), 0.16);
         this.condWater.material.normalMap.offset.x += dt * 0.04;
-        this.condTop.material.color.copy(waterColor(0.09, cTmp)).lerp(WHITE, 0.08);
+        this.condTop.material.color.setHex(0x2b86b8).lerp(waterColor(0.09, cTmp), 0.16);
         this.condTop.material.normalMap.offset.x += dt * 0.05;
         this.condTop.material.normalMap.offset.y += dt * 0.03;
         // the drops landing are what disturbs it, so the surface moves when

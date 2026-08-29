@@ -13,8 +13,8 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { build as buildMaterials } from './materials.js?v=7211739fec';
-import { surfaceMaterial, setGradient, rippleNormal } from './fluid.js?v=7211739fec';
+import { build as buildMaterials } from './materials.js?v=59c18d378c';
+import { surfaceMaterial, setGradient, rippleNormal } from './fluid.js?v=59c18d378c';
 
 // A vertical sky gradient, baked once into an equirectangular strip.
 function skyTexture() {
@@ -175,7 +175,10 @@ export class Stage {
     const sea = new THREE.Mesh(
       new THREE.PlaneGeometry(1400, 1500).rotateX(-Math.PI / 2), mat);
     sea.rotation.y = Math.PI / 2 - az;
-    sea.position.set(n.x * 780, -1.6, n.z * 780);
+    // Just below grade, which the flood sheet puts at -2.6. At -1.6 the sea
+    // stood a metre ABOVE the yard it is supposed to cool, so every intake
+    // that reached it read as a tub of water sitting on the grass.
+    sea.position.set(n.x * 780, -2.9, n.z * 780);
     this.scene.add(sea);
     this.sea = sea;
     // the strip of shore between the yard and the water, so the edge of the
@@ -184,7 +187,7 @@ export class Stage {
       new THREE.PlaneGeometry(1400, 12).rotateX(-Math.PI / 2),
       new THREE.MeshStandardMaterial({ color: 0x6b6a5c, roughness: 0.98 }));
     shore.rotation.y = Math.PI / 2 - az;
-    shore.position.set(n.x * 30, -1.2, n.z * 30);
+    shore.position.set(n.x * 30, -2.75, n.z * 30);
     this.scene.add(shore);
   }
 
