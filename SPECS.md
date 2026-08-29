@@ -43,12 +43,15 @@ was attempted.
 | 2.17 | **Any pipe can be broken by clicking it**, and the break is physics: the kind of pipe maps to its physical consequence in the model (`plant.breakPipe`), and levels, temperatures and what the safety systems can still do all follow from the ordinary model step. The wound bleeds what the pipe carried, for as long as what fed it holds out. |
 | 2.18 | In the side-by-side view the two stations stand at the **same camera depth** and draw the same size. |
 | 2.19 | **Nothing opaque that does not earn it.** Every solid the eye cannot explain is a defect: no casings hiding the machine inside, no slabs carrying nothing, no decorative pipework running to nowhere. |
-| 2.21 | The sea is **the sea**: one sheet running past both edges of the frame to the horizon, not a tank. Anything unlimited must look unlimited. |
-| 2.23 | Pipes that belong to one circuit run as **an adjacent pair**, not as separate rectangles round the building: two runs side by side read as out-and-back, two runs apart read as scaffolding. |
-| 2.25 | **Every module URL carries a content hash** (`tools/stamp.mjs`), so a returning visitor cannot run last week's code against this week's page. `tools/check.mjs` fails if the stamp is stale. |
-| 2.24 | The ambience is **calm**. A working station is not a threat and must not be scored like one. |
-| 2.22 | The view can be **moved as well as orbited**: WASD on a desktop, two fingers on a phone, and one button that puts it back. |
 | 2.20 | **Flow is carried by advected tracers** along each pipe's own centreline at its own velocity, so a pipe added at any time (`unit.addPipe`) shows its flow with nothing else to set up. |
+| 2.21 | The sea is **the sea**: one sheet running past both edges of the frame to the horizon, not a tank. Anything unlimited must look unlimited. |
+| 2.22 | The view can be **moved as well as orbited**: WASD on a desktop, two fingers on a phone, and one button that puts it back. |
+| 2.23 | Pipes that belong to one circuit run as **an adjacent pair**, not as separate rectangles round the building: two runs side by side read as out-and-back, two runs apart read as scaffolding. |
+| 2.24 | The ambience is **calm**. A working station is not a threat and must not be scored like one. |
+| 2.25 | **Every module URL carries a content hash** (`tools/stamp.mjs`), so a returning visitor cannot run last week's code against this week's page. `tools/check.mjs` fails if the stamp is stale. |
+| 2.26 | **A big pipe never becomes a small one in mid air.** Where one line feeds many tubes there is a header or water box, drawn, that does the dividing, and the lines land square on its face. |
+| 2.27 | **A change of state is shown where it happens**, with the right shape: boiling is vapour leaving a surface and filling the space above it up to the outlet, condensation is drops clinging to a cold tube, letting go and stretching as they fall into the water they make. Neither is bubbles with the sign flipped. |
+| 2.28 | **The fewest parts that still explain it.** Two tubes that show a tube bank beat four that show the same thing. |
 
 ## 3. The machinery that must be shown
 

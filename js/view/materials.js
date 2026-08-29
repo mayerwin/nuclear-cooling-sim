@@ -2,7 +2,7 @@
 // materials.js - one place where every surface in the plant is defined.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { surfaceMaterial, bubbleMaterial } from './fluid.js?v=cbd6bb0a1b';
+import { surfaceMaterial, bubbleMaterial } from './fluid.js?v=7211739fec';
 
 export const CUT = [
   new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0),
@@ -99,6 +99,15 @@ export function build() {
     color: 0xe8f6ff, roughness: 0.05, metalness: 0,
     transparent: true, opacity: 0.85,
     emissive: new THREE.Color(0x5fa8cf), emissiveIntensity: 0.55
+  });
+  // Vapour coming off a boiling surface. Bigger, softer and fainter than a
+  // bubble, and it never writes depth, so a cloud of them reads as one body of
+  // steam leaving the water rather than as a hundred separate beads.
+  m.puff = new THREE.MeshStandardMaterial({
+    color: 0xf2f9ff, roughness: 1, metalness: 0,
+    transparent: true, opacity: 0.13,
+    emissive: new THREE.Color(0x9dc4de), emissiveIntensity: 0.28,
+    depthWrite: false
   });
   m.bulb = new THREE.MeshStandardMaterial({
     color: 0x2a2a26, roughness: 0.25, metalness: 0,

@@ -55,16 +55,15 @@ export class Sound {
     // is a horror-film drone: it sits in the chest and it buzzes. An octave up,
     // as a triangle, with the filter open enough to let the tone through, is a
     // machine room humming to itself.
-    this.layers.pump = this.hum(174, 'triangle', 620);
-    this.layers.flow = this.rush(560, 0.9);
-    this.layers.boil = this.rush(1500, 2.4);
-    // mains at its second harmonic: 120 Hz sine is the exact frequency that
-    // reads as dread, and nothing is lost by taking it up an octave
-    this.layers.grid = this.hum(240, 'sine', 420);
-    // The room tone: two quiet sines a fifth apart, well above the chest. A
-    // working station is not a threat, and the ambience should not imply one.
-    this.layers.airA = this.hum(196, 'sine', 900);
-    this.layers.airB = this.hum(294, 'sine', 900);
+    // A held sine IS a drone: the two "room tone" voices I added to calm this
+    // down were the second loudest thing in the mix and every joule of them
+    // sat in the 100 to 250 Hz band that was the complaint. There are no
+    // sustained tones in the ambience now. What is left is moving air and
+    // moving water, which is what a quiet plant actually sounds like.
+    this.layers.pump = this.hum(232, 'triangle', 900);
+    this.layers.flow = this.rush(760, 0.7);
+    this.layers.boil = this.rush(1800, 2.0);
+    this.layers.air = this.rush(2600, 0.5);
     this.ready = true;
     if (ctx.state === 'suspended') ctx.resume();
     // and it fades up rather than arriving all at once
@@ -89,10 +88,16 @@ export class Sound {
     const ctx = this.ctx;
     const src = ctx.createBufferSource();
     src.buffer = this.noise; src.loop = true;
+    // The noise is brown, so it rises at 6 dB per octave downwards, and a
+    // bandpass at Q under one falls at 6 dB per octave. They cancel, and what
+    // comes out is flat to DC: a rumble, dressed as a water sound. A real
+    // highpass in series is the only thing that removes it.
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass';
+    hp.frequency.value = 300; hp.Q.value = 0.7;
     const bp = ctx.createBiquadFilter(); bp.type = 'bandpass';
     bp.frequency.value = centre; bp.Q.value = q;
     const g = ctx.createGain(); g.gain.value = 0;
-    src.connect(bp).connect(g).connect(this.master);
+    src.connect(hp).connect(bp).connect(g).connect(this.master);
     src.start();
     return { gain: g.gain, freq: bp.frequency };
   }
@@ -204,13 +209,12 @@ export class Sound {
   frame(sim) {
     if (!this.ready) return;
     const t = this.ctx.currentTime, ramp = 0.12;
-    let pump = 0, flow = 0, boil = 0, grid = 0, bad = false, hottest = 300;
+    let pump = 0, flow = 0, boil = 0, bad = false, hottest = 300;
     for (const p of sim.plants) {
       const s = p.sys || {};
       pump = Math.max(pump, (s.rcp ? 1 : 0) * 0.7 + (s.aux || s.rcic ? 0.35 : 0));
       flow = Math.max(flow, Math.max(s.rcp || 0, s.natCirc || 0, s.gravity || 0, s.cmt || 0));
       boil = Math.max(boil, clamp((p.Tclad - 560) / 500, 0, 1) * (p.level > 0.02 ? 1 : 0.25));
-      grid = Math.max(grid, s.grid ? 1 : s.diesel ? 0.7 : 0);
       hottest = Math.max(hottest, p.Tclad);
       if (/BREACH|DAMAGE|MELT|FAILURE|DESTROYED|UNCOVERED|BLACKOUT/.test(p.state)) bad = true;
     }
@@ -218,14 +222,12 @@ export class Sound {
     // a view that no longer exists, which left the inside view silent and put
     // the whole ambience on the site view alone.
     const on = true;
-    this.layers.pump.gain.setTargetAtTime(on ? pump * 0.011 : 0, t, ramp);
-    this.layers.flow.gain.setTargetAtTime(on ? (0.35 + flow * 0.65) * 0.062 : 0, t, ramp);
-    this.layers.boil.gain.setTargetAtTime(on ? boil * 0.05 : 0, t, ramp);
-    this.layers.grid.gain.setTargetAtTime(on && grid ? grid * 0.005 : 0, t, ramp);
-    this.layers.airA.gain.setTargetAtTime(on ? 0.012 : 0, t, 0.8);
-    this.layers.airB.gain.setTargetAtTime(on ? 0.008 : 0, t, 0.8);
+    this.layers.pump.gain.setTargetAtTime(on ? pump * 0.006 : 0, t, ramp);
+    this.layers.flow.gain.setTargetAtTime(on ? (0.4 + flow * 0.6) * 0.075 : 0, t, ramp);
+    this.layers.boil.gain.setTargetAtTime(on ? boil * 0.045 : 0, t, ramp);
+    this.layers.air.gain.setTargetAtTime(on ? 0.03 : 0, t, 0.8);
     // a hotter core hisses higher
-    this.layers.boil.freq.setTargetAtTime(900 + clamp(hottest - 560, 0, 1600) * 0.9, t, 0.3);
+    this.layers.boil.freq.setTargetAtTime(1200 + clamp(hottest - 560, 0, 1600) * 0.9, t, 0.3);
     this.alarm(bad);
   }
 }

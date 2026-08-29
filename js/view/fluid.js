@@ -359,3 +359,58 @@ export class Riser {
     this.mesh.instanceMatrix.needsUpdate = true;
   }
 }
+
+// --- condensation ------------------------------------------------------------
+// Drops forming on a cold surface and falling off it. Not bubbles with the
+// sign flipped: a bubble is a round thing that rises, a drop is an elongated
+// thing that hangs, lets go and stretches as it falls. They spawn along a
+// line, because what they come off is a tube.
+export class Drip {
+  constructor(count, material) {
+    this.mesh = new THREE.InstancedMesh(BUBBLE_GEO, material, count);
+    this.mesh.frustumCulled = false;
+    this.n = count;
+    this.x = new Float32Array(count);
+    this.z = new Float32Array(count);
+    this.t = new Float32Array(count);
+    this.sz = new Float32Array(count);
+    this.sp = new Float32Array(count);
+    const g = rnd(count * 31 + 5);
+    for (let i = 0; i < count; i++) {
+      this.x[i] = g() - 0.5;
+      this.z[i] = g() - 0.5;
+      this.t[i] = g();
+      this.sz[i] = 0.06 + g() * 0.07;
+      this.sp[i] = 0.7 + g() * 0.6;
+    }
+    this._m = new THREE.Matrix4();
+    this._p = new THREE.Vector3();
+    this._q = new THREE.Quaternion();
+    this._s = new THREE.Vector3();
+  }
+
+  // span: how far along the tube they spawn. top: the tube. floor: the pool.
+  step(dt, cx, cz, span, depth, top, floor, rate) {
+    const on = rate > 0.01;
+    this.mesh.visible = on;
+    if (!on) return;
+    const fall = Math.max(0.4, top - floor);
+    for (let i = 0; i < this.n; i++) {
+      this.t[i] += dt * this.sp[i] * (0.25 + rate * 0.85);
+      if (this.t[i] > 1) this.t[i] -= 1;
+      const u = this.t[i];
+      // It clings for the first fifth of its life, then falls, accelerating.
+      const cling = u < 0.2;
+      const f = cling ? 0 : Math.pow((u - 0.2) / 0.8, 2);
+      const y = top - f * fall;
+      // and it stretches as it goes, which is what tells you it is falling
+      const st = cling ? 1 : 1 + f * 3.2;
+      this._p.set(cx + this.x[i] * span, y, cz + this.z[i] * depth);
+      const sc = this.sz[i] * (cling ? 0.7 + u * 1.5 : 1);
+      this._s.set(sc, sc * st, sc);
+      this._m.compose(this._p, this._q, this._s);
+      this.mesh.setMatrixAt(i, this._m);
+    }
+    this.mesh.instanceMatrix.needsUpdate = true;
+  }
+}
