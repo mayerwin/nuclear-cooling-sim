@@ -12,8 +12,9 @@ import { FX } from './site/fx.js';
 import { Camera } from './site/iso.js';
 import { clamp, smoothstep } from './util.js';
 
-export const SPEEDS = [0, 1, 30, 120, 900, -1];
-export const SPEED_LABELS = ['Paused', '1x', '30x', '120x', '900x', 'Auto'];
+export const SPEEDS = [0, 1, 50, 100, 1000, 2000, -1];
+export const SPEED_LABELS = ['Paused', '1x', '50x', '100x', '1000x', '2000x', 'Auto'];
+export const AUTO_IDX = SPEEDS.length - 1;
 
 export class Sim {
   constructor(canvas) {
@@ -32,7 +33,7 @@ export class Sim {
     this.tsunamiCfg = null;
     this.t = 0;
     this.visTime = 0;
-    this.speedIdx = 5;
+    this.speedIdx = AUTO_IDX;
     this.focus = 'both';
     this.feed = [];
     this.pending = [];
@@ -258,7 +259,7 @@ export class Sim {
     this.pending = sc.timeline.map((e) => ({ ...e, done: false }));
     this.tsunamiCfg = sc.tsunami || null;
     this.announce(`SCENARIO: ${sc.name}. ${sc.ref}`, 'crit');
-    this.speedIdx = 5;
+    this.speedIdx = AUTO_IDX;
   }
 
   autoSpeed() {

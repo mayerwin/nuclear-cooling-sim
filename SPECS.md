@@ -43,6 +43,8 @@ was attempted.
 | 2.17 | **Any pipe can be broken by clicking it**, and the break is physics: the kind of pipe maps to its physical consequence in the model (`plant.breakPipe`), and levels, temperatures and what the safety systems can still do all follow from the ordinary model step. The wound bleeds what the pipe carried, for as long as what fed it holds out. |
 | 2.18 | In the side-by-side view the two stations stand at the **same camera depth** and draw the same size. |
 | 2.19 | **Nothing opaque that does not earn it.** Every solid the eye cannot explain is a defect: no casings hiding the machine inside, no slabs carrying nothing, no decorative pipework running to nowhere. |
+| 2.21 | The sea is **the sea**: one sheet running past both edges of the frame to the horizon, not a tank. Anything unlimited must look unlimited. |
+| 2.22 | The view can be **moved as well as orbited**: WASD on a desktop, two fingers on a phone, and one button that puts it back. |
 | 2.20 | **Flow is carried by advected tracers** along each pipe's own centreline at its own velocity, so a pipe added at any time (`unit.addPipe`) shows its flow with nothing else to set up. |
 
 ## 3. The machinery that must be shown

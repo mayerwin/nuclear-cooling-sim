@@ -51,12 +51,19 @@ export class Sound {
     master.connect(comp).connect(ctx.destination);
 
     // ---- continuous layers ------------------------------------------------
-    this.layers.pump = this.hum(58, 'sawtooth', 340);
-    this.layers.flow = this.rush(520, 0.9);
+    // A working power station should sound calm, not ominous. A 58 Hz sawtooth
+    // is a horror-film drone: it sits in the chest and it buzzes. An octave up,
+    // as a triangle, with the filter open enough to let the tone through, is a
+    // machine room humming to itself.
+    this.layers.pump = this.hum(116, 'triangle', 520);
+    this.layers.flow = this.rush(560, 0.9);
     this.layers.boil = this.rush(1500, 2.4);
-    this.layers.grid = this.hum(100, 'sine', 200);
+    this.layers.grid = this.hum(120, 'sine', 260);
     this.ready = true;
     if (ctx.state === 'suspended') ctx.resume();
+    // and it fades up rather than arriving all at once
+    master.gain.setValueAtTime(0, ctx.currentTime);
+    master.gain.setTargetAtTime(this.muted ? 0 : 0.9, ctx.currentTime, 1.1);
   }
 
   // a droning voice: oscillator through a lowpass, gain we can ride
@@ -202,10 +209,10 @@ export class Sound {
       if (/BREACH|DAMAGE|MELT|FAILURE|DESTROYED|UNCOVERED|BLACKOUT/.test(p.state)) bad = true;
     }
     const on = sim.view === 'cut' || sim.view === 'site';
-    this.layers.pump.gain.setTargetAtTime(on ? pump * 0.055 : 0, t, ramp);
+    this.layers.pump.gain.setTargetAtTime(on ? pump * 0.030 : 0, t, ramp);
     this.layers.flow.gain.setTargetAtTime(on ? flow * 0.05 : 0, t, ramp);
     this.layers.boil.gain.setTargetAtTime(on ? boil * 0.055 : 0, t, ramp);
-    this.layers.grid.gain.setTargetAtTime(on && grid ? grid * 0.02 : 0, t, ramp);
+    this.layers.grid.gain.setTargetAtTime(on && grid ? grid * 0.011 : 0, t, ramp);
     // a hotter core hisses higher
     this.layers.boil.freq.setTargetAtTime(900 + clamp(hottest - 560, 0, 1600) * 0.9, t, 0.3);
     this.alarm(bad);

@@ -16,7 +16,7 @@ import { initPhysics } from './machines.js';
 import { state } from './view/state.js';
 import { clamp } from './util.js';
 
-const SPAN = 30;
+const SPAN = 27;
 const siteCanvas = document.getElementById('site');
 const host = document.getElementById('scene');
 const labelHost = document.getElementById('labels');
@@ -47,6 +47,7 @@ if (GL_OK) {
   for (const u of units) stage.scene.add(u.root);
   labels = new Labels(stage, units);
   stage.buildFlood(units.map((u) => [u.worldX, u.worldZ]));
+  stage.buildSea(CUT_AZ);
 } else {
   const b = document.querySelector('[data-view=plant]');
   b.disabled = true;
@@ -109,12 +110,12 @@ function setFocus(f) {
     return b;
   };
   if (f === 'both') {
-    const b = box(units[0], -36, 38, -3, 38, 8);
-    b.union(box(units[1], -36, 38, -3, 38, 8));
+    const b = box(units[0], -24, 26, -3, 38, 10);
+    b.union(box(units[1], -24, 26, -3, 38, 10));
     stage.frameBox(b,
       { azimuth: CUT_AZ, elev: narrow ? 0.5 : 0.22, snap: firstFocus, fill: 0.92, ...u });
   } else {
-    stage.frameBox(box(units[f === 'active' ? 0 : 1], -36, 38, -3, 38, 8),
+    stage.frameBox(box(units[f === 'active' ? 0 : 1], -24, 26, -3, 38, 10),
       { azimuth: CUT_AZ, elev: narrow ? 0.42 : 0.18, snap: firstFocus, fill: 0.88, ...u });
   }
   firstFocus = false;
@@ -191,6 +192,21 @@ if (stage) {
   });
 }
 
+// ---- moving the view ----
+const keys = new Set();
+addEventListener('keydown', (e) => {
+  if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+  const k = e.key.toLowerCase();
+  if ('wasd'.includes(k)) { keys.add(k); e.preventDefault(); }
+});
+addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+addEventListener('blur', () => keys.clear());
+
+document.getElementById('btnView').addEventListener('click', () => {
+  firstFocus = true;
+  setFocus(sim.focus || 'both');
+});
+
 let last = performance.now(), acc = 0;
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.06);
@@ -202,6 +218,7 @@ function frame(now) {
     // on the site: that is what drowns the diesels in the basement.
     stage.setFlood(Math.max(...sim.plants.map(
       (p) => clamp((p.flooded - 5.7) * 0.42, 0, 4.6))), dt);
+    stage.nudge(keys, dt);
     stage.update(dt);
     labels.update();
     stage.render();
@@ -218,4 +235,5 @@ sim.announce('Both units at 100% power. Grid connected, all systems normal.', 'o
 window.__sim = sim;
 window.__units = units;
 window.__stage = stage;
+window.__CUT_AZ = CUT_AZ;
 window.__labels = labels;

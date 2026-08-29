@@ -36,23 +36,24 @@ if (scen) {
   await page.waitForTimeout(2500);
 }
 
-const A = -38, B = 38;   // where the two units stand, matching main.js
+// Given in UNIT-LOCAL coordinates and transformed in the page, so they stay
+// correct however the units are placed or turned.
 const CAMS = {
-  loop:   { t: [A + 0, 11, 0], d: 40, a: 1.16, e: 0.10 },
-  pump:   { t: [A - 3.6, 10, 0], d: 22, a: 1.16, e: 0.10 },
-  rpv:    { t: [A + 4.5, 11, 0], d: 30, a: 1.16, e: 0.08 },
-  sg:     { t: [A - 8.5, 20, 0], d: 44, a: 1.16, e: 0.10 },
-  steam:  { t: [A + 12, 22, 0], d: 44, a: 1.16, e: 0.10 },
-  turbine:{ t: [A + 22, 6, 0], d: 40, a: 1.16, e: 0.14 },
-  power:  { t: [A + 40, 8, 0], d: 30, a: 1.16, e: 0.12 },
-  yard:   { t: [A - 22, 8, 0], d: 40, a: 1.16, e: 0.14 },
-  unit:   { t: [A + 11, 16, 0], d: 96, a: 1.16, e: 0.16 },
-  pool:   { t: [B + 4.5, 22, 0], d: 34, a: 1.16, e: 0.14 },
-  prhr:   { t: [B + 2, 16, 0], d: 52, a: 1.16, e: 0.14 },
-  passive:{ t: [B + 11, 16, 0], d: 96, a: 1.16, e: 0.16 },
-  breach: { t: [A + 2, 14, 0], d: 56, a: 1.16, e: 0.12 },
-  head:   { t: [A - 7.5, 12.5, 0], d: 22, a: 1.16, e: 0.10 },
-  dome:   { t: [A - 8.5, 26, 0], d: 26, a: 1.16, e: 0.10 }
+  loop:   { u: 0, t: [0, 11, 0], d: 40 },
+  pump:   { u: 0, t: [-3.6, 10, 0], d: 20 },
+  rpv:    { u: 0, t: [4.5, 11, 0], d: 28 },
+  sg:     { u: 0, t: [-8.5, 20, 0], d: 40 },
+  head:   { u: 0, t: [-8.5, 13, 0], d: 20 },
+  tank:   { u: 0, t: [-9, 3, 0], d: 26 },
+  steam:  { u: 0, t: [8, 24, 0], d: 44 },
+  turbine:{ u: 0, t: [15, 6, 0], d: 26 },
+  cond:   { u: 0, t: [15.2, 3, -6], d: 24 },
+  power:  { u: 0, t: [21, 11, 0], d: 20 },
+  unit:   { u: 0, t: [2, 15, 0], d: 84 },
+  pool:   { u: 1, t: [4.5, 22, 0], d: 30 },
+  prhr:   { u: 1, t: [2, 16, 0], d: 50 },
+  passive:{ u: 1, t: [2, 15, 0], d: 84 },
+  breach: { u: 0, t: [2, 14, 0], d: 54 }
 };
 
 // The three shots the app itself frames: no camera override, just the button.
@@ -64,11 +65,18 @@ if (FOCUS[shot]) {
 const c = CAMS[shot] || CAMS.loop;
 if (!FOCUS[shot]) await page.evaluate((c) => {
   const s = window.__stage;
+  const u = window.__units[c.u || 0];
+  u.root.updateWorldMatrix(true, false);
+  const V = s.controls.target.constructor;
+  const tgt = u.root.localToWorld(new V(c.t[0], c.t[1], c.t[2]));
+  const az = window.__CUT_AZ, e = c.e == null ? 0.14 : c.e;
   s.want = null;
   s.controls.minDistance = 0.5;   // the app clamps to 40; a close look needs closer
-  s.controls.target.set(c.t[0], c.t[1], c.t[2]);
-  const dir = [Math.cos(c.a) * Math.cos(c.e), Math.sin(c.e), Math.sin(c.a) * Math.cos(c.e)];
-  s.camera.position.set(c.t[0] + dir[0] * c.d, c.t[1] + dir[1] * c.d, c.t[2] + dir[2] * c.d);
+  s.controls.target.copy(tgt);
+  s.camera.position.set(
+    tgt.x + Math.cos(az) * Math.cos(e) * c.d,
+    tgt.y + Math.sin(e) * c.d,
+    tgt.z + Math.sin(az) * Math.cos(e) * c.d);
   s.controls.update();
 }, c);
 if (process.env.NOBLOOM) await page.evaluate(() => { window.__stage.bloom.enabled = false; });

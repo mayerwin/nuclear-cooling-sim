@@ -14,7 +14,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { build as buildMaterials } from './materials.js';
-import { surfaceMaterial, setGradient } from './fluid.js';
+import { surfaceMaterial, setGradient, rippleNormal } from './fluid.js';
 
 // A vertical sky gradient, baked once into an equirectangular strip.
 function skyTexture() {
@@ -97,6 +97,11 @@ export class Stage {
     this.controls.minDistance = 40;
     this.controls.maxDistance = 700;
     this.controls.target.set(0, 20, 0);
+    // Two fingers pans and zooms, one finger orbits: the gesture set every
+    // map and model viewer uses, so it needs no explaining.
+    this.controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+    this.controls.enablePan = true;
+    this.controls.screenSpacePanning = true;
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
@@ -150,10 +155,47 @@ export class Stage {
   }
 
 
+  // The sea. One sheet for the whole site, set back behind the buildings and
+  // running past the edges of the frame in both directions, because the point
+  // of the sea in a power station is that there is no end to it. The
+  // condensers' intake and outfall lines reach back into this.
+  buildSea(az) {
+    const n = new THREE.Vector3(-Math.cos(az), 0, -Math.sin(az));
+    // Opaque, not refractive. Nine hundred metres of transmissive surface is
+    // both ruinous to draw and reads as haze rather than as water.
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x1d5f86, roughness: 0.22, metalness: 0.1,
+      normalMap: rippleNormal().clone(),
+      normalScale: new THREE.Vector2(0.55, 0.55)
+    });
+    mat.normalMap.needsUpdate = true;
+    mat.normalMap.repeat.set(120, 130);
+    // Deep enough to reach the horizon. A three hundred metre strip left a
+    // band of grass beyond it, which is the one thing the sea must not have.
+    const sea = new THREE.Mesh(
+      new THREE.PlaneGeometry(1400, 1500).rotateX(-Math.PI / 2), mat);
+    sea.rotation.y = Math.PI / 2 - az;
+    sea.position.set(n.x * 780, -1.6, n.z * 780);
+    this.scene.add(sea);
+    this.sea = sea;
+    // the strip of shore between the yard and the water, so the edge of the
+    // land is somewhere rather than a colour change in mid air
+    const shore = new THREE.Mesh(
+      new THREE.PlaneGeometry(1400, 12).rotateX(-Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: 0x6b6a5c, roughness: 0.98 }));
+    shore.rotation.y = Math.PI / 2 - az;
+    shore.position.set(n.x * 30, -1.2, n.z * 30);
+    this.scene.add(shore);
+  }
+
   // depth is metres of water standing above grade. The drawn level chases the
   // model's level instead of jumping to it: the wave arrives in a moment in
   // the log, but water on the ground rises, it does not teleport.
   setFlood(depth, dt) {
+    if (this.sea) {
+      this.sea.material.normalMap.offset.x += dt * 0.008;
+      this.sea.material.normalMap.offset.y += dt * 0.005;
+    }
     if (!this.flood) return;
     const cur = this.floodDepth || 0;
     const next = cur + Math.sign(depth - cur) * Math.min(Math.abs(depth - cur), dt * 0.9);
@@ -250,6 +292,27 @@ export class Stage {
       Math.sin(w.elev),
       Math.sin(w.azimuth) * Math.cos(w.elev)
     ).multiplyScalar(w.dolly).add(w.target);
+  }
+
+  // WASD, applied in the camera's own frame: A and D slide the view sideways,
+  // W and S move it in and out along the line of sight. The target moves with
+  // the camera, so the model does not swing round as you go.
+  nudge(keys, dt) {
+    const f = (keys.has('w') ? 1 : 0) - (keys.has('s') ? 1 : 0);
+    const r = (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0);
+    if (!f && !r) return;
+    this.want = null;
+    const dist = this.camera.position.distanceTo(this.controls.target);
+    const step = Math.max(6, dist * 0.55) * dt;
+    const fwd = new THREE.Vector3().subVectors(this.controls.target, this.camera.position);
+    fwd.y = 0; fwd.normalize();
+    const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+    const move = new THREE.Vector3()
+      .addScaledVector(fwd, f * step).addScaledVector(right, -r * step);
+    // dollying in must not walk through the target
+    if (f > 0 && dist - step < this.controls.minDistance) move.set(0, 0, 0);
+    this.camera.position.add(move);
+    if (r) this.controls.target.add(new THREE.Vector3().addScaledVector(right, -r * step));
   }
 
   update(dt) {

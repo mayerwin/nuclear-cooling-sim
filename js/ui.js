@@ -2,7 +2,7 @@
 // ui.js - the panels round the picture.
 // ---------------------------------------------------------------------------
 import { SCENARIOS } from './scenarios.js';
-import { SPEEDS, SPEED_LABELS } from './sim.js';
+import { SPEEDS, SPEED_LABELS, AUTO_IDX } from './sim.js';
 import { MODE } from './plant.js';
 
 const $ = (s) => document.querySelector(s);
@@ -77,7 +77,7 @@ export class UI {
 
     addEventListener('keydown', (e) => {
       const k = e.key.toLowerCase();
-      if (k === ' ') { e.preventDefault(); sim.speedIdx = sim.speedIdx === 0 ? 3 : 0; this.syncSpeed(); }
+      if (k === ' ') { e.preventDefault(); sim.speedIdx = sim.speedIdx === 0 ? AUTO_IDX : 0; this.syncSpeed(); }
       if (k === 'r') sim.reset();
       if (k === '1') this.pick('active');
       if (k === '2') this.pick('both');

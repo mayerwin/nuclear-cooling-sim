@@ -335,14 +335,17 @@ export class Riser {
 
   // base is the floor of the water, height how deep it is, rate how hard it is
   // boiling from 0 to 1.
-  step(dt, base, height, rate, cx = 0, cz = 0, scale = 1) {
+  // dir is +1 for bubbles rising through water and -1 for drops falling
+  // through steam. Same advection, opposite sign, because that is the only
+  // thing that differs between the two.
+  step(dt, base, height, rate, cx = 0, cz = 0, scale = 1, dir = 1) {
     const on = rate > 0.005;
     this.mesh.visible = on;
     if (!on) return;
     const t = performance.now() * 0.001;
     for (let i = 0; i < this.n; i++) {
-      this.y[i] += dt * this.sp[i] * (0.35 + rate * 1.9) / Math.max(0.5, height);
-      if (this.y[i] > 1) this.y[i] -= 1;
+      this.y[i] += dir * dt * this.sp[i] * (0.35 + rate * 1.9) / Math.max(0.5, height);
+      this.y[i] -= Math.floor(this.y[i]);
       const yy = base + this.y[i] * height;
       // a bubble wanders as it climbs
       const w = Math.sin(t * 1.7 + i) * 0.12 * (1 - this.y[i] * 0.4);

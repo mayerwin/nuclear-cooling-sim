@@ -51,14 +51,14 @@ export class Labels {
       add('pump', 'part', L.rcp.x, 11.5, L.rcp.z + 2, 'L');
       add('store', 'part',
         u.passive ? L.pool.x : L.tank.x,
-        u.passive ? L.pool.y + 3.5 : 4.5,
+        u.passive ? L.pool.y + 3.5 : 3.4,
         u.passive ? L.pool.z : L.tank.z, 'L');
       if (!u.passive) add('eccs', 'part', L.eccs.x, 5.2, L.eccs.z, 'L');
-      add('turb', 'part', L.turb.x - 7, 12.4, L.turb.z, 'R');
-      add('gen', 'part', L.turb.x + 1.2, 11.6, L.turb.z, 'R');
+      add('turb', 'part', L.turb.x - 6.4, 10.6, L.turb.z, 'R');
+      add('gen', 'part', L.turb.x - 1.0, 9.8, L.turb.z, 'R');
       add('vent', 'part', L.stack.x, L.stack.h + 1.5, L.stack.z, 'L');
-      add('sea', 'part', L.turb.x + 8, -1.6, L.turb.z, 'R');
-      add('power', 'part', L.turb.x + 20.8, 9.4, L.turb.z, 'R');
+      add('sea', 'part', L.turb.x - 1.0, 2.6, L.turb.z - 14, 'R');
+      add('power', 'part', L.turb.x - 1.0, 13.4, L.turb.z, 'R');
       u.labels = set;
     }
   }
@@ -171,8 +171,7 @@ export class Labels {
       // when it fails that is the whole story of the accident.
       set('power', `<b>Electricity</b><span class="${mwe ? 'power' : 'bad'}">${mwe
         ? 'the lamp is lit' : 'the lamp is out'}</span>`
-        + `<em>${mwe ? 'this station is running on what it makes'
-          : 'nothing is being made here'}; the plant itself is on ${src}</em>`);
+        + `<em>plant on ${src}</em>`);
       set('vent', st.s.vent
         ? '<b class="warn">Vent open</b><em>the way pressure is let out on purpose</em>'
         : '<b>Vent</b><span>closed</span>');
