@@ -29,7 +29,7 @@ export const L = {
   sg:   { x: -8.5, z: 0 },
   rcp:  { x: -3.6, z: 0 },
   pool: { x: 4.5, z: 0, w: 13, d: 8, h: 5.2, y: 21.6 },
-  turb: { x: 22, z: 0 },
+  turb: { x: 26, z: 0 },
   // Under the boiler, inside the building. Standing it out on the left cost
   // fifteen metres of picture width for a box of water.
   tank: { x: -8.5, z: 0, w: 9.4, d: 6.0, h: 4.4 },
@@ -227,7 +227,7 @@ export class Unit {
       pipe: m.pipe, fuel: m.fuel,
       steel: m.steel, painted: m.painted, deck: m.deck, dark: m.dark,
       poolWater: ownWater(m.poolWater), copper: m.copper, rail: m.rail, lamp: m.lamp.clone(),
-      bubble: m.bubble, mote: m.mote, flange: m.flange
+      bubble: m.bubble, mote: m.mote, drop: m.drop, flange: m.flange
     };
     // Every vessel stands on the layout plane, so the plane that halves the
     // building halves all of them too. One cut, one section, one picture.
@@ -254,7 +254,7 @@ export class Unit {
     // where the flow is downward and rising bubbles would contradict it.
     this.riseCore = new Riser(1.65, 150, stage.mat.bubble);
     this.root.add(this.riseCore.mesh);
-    this.riseSg = new Riser(2.3, 150, stage.mat.bubble);
+    this.riseSg = new Riser(2.3, 220, stage.mat.bubble);
     this.root.add(this.riseSg.mesh);
     this.risePool = new Riser(3.4, 110, stage.mat.bubble);
     this.root.add(this.risePool.mesh);
@@ -543,6 +543,17 @@ export class Unit {
     this.sgSteam.material.alphaMap.repeat.set(2, 3);
     this.sgSteam.material.clippingPlanes = this.cut;
     g.add(this.sgSteam);
+    // The boiling interface itself: a shallow band of wet steam sitting on the
+    // surface, where the water is actually turning into the thing the pipe at
+    // the top carries. Without it the surface is a hard line between blue and
+    // white and the change of state happens at a boundary rather than in a
+    // place.
+    this.sgBoil = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.6, 2.6, 1, 32, 1, true), steamMaterial());
+    this.sgBoil.material.normalMap.repeat.set(4, 2);
+    this.sgBoil.material.alphaMap.repeat.set(3, 1);
+    this.sgBoil.material.clippingPlanes = this.cut;
+    g.add(this.sgBoil);
 
     // the tube sheet the bundle stands on, and the plate that keeps the water
     // going in from the water coming out
@@ -811,55 +822,73 @@ export class Unit {
     this.legCw = new Leg('sea water', 2.2, 2, { rho: FLUID.rhoCold });
     this.cw = new Circuit('sea water', [this.legCw]);
     // The tube bank: cold sea water crossing the falling steam. These are the
-    // cold surface, so they are what the steam condenses on.
+    // cold surface, so they are what the steam condenses on. They run out
+    // past the shell on both sides, so the lines that serve them join
+    // something rather than stopping at a wall.
+    const TX = CX + CW / 2 + 1.7;
     this.condTubes = [];
     for (let row = 0; row < 4; row++) {
       const yy = CY - 0.6 + row * 0.85;
-      const u = fluidRod([V(CX - CW / 2 - 0.9, yy, t.z - 0.5),
-        V(CX + CW / 2 + 0.9, yy, t.z - 0.5)], 0.19, 0.4);
+      const u = fluidRod([V(CX - CW / 2 - 1.7, yy, t.z - 0.5), V(TX, yy, t.z - 0.5)],
+        0.19, 0.4);
       g.add(u.mesh);
       this.condTubes.push(u);
     }
-    // the drops the tubes make, falling into the pool below them
-    this.condDrip = new Riser(CW * 0.34, 110, m.mote);
+    // the drops the tubes make, falling out of the steam into the pool
+    this.condDrip = new Riser(CW * 0.36, 150, m.drop);
     g.add(this.condDrip.mesh);
     // the steam falling in from the turbine, above the tubes
     this.condSteam = new THREE.Mesh(
-      new THREE.BoxGeometry(CW - 0.5, 1.5, CD - 0.6), steamMaterial());
+      new THREE.BoxGeometry(CW - 0.5, 1.6, CD - 0.6), steamMaterial());
     this.condSteam.material.clippingPlanes = this.cut;
     this.condSteam.material.normalMap.repeat.set(3, 2);
     this.condSteam.material.alphaMap.repeat.set(2, 2);
     this.condSteam.position.set(CX, CY + CH / 2 - 1.1, t.z);
     g.add(this.condSteam);
-    // and the water it becomes, lying in the bottom
+    // and the water it becomes, lying in the bottom with a surface on it
+    const POOL_Y = CY - CH / 2 + 0.05;
     this.condWater = new THREE.Mesh(
-      new THREE.BoxGeometry(CW - 0.4, 1.1, CD - 0.5), ownWater(m.poolWater));
+      new THREE.BoxGeometry(CW - 0.3, 1, CD - 0.4), ownWater(m.poolWater));
     this.condWater.material.clippingPlanes = this.cut;
-    this.condWater.position.set(CX, CY - CH / 2 + 0.6, t.z);
+    this.condWater.scale.y = 1.5;
+    this.condWater.position.set(CX, POOL_Y + 0.75, t.z);
     g.add(this.condWater);
     this.cond = shell;
 
-    // The condensate pump: the same machine as every other pump, taking the
-    // water out of the bottom and sending it back to the boiler.
-    const cp = buildPump(this.stage, this.m, CX - CW / 2 - 1.9, 1.5, t.z, 0.42);
+    // The condensate pump, and the two pipes that make it a pump: one out of
+    // the bottom of the pool into it, one out of it into the feed line. A
+    // machine with nothing joined to it is an ornament.
+    const PX = CX - CW / 2 - 2.2;
+    const cp = buildPump(this.stage, this.m, PX, 1.6, t.z, 0.42);
     g.add(cp.group);
     this.condPump = cp;
+    this.legCond = new Leg('condensate', 0.45, 1, { rho: FLUID.rhoFeed });
+    const cSuct = pipe([
+      V(CX - CW / 2 + 0.6, POOL_Y + 0.35, t.z), V(PX, POOL_Y + 0.35, t.z),
+      V(PX, 1.6 - 0.5, t.z)
+    ], 0.55, m, { bend: 0.7 });
+    cSuct.leg = this.legCond;
+    cSuct.kindBreak = 'feedline';
+    g.add(cSuct.group);
+    this.pipes.push(cSuct);
+    g.add(collar(this.stage, CX - CW / 2, POOL_Y + 0.35, t.z, 'x', 0.4, 0.8));
 
     // ---- the sea --------------------------------------------------------
     // Two lines run back from the tube bank to the water: in from the sea,
     // out to the sea. There is no tank, because the sea is not a tank. What
     // they reach is drawn by the stage as one sheet running to the horizon.
+    // Both lines leave the tube bank on the same side and run back to the
+    // water as one parallel pair, one low one high. Taking them off opposite
+    // ends made a tangle of diagonals with no readable direction.
     const SEAZ = -30;
     const cwIn = pipe([
-      V(CX + CW / 2 + 1.6, CY - 0.6, t.z - 0.5),
-      V(CX + CW / 2 + 1.6, CY - 0.6, t.z + SEAZ),
-      V(CX + CW / 2 + 1.6, -0.8, t.z + SEAZ)
-    ], 1.1, m, { bend: 1.2 });
+      V(TX, CY - 0.6, t.z - 0.5), V(TX, CY - 0.6, t.z + SEAZ),
+      V(TX, -0.9, t.z + SEAZ)
+    ], 1.0, m, { bend: 1.2 });
     const cwOut = pipe([
-      V(CX - CW / 2 - 1.6, -0.8, t.z + SEAZ),
-      V(CX - CW / 2 - 1.6, CY + 1.95, t.z + SEAZ),
-      V(CX - CW / 2 - 1.6, CY + 1.95, t.z - 0.5)
-    ], 1.1, m, { bend: 1.2 });
+      V(TX, -0.9, t.z + SEAZ - 2.4), V(TX, CY + 1.95, t.z + SEAZ - 2.4),
+      V(TX, CY + 1.95, t.z - 0.5)
+    ], 1.0, m, { bend: 1.2 });
     cwIn.kindBreak = cwOut.kindBreak = 'cw';
     cwIn.leg = cwOut.leg = this.legCw;
     g.add(cwIn.group); g.add(cwOut.group);
@@ -906,8 +935,8 @@ export class Unit {
     // spout on the lid had to be given a box to arrive in, and the box hid the
     // thing it was feeding.
     this.steam = pipe([
-      V(s.x, SG_BASE + 18.6, s.z), V(s.x, 33, s.z),
-      V(X0 - 4.5, 33, t.z), V(X0 - 4.5, AX, t.z), V(X0 + 0.9, AX, t.z)
+      V(s.x, SG_BASE + 18.6, s.z), V(s.x, 32.4, s.z),
+      V(X0 - 3.0, 32.4, t.z), V(X0 - 3.0, AX, t.z), V(X0 + 0.9, AX, t.z)
     ], 1.2, m, { bend: 3.0, steam: true });
     this.steam.kindBreak = 'steamline';
     this.steam.leg = this.legSteam;
@@ -935,9 +964,13 @@ export class Unit {
     // across the picture above the steam line, and into the boiler's side.
     // The two runs of the second circuit read as a pair going opposite ways,
     // and they never touch: steam rides at 33, feedwater at 36.5.
+    // Back to the boiler alongside the steam line, two metres above it the
+    // whole way. Run on its own path it drew a second rectangle round the
+    // building and the two of them read as scaffolding; run as a pair they
+    // read as what they are, the same circuit going out and coming back.
     this.feed = pipe([
-      V(CX - 5.2, 1.5, t.z), V(X0 - 3.4, 1.5, t.z), V(X0 - 3.4, 36.5, t.z),
-      V(s.x - 5.2, 36.5, s.z), V(s.x - 5.2, SG_BASE + 13.6, s.z),
+      V(CX - CW / 2 - 3.0, 1.6, t.z), V(X0 - 5.4, 1.6, t.z), V(X0 - 5.4, 34.6, t.z),
+      V(s.x - 5.0, 34.6, s.z), V(s.x - 5.0, SG_BASE + 13.6, s.z),
       V(s.x - 3.4, SG_BASE + 13.6, s.z)
     ], 0.7, m, { bend: 2.4 });
     this.feed.kindBreak = 'feedline';
@@ -967,25 +1000,20 @@ export class Unit {
     mouth.material.side = THREE.DoubleSide;
     mouth.position.set(st.x, st.h + 0.4, st.z);
     g.add(mouth);
-    // The vent starts somewhere: an upturned bell hanging in the containment
-    // atmosphere, which is the thing being vented, then out through a collar
-    // in the wall and up the stack. A pipe beginning in mid air read as a
-    // decoration lying across the building.
-    const VY = 27;
+    // Straight out through the wall, well clear of the boiler and of the feed
+    // line running up beside it. The funnel that used to hang on the end of it
+    // sat on the boiler's shoulder and overlapped the feedwater pipe, so it
+    // read as a part of the boiler rather than a tap on the building's air.
+    const VY = 26;
     this.vent = pipe([
-      V(-12.6, VY - 1.2, 0), V(-12.6, VY, 0), V(st.x, VY, st.z), V(st.x, st.h, st.z)
+      V(-14.4, VY, 0), V(st.x, VY, st.z), V(st.x, st.h, st.z)
     ], 0.8, m, { bend: 1.6, steam: true });
     this.legVent = new Leg('vent', 0.8, 1, { rho: FLUID.rhoSteam, kind: 'steam' });
     this.vent.kindBreak = 'vent';
     this.vent.leg = this.legVent;
     this.ventCircuit = new Circuit('vent', [this.legVent]);
     g.add(this.vent.group);
-    const bell = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 0.42, 1.1, 18, 1, true),
-      this.stage.mat.painted);
-    bell.material.side = THREE.DoubleSide;
-    bell.position.set(-12.6, VY - 1.7, 0);
-    g.add(bell);
-    g.add(collar(this.stage, -R_IN - WALL / 2, VY, 0, 'x', 0.62, 1.6));
+    g.add(collar(this.stage, -R_IN - WALL / 2, VY, 0, 'x', 0.62, 1.8));
     this.pipes.push(this.vent);
   }
 
@@ -1494,10 +1522,11 @@ Object.assign(Unit.prototype, {
         sm.alphaMap.offset.y -= dt * (0.4 + rate * 1.6);
         sm.opacity = 0.06 + rate * 0.44;
         sm.emissiveIntensity = 0.05 + rate * 0.35;
-        this.condDrip.step(dt, this.condWater.position.y + 0.5,
-          this.cond.position.y + 1.4, rate, this.cond.position.x, L.turb.z, 0.22, -1);
+        this.condDrip.step(dt, this.condWater.position.y + 0.4,
+          3.0, rate, this.cond.position.x, L.turb.z - 0.5, 0.4, -1);
         tintWater(this.condWater.material, waterColor(0.09, cTmp), dt);
         this.condPump.impeller.rotation.y += dt * (0.6 + rate * 9);
+        this.legCond.v = 0.4 + rate * 2.6;
         this.condPump.water.material.normalMap.offset.x -= dt * (0.1 + rate * 1.2);
         tintWater(this.condPump.water.material, waterColor(0.07, cTmp), 0);
       }
@@ -1623,13 +1652,26 @@ Object.assign(Unit.prototype, {
       this.sgSteam.scale.y = h;
       this.sgSteam.position.set(L.sg.x, surf + h / 2, L.sg.z);
       const sm = this.sgSteam.material;
-      sm.alphaMap.offset.y -= dt * (carrying ? 0.5 : 0.12);
-      sm.normalMap.offset.y -= dt * (carrying ? 0.35 : 0.08);
+      // The steam space scrolls upward at the speed the steam line is running
+      // at, so what is in the dome and what is in the pipe are the same stuff
+      // moving at the same rate.
+      const sv = Math.max(0.15, Math.abs(this.legSteam.v) * 0.04);
+      sm.alphaMap.offset.y -= dt * sv;
+      sm.normalMap.offset.y -= dt * sv * 0.7;
       sm.opacity = carrying ? 0.5 : 0.2;
       sm.emissiveIntensity = carrying ? 0.35 : 0.12;
+      // and the boiling band rides on the surface, thicker the harder it boils
+      const bh = 0.5 + (carrying ? 1.5 : 0.3);
+      this.sgBoil.scale.y = bh;
+      this.sgBoil.position.set(L.sg.x, surf + bh * 0.35, L.sg.z);
+      const bm = this.sgBoil.material;
+      bm.alphaMap.offset.y -= dt * (carrying ? 1.6 : 0.4);
+      bm.normalMap.offset.x += dt * 0.25;
+      bm.opacity = carrying ? 0.62 : 0.22;
+      bm.emissiveIntensity = carrying ? 0.5 : 0.15;
     }
     this.surfSg.step(dt, { boil: carrying ? 0.5 : 0.05 });
-    this.riseSg.step(dt, SG_TS + 0.2, Math.max(0.4, sgH), carrying ? 0.85 : 0.08, L.sg.x, L.sg.z, 0.42);
+    this.riseSg.step(dt, SG_TS + 0.2, Math.max(0.4, sgH), carrying ? 1 : 0.1, L.sg.x, L.sg.z, 0.6);
     ripple(this.sgTop, this.surfSg, 2.62);
     // The shell side of the boiler is at its own boiling point, which is what
     // the feed line arriving cold and the steam line leaving hot are about.

@@ -93,6 +93,13 @@ export function build() {
     emissive: new THREE.Color(0x2b6d96), emissiveIntensity: 0.5,
     depthWrite: false
   });
+  // Condensate drops: bright, pale and a little glassy, so they read as water
+  // coming out of steam rather than as more bubbles.
+  m.drop = new THREE.MeshStandardMaterial({
+    color: 0xe8f6ff, roughness: 0.05, metalness: 0,
+    transparent: true, opacity: 0.85,
+    emissive: new THREE.Color(0x5fa8cf), emissiveIntensity: 0.55
+  });
   m.bulb = new THREE.MeshStandardMaterial({
     color: 0x2a2a26, roughness: 0.25, metalness: 0,
     emissive: new THREE.Color(0xffcf87), emissiveIntensity: 0

@@ -59,6 +59,10 @@ export class Sound {
     this.layers.flow = this.rush(560, 0.9);
     this.layers.boil = this.rush(1500, 2.4);
     this.layers.grid = this.hum(120, 'sine', 260);
+    // The room tone: two quiet sines a fifth apart, well above the chest. A
+    // working station is not a threat, and the ambience should not imply one.
+    this.layers.airA = this.hum(196, 'sine', 900);
+    this.layers.airB = this.hum(294, 'sine', 900);
     this.ready = true;
     if (ctx.state === 'suspended') ctx.resume();
     // and it fades up rather than arriving all at once
@@ -208,11 +212,16 @@ export class Sound {
       hottest = Math.max(hottest, p.Tclad);
       if (/BREACH|DAMAGE|MELT|FAILURE|DESTROYED|UNCOVERED|BLACKOUT/.test(p.state)) bad = true;
     }
-    const on = sim.view === 'cut' || sim.view === 'site';
-    this.layers.pump.gain.setTargetAtTime(on ? pump * 0.030 : 0, t, ramp);
-    this.layers.flow.gain.setTargetAtTime(on ? flow * 0.05 : 0, t, ramp);
-    this.layers.boil.gain.setTargetAtTime(on ? boil * 0.055 : 0, t, ramp);
-    this.layers.grid.gain.setTargetAtTime(on && grid ? grid * 0.011 : 0, t, ramp);
+    // Both views are the same station, so both are audible. The old test named
+    // a view that no longer exists, which left the inside view silent and put
+    // the whole ambience on the site view alone.
+    const on = true;
+    this.layers.pump.gain.setTargetAtTime(on ? pump * 0.016 : 0, t, ramp);
+    this.layers.flow.gain.setTargetAtTime(on ? (0.25 + flow * 0.75) * 0.055 : 0, t, ramp);
+    this.layers.boil.gain.setTargetAtTime(on ? boil * 0.05 : 0, t, ramp);
+    this.layers.grid.gain.setTargetAtTime(on && grid ? grid * 0.008 : 0, t, ramp);
+    this.layers.airA.gain.setTargetAtTime(on ? 0.012 : 0, t, 0.8);
+    this.layers.airB.gain.setTargetAtTime(on ? 0.008 : 0, t, 0.8);
     // a hotter core hisses higher
     this.layers.boil.freq.setTargetAtTime(900 + clamp(hottest - 560, 0, 1600) * 0.9, t, 0.3);
     this.alarm(bad);

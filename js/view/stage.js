@@ -94,8 +94,8 @@ export class Stage {
     this.controls.dampingFactor = 0.06;
     this.controls.minPolarAngle = 0.18;
     this.controls.maxPolarAngle = Math.PI * 0.47;
-    this.controls.minDistance = 40;
-    this.controls.maxDistance = 700;
+    this.controls.minDistance = 6;
+    this.controls.maxDistance = 420;
     this.controls.target.set(0, 20, 0);
     // Two fingers pans and zooms, one finger orbits: the gesture set every
     // map and model viewer uses, so it needs no explaining.
@@ -297,22 +297,34 @@ export class Stage {
   // WASD, applied in the camera's own frame: A and D slide the view sideways,
   // W and S move it in and out along the line of sight. The target moves with
   // the camera, so the model does not swing round as you go.
+  // A and D slide the view sideways, W and S lift and lower it. Both move the
+  // camera and its target together, so the model does not swing round as you
+  // go. Zooming is left to the wheel, which already means forward and back.
   nudge(keys, dt) {
-    const f = (keys.has('w') ? 1 : 0) - (keys.has('s') ? 1 : 0);
+    const up = (keys.has('w') ? 1 : 0) - (keys.has('s') ? 1 : 0);
     const r = (keys.has('d') ? 1 : 0) - (keys.has('a') ? 1 : 0);
-    if (!f && !r) return;
+    if (!up && !r) return;
     this.want = null;
     const dist = this.camera.position.distanceTo(this.controls.target);
-    const step = Math.max(6, dist * 0.55) * dt;
+    const step = Math.max(6, dist * 0.5) * dt;
     const fwd = new THREE.Vector3().subVectors(this.controls.target, this.camera.position);
     fwd.y = 0; fwd.normalize();
+    // cross(forward, up) is screen-right, so D is +right. It was negated.
     const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
     const move = new THREE.Vector3()
-      .addScaledVector(fwd, f * step).addScaledVector(right, -r * step);
-    // dollying in must not walk through the target
-    if (f > 0 && dist - step < this.controls.minDistance) move.set(0, 0, 0);
+      .addScaledVector(right, r * step).addScaledVector(new THREE.Vector3(0, 1, 0), up * step);
     this.camera.position.add(move);
-    if (r) this.controls.target.add(new THREE.Vector3().addScaledVector(right, -r * step));
+    this.controls.target.add(move);
+    this.clampView();
+  }
+
+  // The camera stays above the ground and under the sky, and what it is
+  // looking at stays somewhere on the plant.
+  clampView() {
+    const GROUND = 1.5, CEIL = 150;
+    if (this.camera.position.y < GROUND) this.camera.position.y = GROUND;
+    if (this.camera.position.y > CEIL) this.camera.position.y = CEIL;
+    this.controls.target.y = Math.max(-2, Math.min(70, this.controls.target.y));
   }
 
   update(dt) {
@@ -324,6 +336,7 @@ export class Stage {
       if (this.camera.position.distanceTo(off) < 0.35) this.want = null;
     }
     this.controls.update();
+    this.clampView();
   }
 
   render() {

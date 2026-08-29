@@ -16,7 +16,7 @@ import { initPhysics } from './machines.js';
 import { state } from './view/state.js';
 import { clamp } from './util.js';
 
-const SPAN = 27;
+const SPAN = 29;
 const siteCanvas = document.getElementById('site');
 const host = document.getElementById('scene');
 const labelHost = document.getElementById('labels');
@@ -110,12 +110,12 @@ function setFocus(f) {
     return b;
   };
   if (f === 'both') {
-    const b = box(units[0], -24, 26, -3, 38, 10);
-    b.union(box(units[1], -24, 26, -3, 38, 10));
+    const b = box(units[0], -23, 30, -3, 37, 10);
+    b.union(box(units[1], -23, 30, -3, 37, 10));
     stage.frameBox(b,
       { azimuth: CUT_AZ, elev: narrow ? 0.5 : 0.22, snap: firstFocus, fill: 0.92, ...u });
   } else {
-    stage.frameBox(box(units[f === 'active' ? 0 : 1], -24, 26, -3, 38, 10),
+    stage.frameBox(box(units[f === 'active' ? 0 : 1], -23, 30, -3, 37, 10),
       { azimuth: CUT_AZ, elev: narrow ? 0.42 : 0.18, snap: firstFocus, fill: 0.88, ...u });
   }
   firstFocus = false;
