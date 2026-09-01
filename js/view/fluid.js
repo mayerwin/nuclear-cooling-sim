@@ -141,7 +141,7 @@ export function liquidMaterial(dia) {
     opacity: 1,
     side: THREE.DoubleSide,
     depthWrite: true
-  }), 0, 0.42, 1);
+  }), 0, 0.42, 1, 1.9);
 }
 
 // REFRACTION, AND WHY THE DEFAULT IS OFF.
@@ -171,13 +171,64 @@ export function liquidMaterial(dia) {
 // liquid carries two colours and mixes between them along its own length.
 // wetTr is what this material's transmission would be if the settings panel
 // asks for real refraction. Nothing is built with it on.
-export function gradientise(mat, axis = 0, rim = 0, wetTr = 0) {
+// wetTr is what this material's transmission would be if the settings panel
+// asks for real refraction. Nothing is built with it on.
+//
+// THE FLUID SHADER. Three things on top of a standard lit surface, which
+// between them are what makes a body of liquid read as one:
+//
+//  1. TWO-OCTAVE FLOW. A single scrolling normal map is a sliding wallpaper:
+//     the eye locks onto the tile and the water "swims". Sampling the same map
+//     twice - once at the leg's own speed, once at nearly twice the scale and
+//     a slow independent drift - breaks the repeat, and the interference
+//     between the two is what surface detail on moving water actually looks
+//     like. This is the flow-map trick every water shader in a game uses.
+//
+//  2. ABSORPTION BY PATH LENGTH. Beer-Lambert: light crossing water loses the
+//     colours the water absorbs, in proportion to how far it travelled. Look
+//     at the middle of a pipe and you are looking through the whole bore; look
+//     at its edge and you are looking through almost nothing. So the tint is
+//     applied as exp(-absorption * path), with the path taken from the angle
+//     between the surface and the eye. That is what gives a body of liquid its
+//     depth: saturated through the middle, pale at the rim, all from one
+//     colour.
+//
+//  3. A FRESNEL EDGE. Grazing angles reflect; that bright rim is what says
+//     "there is a surface here" and is most of what the old refraction pass
+//     was being paid for.
+export const FLUID_TIME = { value: 0 };
+
+// One ripple tile of sea, in metres. The open water, the forebay and the
+// channel all set their repeat from their own size divided by this, so the
+// three of them are visibly one surface rather than three patches of
+// different-looking material meeting at a line.
+export const SEA_TILE = 5.4;
+
+// The flow half of the fluid shader on its own, for surfaces that are water
+// but are not part of a circuit: the sea, and the inlet that reaches into it.
+// Same reason as (1) above - one scrolling tile is wallpaper.
+export function twoOctaveFlow(mat) {
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uTime = FLUID_TIME;
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform float uTime;')
+      .replace('vec3 mapN = texture2D( normalMap, vNormalMapUv ).xyz * 2.0 - 1.0;',
+        'vec3 mapN = mix( texture2D( normalMap, vNormalMapUv ).xyz,\n'
+        + '\t\ttexture2D( normalMap, vNormalMapUv * 2.31'
+        + ' + vec2( uTime * 0.011, uTime * -0.007 ) ).xyz, 0.5 ) * 2.0 - 1.0;');
+  };
+  mat.customProgramCacheKey = () => 'two-octave-flow';
+  return mat;
+}
+
+export function gradientise(mat, axis = 0, rim = 0, wetTr = 0, dens = 1.6) {
   mat.defines = Object.assign({}, mat.defines, { USE_UV: '' });
   mat.userData.g = {
     c0: { value: new THREE.Color(1, 1, 1) },
     c1: { value: new THREE.Color(1, 1, 1) },
     axis: { value: axis },
-    rim: { value: rim }
+    rim: { value: rim },
+    dens: { value: dens }
   };
   if (wetTr) mat.userData.wetTr = wetTr;
   mat.onBeforeCompile = (sh) => {
@@ -185,33 +236,33 @@ export function gradientise(mat, axis = 0, rim = 0, wetTr = 0) {
     sh.uniforms.uC1 = mat.userData.g.c1;
     sh.uniforms.uAxis = mat.userData.g.axis;
     sh.uniforms.uRim = mat.userData.g.rim;
-    // Applied to the FINAL colour, not to the diffuse term.
-    //
-    // In a transmissive material the diffuse term is almost entirely replaced
-    // by the refracted light, and the refracted light is tinted by
-    // attenuationColor, which is one uniform for the whole body. Multiplying
-    // the diffuse therefore did close to nothing: the reactor's water was
-    // whatever single colour its attenuation was set to, top to bottom, so the
-    // gradient that was supposed to show it heating as it rises past the fuel
-    // was invisible and the water read cold behind the rods. Multiplying at
-    // the end tints everything the body actually emits, transmitted light
-    // included, and one ramp then works on glass and on paint alike.
+    sh.uniforms.uDens = mat.userData.g.dens;
+    sh.uniforms.uTime = FLUID_TIME;
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>',
         '#include <common>\nuniform vec3 uC0;\nuniform vec3 uC1;\n'
-        + 'uniform float uAxis;\nuniform float uRim;')
-      // ON THE DIFFUSE, before the light is applied. It used to be multiplied
-      // into gl_FragColor, which sits AFTER tone mapping: the lit white body
-      // was compressed to near one and the tint then had nothing left to bite
-      // on, so every pipe came out pale. Tinting the diffuse gives a coloured
-      // body with white highlights, which is what water is.
-      .replace('#include <color_fragment>',
-        '#include <color_fragment>\n'
-        + '\tdiffuseColor.rgb *= mix( uC0, uC1,'
-        + ' clamp( mix( vUv.x, vUv.y, uAxis ), 0.0, 1.0 ) );')
-      // and the Fresnel edge on top, at grazing angles only. That bright rim
-      // is what says "you are looking at a body of clear liquid", and it is
-      // what the transmission pass used to be paying for.
+        + 'uniform float uAxis;\nuniform float uRim;\n'
+        + 'uniform float uDens;\nuniform float uTime;')
+      // (1) two octaves of flow
+      .replace('vec3 mapN = texture2D( normalMap, vNormalMapUv ).xyz * 2.0 - 1.0;',
+        'vec3 mapN = mix( texture2D( normalMap, vNormalMapUv ).xyz,\n'
+        + '\t\ttexture2D( normalMap, vNormalMapUv * 2.13'
+        + ' + vec2( uTime * 0.023, uTime * -0.014 ) ).xyz, 0.45 ) * 2.0 - 1.0;')
+      // (2) absorption, after the normal is known and before the light is
+      // applied, so what the surface reflects stays white and what comes back
+      // out of the body is the water's colour
+      .replace('#include <emissivemap_fragment>',
+        '#include <emissivemap_fragment>\n'
+        + '\tvec3 fTint = mix( uC0, uC1,'
+        + ' clamp( mix( vUv.x, vUv.y, uAxis ), 0.0, 1.0 ) );\n'
+        + '\tfloat fNdv = clamp( abs( dot( normalize( normal ),'
+        + ' normalize( vViewPosition ) ) ), 0.0, 1.0 );\n'
+        + '\tdiffuseColor.rgb *= exp( -( vec3( 1.0 ) - fTint )'
+        // The floor matters as much as the slope. A tube is mostly silhouette,
+        // so with almost no absorption at grazing angles the whole pipe came
+        // out pale and only its centreline carried colour.
+        + ' * ( uDens * ( 0.8 + 1.5 * fNdv ) ) );')
+      // (3) the Fresnel edge
       .replace('#include <colorspace_fragment>',
         '\tfloat fres = pow( 1.0 - clamp( abs( dot( normalize( normal ),'
         + ' normalize( vViewPosition ) ) ), 0.0, 1.0 ), 4.0 );\n'
@@ -304,7 +355,7 @@ export function surfaceMaterial(depth = 4) {
     envMapIntensity: 0.6,
     emissive: new THREE.Color(0x08243d), emissiveIntensity: 0.12,
     transparent: false, side: THREE.DoubleSide
-  }), 1, 0.22, 0.9);
+  }), 1, 0.22, 0.9, 1.5);
 }
 
 // --- bubbles ----------------------------------------------------------------

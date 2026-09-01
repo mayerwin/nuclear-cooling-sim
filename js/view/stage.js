@@ -13,8 +13,9 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { build as buildMaterials } from './materials.js?v=e81ec7791c';
-import { surfaceMaterial, setGradient, rippleNormal, LOWFX } from './fluid.js?v=e81ec7791c';
+import { build as buildMaterials } from './materials.js?v=8e3dc0c488';
+import { surfaceMaterial, setGradient, rippleNormal, LOWFX, FLUID_TIME,
+  twoOctaveFlow, SEA_TILE } from './fluid.js?v=8e3dc0c488';
 
 // A vertical sky gradient, baked once into an equirectangular strip.
 function skyTexture() {
@@ -197,7 +198,11 @@ export class Stage {
       normalScale: new THREE.Vector2(0.55, 0.55)
     });
     mat.normalMap.needsUpdate = true;
-    mat.normalMap.repeat.set(120, 130);
+    // One tile every SEA_TILE metres, the same figure the forebay and the
+    // channel use, and two octaves of it so a fourteen-hundred-metre sheet
+    // does not read as one pattern stamped over and over.
+    mat.normalMap.repeat.set(1400 / SEA_TILE, 1500 / SEA_TILE);
+    twoOctaveFlow(mat);
     // Deep enough to reach the horizon. A three hundred metre strip left a
     // band of grass beyond it, which is the one thing the sea must not have.
     const sea = new THREE.Mesh(
@@ -398,6 +403,10 @@ export class Stage {
   }
 
   update(dt) {
+    // One clock for every fluid in the scene. The second octave of the flow
+    // map drifts on it, which is what stops a scrolling texture reading as
+    // sliding wallpaper.
+    FLUID_TIME.value += dt;
     if (this.want) {
       const k = 1 - Math.pow(0.006, dt);
       this.controls.target.lerp(this.want.target, k);

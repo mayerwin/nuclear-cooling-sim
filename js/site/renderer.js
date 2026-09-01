@@ -6,9 +6,9 @@
 // can never occlude are painted before the pass; anything with a footprint
 // goes into it, keyed on x + y (+ half its footprint for a box).
 // ---------------------------------------------------------------------------
-import { W, H, T } from './world.js?v=e81ec7791c';
-import { project, unproject, TW, TH, TZ, poly, polyLine, shade, rgba } from './iso.js?v=e81ec7791c';
-import { drawProp, propKey } from './props.js?v=e81ec7791c';
+import { W, H, T } from './world.js?v=8e3dc0c488';
+import { project, unproject, TW, TH, TZ, poly, polyLine, shade, rgba } from './iso.js?v=8e3dc0c488';
+import { drawProp, propKey } from './props.js?v=8e3dc0c488';
 
 export class Renderer {
   constructor(canvas, world) {

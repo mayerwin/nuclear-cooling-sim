@@ -2,7 +2,7 @@
 // materials.js - one place where every surface in the plant is defined.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { surfaceMaterial, bubbleMaterial, fleckMaterial, LOWFX } from './fluid.js?v=e81ec7791c';
+import { surfaceMaterial, bubbleMaterial, fleckMaterial, LOWFX } from './fluid.js?v=8e3dc0c488';
 
 export const CUT = [
   new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0),
@@ -150,7 +150,20 @@ export function tempColor(K) {
 // bright cream is, in linear, already most of the way there: the cold leg came
 // out a pale grey-blue at a tenth of the ramp. These are the numbers a person
 // picking colours would expect, so they are mixed the way that person means.
-const COLD = [0x2b, 0x8f, 0xd8], MID = [0xff, 0xd2, 0xa0], HOT = [0xff, 0x6a, 0x33];
+// FIVE STOPS, ALL SATURATED. Three stops through a pale cream midpoint meant
+// anything past a fifth of the ramp was already half white: the boiler's water,
+// the reactor's water and the warm side of the condenser all came out as pale
+// cream bodies that read as milk rather than as water. Blue to orange has to
+// cross low saturation somewhere, so the crossing is made short and it is made
+// through a warm grey-green rather than through white.
+const STOPS = [
+  [0.00, [0x0d, 0x5c, 0x9c]],
+  [0.28, [0x2f, 0x95, 0xcf]],
+  [0.46, [0x74, 0xb0, 0xc0]],
+  [0.62, [0xc9, 0x92, 0x52]],
+  [0.82, [0xe0, 0x6a, 0x28]],
+  [1.00, [0xd8, 0x38, 0x14]]
+];
 export function mixSRGB(out, a, b, f) {
   return out.setRGB(
     (a[0] + (b[0] - a[0]) * f) / 255,
@@ -166,7 +179,13 @@ export function paleSRGB(out, f) {
 }
 export function waterColor(u0, out = new THREE.Color()) {
   const u = Math.max(0, Math.min(1, u0));
-  return u < 0.5 ? mixSRGB(out, COLD, MID, u * 2) : mixSRGB(out, MID, HOT, (u - 0.5) * 2);
+  for (let i = 1; i < STOPS.length; i++) {
+    if (u <= STOPS[i][0] || i === STOPS.length - 1) {
+      const a = STOPS[i - 1], b = STOPS[i];
+      return mixSRGB(out, a[1], b[1], (u - a[0]) / (b[0] - a[0]));
+    }
+  }
+  return mixSRGB(out, STOPS[0][1], STOPS[0][1], 0);
 }
 export const heatOf = (K) => (K - 660) / 400;
 

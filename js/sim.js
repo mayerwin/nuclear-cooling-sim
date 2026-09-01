@@ -3,14 +3,14 @@
 //
 // No rendering lives here. The view reads this; it never writes to it.
 // ---------------------------------------------------------------------------
-import { Plant, MODE } from './plant.js?v=e81ec7791c';
-import { byId } from './scenarios.js?v=e81ec7791c';
-import { Sound } from './audio.js?v=e81ec7791c';
-import { World, W, H } from './site/world.js?v=e81ec7791c';
-import { PlantView } from './site/plantview.js?v=e81ec7791c';
-import { FX } from './site/fx.js?v=e81ec7791c';
-import { Camera } from './site/iso.js?v=e81ec7791c';
-import { clamp, smoothstep } from './util.js?v=e81ec7791c';
+import { Plant, MODE } from './plant.js?v=8e3dc0c488';
+import { byId } from './scenarios.js?v=8e3dc0c488';
+import { Sound } from './audio.js?v=8e3dc0c488';
+import { World, W, H } from './site/world.js?v=8e3dc0c488';
+import { PlantView } from './site/plantview.js?v=8e3dc0c488';
+import { FX } from './site/fx.js?v=8e3dc0c488';
+import { Camera } from './site/iso.js?v=8e3dc0c488';
+import { clamp, smoothstep } from './util.js?v=8e3dc0c488';
 
 export const SPEEDS = [0, 1, 50, 100, 1000, 2000, -1];
 export const SPEED_LABELS = ['Paused', '1x', '50x', '100x', '1000x', '2000x', 'Auto'];
