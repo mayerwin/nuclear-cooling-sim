@@ -134,14 +134,14 @@ export function liquidMaterial(dia) {
     // under the key light, and the bloom pass then eats the machine behind it.
     clearcoat: LOWFX ? 0 : 0.22,
     clearcoatRoughness: 0.42,
-    envMapIntensity: 0.55,
+    envMapIntensity: 0.42,
     emissive: new THREE.Color(0x081d33),
     emissiveIntensity: 0.3,
     transparent: false,
     opacity: 1,
     side: THREE.DoubleSide,
     depthWrite: true
-  }), 0, 0.6, 1);
+  }), 0, 0.42, 1);
 }
 
 // REFRACTION, AND WHY THE DEFAULT IS OFF.

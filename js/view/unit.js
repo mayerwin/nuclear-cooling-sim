@@ -7,12 +7,12 @@
 // in at the water.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=a9cbd08e84';
+import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=2974f5abd4';
 import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles,
-  frameOf, setGradient, gradientise, LOWFX } from './fluid.js?v=a9cbd08e84';
-import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=a9cbd08e84';
-import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=a9cbd08e84';
-import { Machines } from '../machines.js?v=a9cbd08e84';
+  frameOf, setGradient, gradientise, LOWFX } from './fluid.js?v=2974f5abd4';
+import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=2974f5abd4';
+import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=2974f5abd4';
+import { Machines } from '../machines.js?v=2974f5abd4';
 
 const R_IN = 15.4, WALL = 1.0, SHELL_H = 31, DOME_R = R_IN + WALL;
 
@@ -134,7 +134,7 @@ function paintFluid(mat, c0, c1 = c0) {
   // nothing of its own to show and went to a dark panel, while the identical
   // recipe on a pipe against the sky came out three times brighter. Setting it
   // grey lets the one multiply do the tinting.
-  mat.emissive.setScalar(0.05);
+  mat.emissive.setScalar(0.03);
 }
 
 function tintWater(mat, colour, dt) {
@@ -1676,8 +1676,8 @@ export class Unit {
 // ---------------------------------------------------------------------------
 // per frame: solve the flows, step the machines, and let the geometry follow
 // ---------------------------------------------------------------------------
-import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=a9cbd08e84';
-import { Plume, PuffCloud } from './plume.js?v=a9cbd08e84';
+import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=2974f5abd4';
+import { Plume, PuffCloud } from './plume.js?v=2974f5abd4';
 
 Object.assign(Unit.prototype, {
 
@@ -1874,7 +1874,7 @@ Object.assign(Unit.prototype, {
         // nothing at all on screen, so it is drawn at a third of the ramp:
         // clearly warmer than the intake beside it, clearly cooler than the
         // water coming off the fuel.
-        const u1 = q.warmOut ? u + 0.54 : u, u2 = q.warmOut ? u + 0.62 : u;
+        const u1 = q.warmOut ? u + 0.62 : u, u2 = q.warmOut ? u + 0.68 : u;
         paintFluid(mat, fluidColour(u1, cTmp), fluidColour(u2, _c2));
         // Everything else about this material was set when it was built.
         // Rewriting it every frame cost forty materials a dozen property
@@ -1974,8 +1974,8 @@ Object.assign(Unit.prototype, {
         // starts where that one finished. The change of temperature happens
         // where the heat actually crosses, which is here.
         paintFluid(c2.rod.mat,
-          fluidColour(c2.dir > 0 ? 0.03 : 0.30, cwC),
-          fluidColour(c2.dir > 0 ? 0.30 : 0.56, _c2));
+          fluidColour(c2.dir > 0 ? 0.03 : 0.34, cwC),
+          fluidColour(c2.dir > 0 ? 0.34 : 0.66, _c2));
         // the lower pass runs left, the upper pass runs back to the right
         c2.rod.mat.normalMap.offset.x -=
           drawV(this.legCw.v) * dt / 2.4 * c2.dir;
@@ -1985,7 +1985,7 @@ Object.assign(Unit.prototype, {
       // are painted from the same call as the tubes that leave them.
       if (this.boxWater) {
         paintFluid(this.boxWater[0].material, fluidColour(0.03, cwC));
-        paintFluid(this.boxWater[1].material, fluidColour(0.30, _c2));
+        paintFluid(this.boxWater[1].material, fluidColour(0.34, _c2));
       }
       // and the feedwater falling to the surface inside the boiler's dome
       // the ring, the pipe into it and the two pours off it are one run of
