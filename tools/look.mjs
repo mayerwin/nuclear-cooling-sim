@@ -23,6 +23,9 @@ await page.goto('http://127.0.0.1:8099/index.html', { waitUntil: 'load' });
 await page.waitForTimeout(5000);
 await page.evaluate(() => document.querySelector('#startBtn')?.click());
 await page.evaluate(() => document.querySelector('[data-view=plant]').click());
+// The help card covers the middle of the frame, which is where the thing
+// being looked at usually is.
+await page.evaluate(() => document.querySelector('#helpOk')?.click());
 await page.waitForTimeout(1500);
 // Software rendering runs at about a frame a second, so the clock is driven
 // directly rather than by how many frames the box managed to draw: `secs` is
@@ -53,6 +56,7 @@ const CAMS = {
   turbine:{ u: 0, t: [21, 7, 0], d: 26 },
   cond:   { u: 0, t: [20.5, 3.0, 0], d: 40, e: 0.16 },
   sump:   { u: 0, t: [19.6, 2.2, 0], d: 17, e: 0.42 },
+  pool2:  { u: 0, t: [19.6, 2.0, 0], d: 15, e: 0.85 },
   bay:    { u: 0, t: [25, 0, -10], d: 30, e: 0.3 },
   power:  { u: 0, t: [25, 11, 0], d: 18 },
   unit:   { u: 0, t: [2, 15, 0], d: 84 },
@@ -89,6 +93,46 @@ if (process.env.NOBLOOM) await page.evaluate(() => { window.__stage.bloom.enable
 // Software rendering: a close, busy frame can take many seconds, and a
 // screenshot taken before the first one lands comes back empty.
 await page.waitForTimeout(Number(process.env.SETTLE || 9000));
+// PICK=x,y (fractions of the viewport) reports what is actually under that
+// point, so a shape in a screenshot can be named instead of guessed at.
+if (process.env.PICK) {
+  const [px, py] = process.env.PICK.split(',').map(Number);
+  const hits = await page.evaluate(([px, py]) => {
+    const s = window.__stage, T = window.__THREE;
+    const rc = new T.Raycaster();
+    // Against the canvas, not the page: the scene sits under a toolbar and
+    // over a ticker, so page fractions and clip coordinates are not the same.
+    const r = s.renderer.domElement.getBoundingClientRect();
+    const cx = (px * window.innerWidth - r.left) / r.width;
+    const cy = (py * window.innerHeight - r.top) / r.height;
+    rc.setFromCamera(new T.Vector2(cx * 2 - 1, -(cy * 2 - 1)), s.camera);
+    // Only what is actually drawn there: a hit behind a clipping plane, or on a
+    // material too faint to see, is not what is in the picture.
+    const kept = rc.intersectObjects(s.scene.children, true).filter((h) => {
+      const m = h.object.material;
+      if (!m || m.opacity < 0.25 || m.visible === false) return false;
+      // Three keeps the side of a clipping plane with a NEGATIVE signed
+      // distance, and discards the positive side.
+      const pls = m.clippingPlanes || [];
+      if (pls.length) {
+        const cut = pls.map((pl) => pl.distanceToPoint(h.point) > 0);
+        if (m.clipIntersection ? cut.every(Boolean) : cut.some(Boolean)) return false;
+      }
+      return true;
+    });
+    return kept.slice(0, 6).map((h) => {
+      const o = h.object, g = o.geometry;
+      g.computeBoundingBox();
+      const sz = g.boundingBox.getSize(new T.Vector3());
+      return [g.type, o.name || '(unnamed)', +h.distance.toFixed(1),
+        [+o.position.x.toFixed(1), +o.position.y.toFixed(1), +o.position.z.toFixed(1)],
+        [+sz.x.toFixed(1), +sz.y.toFixed(1), +sz.z.toFixed(1)],
+        o.material.type, o.material.color && '#' + o.material.color.getHexString(),
+        'side' + o.material.side];
+    });
+  }, [px, py]);
+  for (const h of hits) console.log(JSON.stringify(h));
+}
 await page.screenshot({ path: `${out}/${shot}${scen ? '-' + scen : ''}.png`, timeout: 180000 });
 if (errs.length) console.log(errs.slice(0, 6).join('\n'));
 console.log(`${out}/${shot}${scen ? '-' + scen : ''}.png`);

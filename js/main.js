@@ -5,16 +5,16 @@
 // inside of the buildings in 3-D. Only one is on screen at a time.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { Sim } from './sim.js?v=5f4ad1de4a';
-import { Renderer } from './site/renderer.js?v=5f4ad1de4a';
-import { unproject } from './site/iso.js?v=5f4ad1de4a';
-import { Stage } from './view/stage.js?v=5f4ad1de4a';
-import { Unit, CUT_AZ } from './view/unit.js?v=5f4ad1de4a';
-import { Labels } from './view/labels.js?v=5f4ad1de4a';
-import { UI } from './ui.js?v=5f4ad1de4a';
-import { initPhysics } from './machines.js?v=5f4ad1de4a';
-import { state } from './view/state.js?v=5f4ad1de4a';
-import { clamp } from './util.js?v=5f4ad1de4a';
+import { Sim } from './sim.js?v=267d35cf82';
+import { Renderer } from './site/renderer.js?v=267d35cf82';
+import { unproject } from './site/iso.js?v=267d35cf82';
+import { Stage } from './view/stage.js?v=267d35cf82';
+import { Unit, CUT_AZ } from './view/unit.js?v=267d35cf82';
+import { Labels } from './view/labels.js?v=267d35cf82';
+import { UI } from './ui.js?v=267d35cf82';
+import { initPhysics } from './machines.js?v=267d35cf82';
+import { state } from './view/state.js?v=267d35cf82';
+import { clamp } from './util.js?v=267d35cf82';
 
 const SPAN = 29;
 const siteCanvas = document.getElementById('site');
@@ -354,3 +354,5 @@ window.__units = units;
 window.__stage = stage;
 window.__CUT_AZ = CUT_AZ;
 window.__labels = labels;
+// Handy for the inspection tools: pick a pixel and name what is under it.
+window.__THREE = THREE;

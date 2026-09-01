@@ -1,8 +1,8 @@
 // ---------------------------------------------------------------------------
 // world.js — terrain generation, baking, contamination + flood fields
 // ---------------------------------------------------------------------------
-import { TW, TH, TZ, project, P } from './iso.js?v=5f4ad1de4a';
-import { mulberry32, fbm, clamp, lerp, smoothstep, rgb, mixRGB, pick, rnd, TAU } from '../util.js?v=5f4ad1de4a';
+import { TW, TH, TZ, project, P } from './iso.js?v=267d35cf82';
+import { mulberry32, fbm, clamp, lerp, smoothstep, rgb, mixRGB, pick, rnd, TAU } from '../util.js?v=267d35cf82';
 
 export const W = 48, H = 48;
 export const T = {

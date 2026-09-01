@@ -151,12 +151,24 @@ export function gradientise(mat, axis = 0) {
     sh.uniforms.uC0 = mat.userData.g.c0;
     sh.uniforms.uC1 = mat.userData.g.c1;
     sh.uniforms.uAxis = mat.userData.g.axis;
+    // Applied to the FINAL colour, not to the diffuse term.
+    //
+    // In a transmissive material the diffuse term is almost entirely replaced
+    // by the refracted light, and the refracted light is tinted by
+    // attenuationColor, which is one uniform for the whole body. Multiplying
+    // the diffuse therefore did close to nothing: the reactor's water was
+    // whatever single colour its attenuation was set to, top to bottom, so the
+    // gradient that was supposed to show it heating as it rises past the fuel
+    // was invisible and the water read cold behind the rods. Multiplying at
+    // the end tints everything the body actually emits, transmitted light
+    // included, and one ramp then works on glass and on paint alike.
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>',
         '#include <common>\nuniform vec3 uC0;\nuniform vec3 uC1;\nuniform float uAxis;')
-      .replace('#include <color_fragment>',
-        '#include <color_fragment>\n\tdiffuseColor.rgb *= mix( uC0, uC1,'
-        + ' clamp( mix( vUv.x, vUv.y, uAxis ), 0.0, 1.0 ) );');
+      .replace('#include <colorspace_fragment>',
+        '\tgl_FragColor.rgb *= mix( uC0, uC1,'
+        + ' clamp( mix( vUv.x, vUv.y, uAxis ), 0.0, 1.0 ) );\n'
+        + '#include <colorspace_fragment>');
   };
   mat.customProgramCacheKey = () => 'fluid-gradient';
   return mat;
@@ -280,7 +292,11 @@ export class Bubbles {
   advance(dt, v, len, scale = 1, clipY = Infinity) {
     const f = this.frame, n = f.pts.length;
     const du = (v * dt) / Math.max(0.001, len);
-    const stretch = 1 + Math.min(3.2, Math.abs(v) * 0.09);
+    // Streaks, not beads. A round white ball travelling down a pipe is a
+    // bubble, and a pipe full of bubbles is a pipe full of air. What says
+    // "water moving" is something long and thin lying along the flow, so the
+    // cross-section is halved and the length runs with the speed.
+    const stretch = 1.8 + Math.min(7, Math.abs(v) * 0.3);
     for (let i = 0; i < this.u.length; i++) {
       let u = this.u[i] + du;
       u -= Math.floor(u);
@@ -295,7 +311,7 @@ export class Bubbles {
       const s = this._p.y > clipY ? 0 : this.sz[i] * scale;
       _tan.copy(f.pts[j + 1]).sub(f.pts[j]).normalize();
       this._q.setFromUnitVectors(_up, _tan);
-      this._s.set(s, s * stretch, s);
+      this._s.set(s * 0.5, s * stretch, s * 0.5);
       this._m.compose(this._p, this._q, this._s);
       this.mesh.setMatrixAt(i, this._m);
     }
@@ -323,6 +339,18 @@ export function frameOf(path, n = 220) {
 // Bubbles are small and there are a lot of them, so they get a cheap material
 // rather than another refractive body: a bright shell with a hard highlight,
 // which is what a bubble in water looks like at this size anyway.
+// What is carried along inside a pipe: pale, soft and barely there, because
+// the point of it is to show the water moving and not to be a thing in its own
+// right.
+export function fleckMaterial() {
+  return new THREE.MeshStandardMaterial({
+    color: 0xe8f5ff, roughness: 0.3, metalness: 0,
+    transparent: true, opacity: 0.3,
+    emissive: new THREE.Color(0x8fc4e6), emissiveIntensity: 0.3,
+    depthWrite: false
+  });
+}
+
 export function bubbleMaterial() {
   return new THREE.MeshStandardMaterial({
     color: 0xeaf6ff, roughness: 0.06, metalness: 0.1,
@@ -336,7 +364,9 @@ export function bubbleMaterial() {
 // A column of water with nothing moving in it is a block of blue plastic. Heat
 // it and it should fizz.
 export class Riser {
-  constructor(radius, count, material) {
+  // aspect stretches the spawn disc along x, so the same class fills a wide
+  // shallow space as readily as a round one.
+  constructor(radius, count, material, aspect = 1) {
     this.mesh = new THREE.InstancedMesh(BUBBLE_GEO, material, count);
     this.mesh.frustumCulled = false;
     this.n = count;
@@ -348,7 +378,7 @@ export class Riser {
     const g = rnd(count * 104729 + 7);
     for (let i = 0; i < count; i++) {
       const a = g() * 6.283, r = Math.sqrt(g()) * radius;
-      this.x[i] = Math.cos(a) * r; this.z[i] = Math.sin(a) * r;
+      this.x[i] = Math.cos(a) * r * aspect; this.z[i] = Math.sin(a) * r;
       this.y[i] = g();
       this.sz[i] = 0.05 + g() * 0.16;
       this.sp[i] = 0.5 + g() * 0.9;
@@ -406,7 +436,7 @@ export class Drip {
       this.x[i] = g() - 0.5;
       this.z[i] = g() - 0.5;
       this.t[i] = g();
-      this.sz[i] = 0.06 + g() * 0.07;
+      this.sz[i] = 0.028 + g() * 0.03;
       this.sp[i] = 0.7 + g() * 0.6;
     }
     this._m = new THREE.Matrix4();

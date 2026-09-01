@@ -54,11 +54,13 @@ function noiseBuffer(ctx) {
   return buf;
 }
 
-// If a sea loop is ever added to the repository, put its path here and it is
-// played underneath everything else. It has to be a real recording that loops
-// seamlessly; synthesised noise is what this replaced, and synthesised noise
-// is what it must not become again.
-const SEA_LOOP = null;
+// The sea. A real recording, not noise through a filter: thirty-four seconds
+// of surf, credited and licensed in audio/CREDITS.md. It is fetched after the
+// Start button, so nothing about the page waits on it.
+const SEA_LOOP = 'audio/sea-waves.mp3';
+// How much of the tail is folded back into the head to make the join
+// inaudible. Surf has no beat, so three seconds is far more than enough.
+const SEA_FADE = 3;
 
 export class Sound {
   constructor() {
@@ -111,13 +113,47 @@ export class Sound {
       const res = await fetch(url);
       if (!res.ok) return;
       const buf = await this.ctx.decodeAudioData(await res.arrayBuffer());
+      // Make the join inaudible, here, on the decoded samples.
+      //
+      // A recording cut to length does not loop: the last sample and the first
+      // are unrelated and the seam clicks or lurches every time round. Folding
+      // the tail into the head with an equal-power crossfade, and then looping
+      // from AFTER the head, means the sample the loop returns to is the same
+      // sound that was already playing. Equal power rather than linear because
+      // two uncorrelated recordings of surf sum in power, not in amplitude,
+      // and a linear crossfade dips audibly in the middle.
+      const rate = buf.sampleRate;
+      const fade = Math.min(Math.floor(SEA_FADE * rate), Math.floor(buf.length / 3));
+      for (let ch = 0; ch < buf.numberOfChannels; ch++) {
+        const d = buf.getChannelData(ch);
+        const tail = buf.length - fade;
+        for (let i = 0; i < fade; i++) {
+          const k = i / fade;
+          d[tail + i] = d[tail + i] * Math.cos(k * Math.PI / 2)
+            + d[i] * Math.sin(k * Math.PI / 2);
+        }
+      }
       const src = this.ctx.createBufferSource();
-      src.buffer = buf; src.loop = true;
+      src.buffer = buf;
+      src.loop = true;
+      src.loopStart = fade / rate;
+      src.loopEnd = buf.length / rate;
       const g = this.ctx.createGain(); g.gain.value = 0;
-      src.connect(g).connect(this.master);
+      // Bounded at both ends, and measured. Straight out of the file this
+      // recording puts a fifth of its energy below 120 Hz and 67% below 400,
+      // and surf recorded close has a lot of spray in it, which at this level
+      // is hiss. A highpass takes the boom out and a lowpass takes the spray
+      // out, and what is left is the swell. Measured after: nothing at all
+      // below 120 Hz and 3.5% above 3 kHz. What sits in 120-400 now is the
+      // melody, and a note is not a rumble.
+      const hp = this.ctx.createBiquadFilter();
+      hp.type = 'highpass'; hp.frequency.value = 230; hp.Q.value = 0.7;
+      const lp = this.ctx.createBiquadFilter();
+      lp.type = 'lowpass'; lp.frequency.value = 3200; lp.Q.value = 0.7;
+      src.connect(hp).connect(lp).connect(g).connect(this.master);
       src.start();
-      g.gain.setTargetAtTime(0.16, this.ctx.currentTime, 3);
       this.layers.sea = { gain: g.gain };
+      this.seaReady = true;
     } catch (e) { /* no asset, no sea */ }
   }
 
@@ -350,7 +386,7 @@ export class Sound {
     const hiss = clamp((boil - 0.3) / 0.7, 0, 1);
     this.layers.boil.gain.setTargetAtTime(hiss * 0.05, t, ramp);
     if (this.layers.sea) {
-      this.layers.sea.gain.setTargetAtTime((0.7 + flow * 0.3) * 0.16, t, 1.2);
+      this.layers.sea.gain.setTargetAtTime((0.7 + flow * 0.3) * 0.34, t, 1.2);
     }
     // a hotter core opens the boiling layer up, so it brightens as it dries
     this.layers.boil.freq.setTargetAtTime(1100 + clamp(hottest - 560, 0, 1600) * 0.55, t, 0.4);

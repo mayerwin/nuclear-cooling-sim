@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
 // ui.js - the panels round the picture.
 // ---------------------------------------------------------------------------
-import { SCENARIOS } from './scenarios.js?v=5f4ad1de4a';
-import { SPEEDS, SPEED_LABELS, AUTO_IDX } from './sim.js?v=5f4ad1de4a';
-import { MODE } from './plant.js?v=5f4ad1de4a';
+import { SCENARIOS } from './scenarios.js?v=267d35cf82';
+import { SPEEDS, SPEED_LABELS, AUTO_IDX } from './sim.js?v=267d35cf82';
+import { MODE } from './plant.js?v=267d35cf82';
 
 const $ = (s) => document.querySelector(s);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);

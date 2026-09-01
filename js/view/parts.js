@@ -2,7 +2,7 @@
 // parts.js - the reusable pieces of plant, as real geometry.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { liquidMaterial, steamMaterial, Bubbles, frameOf } from './fluid.js?v=5f4ad1de4a';
+import { liquidMaterial, steamMaterial, Bubbles, frameOf } from './fluid.js?v=267d35cf82';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -64,7 +64,7 @@ export function pipe(pts, dia, mats, opts = {}) {
   // along this pipe's own centreline at this pipe's own velocity, so a run
   // added at any time shows its flow with nothing else to set up.
   const count = Math.max(12, Math.min(110, Math.round(len * 3.2)));
-  const bub = new Bubbles(frame, bore * (steam ? 0.3 : 0.44), count, mats.bubble);
+  const bub = new Bubbles(frame, bore * (steam ? 0.3 : 0.44), count, mats.fleck);
   group.add(bub.mesh);
 
   return { group, casing, core, bub, len, path, mat, dia, bore, steam, tint: mat };

@@ -2,7 +2,7 @@
 // materials.js - one place where every surface in the plant is defined.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { surfaceMaterial, bubbleMaterial, LOWFX } from './fluid.js?v=5f4ad1de4a';
+import { surfaceMaterial, bubbleMaterial, fleckMaterial, LOWFX } from './fluid.js?v=267d35cf82';
 
 export const CUT = [
   new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0),
@@ -80,6 +80,7 @@ export function build() {
   m.water = surfaceMaterial(5);
   m.poolWater = surfaceMaterial(4);
   m.bubble = bubbleMaterial();
+  m.fleck = fleckMaterial();
 
   m.fuel = new THREE.MeshStandardMaterial({
     color: 0x6f7d88, roughness: 0.6, metalness: 0.5,
@@ -100,9 +101,10 @@ export function build() {
   // Condensate drops: bright, pale and a little glassy, so they read as water
   // coming out of steam rather than as more bubbles.
   m.drop = new THREE.MeshStandardMaterial({
-    color: 0xe8f6ff, roughness: 0.05, metalness: 0,
-    transparent: true, opacity: 0.85,
-    emissive: new THREE.Color(0x5fa8cf), emissiveIntensity: 0.55
+    color: 0xcfe8fb, roughness: 0.05, metalness: 0,
+    transparent: true, opacity: 0.5,
+    emissive: new THREE.Color(0x4f93bd), emissiveIntensity: 0.3,
+    depthWrite: false
   });
   // Vapour coming off a boiling surface. Bigger, softer and fainter than a
   // bubble, and it never writes depth, so a cloud of them reads as one body of
