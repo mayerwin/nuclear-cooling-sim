@@ -7,12 +7,12 @@
 // in at the water.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=2974f5abd4';
+import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=e81ec7791c';
 import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles,
-  frameOf, setGradient, gradientise, LOWFX } from './fluid.js?v=2974f5abd4';
-import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=2974f5abd4';
-import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=2974f5abd4';
-import { Machines } from '../machines.js?v=2974f5abd4';
+  frameOf, setGradient, gradientise, LOWFX } from './fluid.js?v=e81ec7791c';
+import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=e81ec7791c';
+import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=e81ec7791c';
+import { Machines } from '../machines.js?v=e81ec7791c';
 
 const R_IN = 15.4, WALL = 1.0, SHELL_H = 31, DOME_R = R_IN + WALL;
 
@@ -710,6 +710,13 @@ export class Unit {
     this.sgSteam.material.normalMap.repeat.set(3, 4);
     this.sgSteam.material.alphaMap.repeat.set(2, 3);
     this.sgSteam.material.clippingPlanes = this.cut;
+    // NOT DRAWN. Steam in the boiler is drawn as vapour rising off the water,
+    // which is a thing you can watch happening; this was a second, solid
+    // account of the same steam - a ribbed grey drum filling the top half of
+    // the vessel with the tube bundle hidden behind it. The object stays so
+    // the frame code has something to talk to, and the story is left to the
+    // vapour and to the neck it leaves through.
+    this.sgSteam.visible = false;
     g.add(this.sgSteam);
     // The dome, full of the same steam and drawn to the shape of the dome, so
     // it necks down and runs straight into the outlet nozzle. Stopping the
@@ -738,8 +745,15 @@ export class Unit {
     // between the bundle and the shell, turns at the tube sheet and comes back
     // up through the bundle boiling. Drawn as a cold annulus with its own
     // downward flow, it is the whole recirculation in one shape.
+    // A sheet of water running down the gap between the bundle and the shell,
+    // and it has to be SEEN THROUGH: the bundle is behind it. Liquid is opaque
+    // now, so this one asks for transparency by name rather than inheriting
+    // it - left opaque it was a milky wall across the whole boiler and every
+    // tube behind it disappeared.
     this.sgDown = new THREE.Mesh(
       new THREE.CylinderGeometry(2.5, 2.5, 1, 36, 1, true), liquidMaterial(0.9));
+    this.sgDown.material.transparent = true;
+    this.sgDown.material.depthWrite = false;
     this.sgDown.material.normalMap.repeat.set(8, 3);
     this.sgDown.material.attenuationDistance = 3.5;
     this.sgDown.material.clippingPlanes = this.cut;
@@ -839,12 +853,16 @@ export class Unit {
     // up into the pump from below. Each run penetrates what it serves: the
     // hot leg's water ends inside the head's water, and the head's water ends
     // inside the pump's, so the circuit is continuous fluid end to end.
-    this.hot = pipe([V(r.x - 2.4, HOT_Y, r.z), V(s.x + 1.6, HOT_Y, s.z)],
+    // Ending at plus or minus 1.6 put the open end of the tube a hand's
+    // breadth inside the chamber wall, where it showed through the water as a
+    // flat pale rectangle. They run on to the divider plate instead, so what
+    // you see is one body of water changing shape, not a pipe stopping.
+    this.hot = pipe([V(r.x - 2.4, HOT_Y, r.z), V(s.x + 0.5, HOT_Y, s.z)],
       1.1, m, { bend: 1.0 });
     g.add(this.hot.group);
 
     this.cold = pipe([
-      V(s.x - 1.6, XOVER_Y, s.z), V(s.x - 3.6, XOVER_Y, s.z),
+      V(s.x - 0.5, XOVER_Y, s.z), V(s.x - 3.6, XOVER_Y, s.z),
       V(s.x - 3.6, 5.4, s.z), V(p.x, 5.4, p.z), V(p.x, COLD_Y - 0.6, p.z)
     ], 1.0, m, { bend: 1.5 });
     g.add(this.cold.group);
@@ -1316,8 +1334,12 @@ export class Unit {
     // something is moving; separate bodies of vapour travelling down the throat
     // say WHAT is moving and which way, which is the question being answered
     // here: this is how the steam gets from the turbine to the water below it.
-    this.exhFall = new PuffCloud(80,
-      { w: 2.1, d: 1.8, h: EY0 - EY1 - 0.2, size: 6, grow: 1.5 });
+    // It starts ABOVE the wheel, inside the casing, and ends in the condenser.
+    // Beginning it below the buckets left the machine with steam arriving on
+    // its lid, nothing crossing the blades, and steam leaving underneath: three
+    // separate events instead of one thing happening.
+    this.exhFall = new PuffCloud(110,
+      { w: 2.1, d: 1.8, h: AX + 2.0 - EY1, size: 6, grow: 1.6 });
     this.exhFallAt = { x: EX, z: t.z, y0: EY1 + 0.1 };
     g.add(this.exhFall.points);
     // a flange where it lands on the condenser, so it arrives somewhere
@@ -1352,27 +1374,18 @@ export class Unit {
     // liquid, the same colour, the same tube radius as the line arriving. As
     // grey steel the blue simply stopped where the pipe met it and something
     // else continued, which is the join the eye goes straight to.
+    // A slim ring at the head of the downcomer, and the downcomer takes it
+    // from there. It used to be a fat torus with two columns hanging off it,
+    // and cut in half that is a blue plank lying across the boiler with two
+    // blue posts under it. One ring, feeding one sheet of water that runs all
+    // the way down to the pool, is the same story with nothing extra in it.
     this.feedRing = new THREE.Mesh(
-      new THREE.TorusGeometry(2.15, 0.33, 10, 44), liquidMaterial(0.66));
+      new THREE.TorusGeometry(2.42, 0.15, 8, 48), liquidMaterial(0.3));
     this.feedRing.rotation.x = Math.PI / 2;
     this.feedRing.position.set(s.x, FY, s.z);
     this.feedRing.material.clippingPlanes = this.cut;
-    this.feedRing.material.normalMap.repeat.set(14, 2);
+    this.feedRing.material.normalMap.repeat.set(20, 2);
     g.add(this.feedRing);
-    // The pipe runs all the way to the ring: no grey rod, no sleeve, nothing
-    // metallic between the water arriving and the water it joins.
-    this.feedPour = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.26, 0.4, 3.0, 12), liquidMaterial(0.7));
-    this.feedPour.material.normalMap.repeat.set(2, 7);
-    this.feedPour.material.clippingPlanes = this.cut;
-    this.feedPour.position.set(s.x - 2.15, FY - 1.6, s.z - 0.5);
-    g.add(this.feedPour);
-    // and a second one on the other side of the ring, because a ring that
-    // pours on one side only is a spout
-    this.feedPour2 = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.26, 0.4, 3.0, 12), this.feedPour.material);
-    this.feedPour2.position.set(s.x + 2.15, FY - 1.6, s.z - 0.5);
-    g.add(this.feedPour2);
     this.pipes.push(this.steam, this.feed);
 
     // the stack the containment can be vented through
@@ -1394,7 +1407,7 @@ export class Unit {
     // taking its suction from the space it relieves.
     const VY = 26;
     this.vent = pipe([
-      V(-R_IN + 4.5, VY, 0), V(st.x, VY, st.z), V(st.x, st.h, st.z)
+      V(-R_IN + 1.8, VY, 0), V(st.x, VY, st.z), V(st.x, st.h, st.z)
     ], 0.8, m, { bend: 1.6, steam: true });
     this.legVent = new Leg('vent', 0.8, 1, { rho: FLUID.rhoSteam, kind: 'steam' });
     this.vent.kindBreak = 'vent';
@@ -1676,8 +1689,8 @@ export class Unit {
 // ---------------------------------------------------------------------------
 // per frame: solve the flows, step the machines, and let the geometry follow
 // ---------------------------------------------------------------------------
-import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=2974f5abd4';
-import { Plume, PuffCloud } from './plume.js?v=2974f5abd4';
+import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=e81ec7791c';
+import { Plume, PuffCloud } from './plume.js?v=e81ec7791c';
 
 Object.assign(Unit.prototype, {
 
@@ -1993,13 +2006,7 @@ Object.assign(Unit.prototype, {
       const feedC = fluidColour(0.06, new THREE.Color());
       paintFluid(this.feedRing.material, feedC);
       this.feedRing.material.normalMap.offset.x -= dt * 0.9;
-      const feeding = Math.abs(this.legFeed.v) > 0.02;
-      this.feedPour.visible = feeding;
-      this.feedPour2.visible = feeding;
-      if (feeding) {
-        this.feedPour.material.normalMap.offset.y -= dt * 2.2;
-        paintFluid(this.feedPour.material, feedC);
-      }
+      this.feedRing.visible = Math.abs(this.legFeed.v) > 0.02;
       if (this.seaMat) {
         // one material, shared by the bay and the channel, so the swell runs
         // in from the horizon as a single body of water
@@ -2127,14 +2134,18 @@ Object.assign(Unit.prototype, {
       const sv = Math.max(0.15, Math.abs(drawV(this.legSteam.v)) * 0.12);
       sm.alphaMap.offset.y -= dt * sv;
       sm.normalMap.offset.y -= dt * sv * 0.7;
-      sm.opacity = carrying ? 0.5 : 0.2;
+      // Faint. At half opacity the steam space was a white drum filling the
+      // top of the boiler and the bundle behind it disappeared; what says
+      // there is steam in there is the vapour rising off the water, not a
+      // cylinder of fog.
+      sm.opacity = carrying ? 0.17 : 0.06;
       sm.emissiveIntensity = carrying ? 0.35 : 0.12;
       // The dome is the same steam at the same speed, so what fills the vessel
       // and what leaves down the pipe are visibly one thing.
       const nm = this.sgNeck.material;
       nm.alphaMap.offset.y -= dt * sv;
       nm.normalMap.offset.y -= dt * sv * 0.7;
-      nm.opacity = carrying ? 0.46 : 0.18;
+      nm.opacity = carrying ? 0.2 : 0.07;
       nm.emissiveIntensity = sm.emissiveIntensity;
       // the downcomer runs from the feed nozzle to the tube sheet, and its
       // water moves DOWNWARD, which is the direction the recirculation goes
@@ -2145,8 +2156,12 @@ Object.assign(Unit.prototype, {
         this.sgDown.position.set(L.sg.x, dBot + dh / 2, L.sg.z);
         const dm = this.sgDown.material;
         dm.normalMap.offset.y += dt * (carrying ? 1.4 : 0.35);
-        paintFluid(dm, fluidColour(0.05, cTmp));
-        dm.opacity = 0.3;
+        // Cold at the top where the feedwater lands on it, warm at the bottom
+        // where it turns into the bundle: the recirculation, drawn along the
+        // one surface it happens on.
+        paintFluid(dm, fluidColour(carrying ? 0.24 : 0.10, _c2),
+          fluidColour(0.05, cTmp));
+        dm.opacity = 0.34;
       }
       // and the boiling band rides on the surface, thicker the harder it boils
       const bh = 0.5 + (carrying ? 1.5 : 0.3);
@@ -2165,8 +2180,10 @@ Object.assign(Unit.prototype, {
     // at the waterline and these start there, so the change of state happens
     // at the one place in the picture where it should.
     this.sgVapour.h = Math.max(1.0, SG_BASE + 17.2 - SG_TS - sgH);
+    // A tenth each. Seventy soft sprites stacked in one drum at half opacity
+    // is not vapour, it is a white cylinder, and the bundle behind it goes.
     this.sgVapour.step(dt, L.sg.x, SG_TS + sgH, L.sg.z,
-      carrying ? 0.68 : 0.1, 1, carrying ? 0.5 : 0.2);
+      carrying ? 0.68 : 0.1, 1, carrying ? 0.19 : 0.07);
     ripple(this.sgTop, this.surfSg, 2.62);
     // The shell side of the boiler is at its own boiling point, which is what
     // the feed line arriving cold and the steam line leaving hot are about.

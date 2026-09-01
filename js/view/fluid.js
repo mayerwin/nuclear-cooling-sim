@@ -291,7 +291,10 @@ export function surfaceMaterial(depth = 4) {
   // shading model, an isotropic ripple instead of a streamwise one, and a
   // stronger rim, because the edge of a pool is where you see into it.
   return gradientise(new THREE.MeshPhysicalMaterial({
-    color: 0xffffff, roughness: 0.2,
+    // Rough enough that a flat horizontal face is not one blown highlight.
+    // A pool's surface lit from above at 0.2 came out as a white lens lying on
+    // the water rather than as the top of it.
+    color: 0xffffff, roughness: 0.34,
     metalness: 0, transmission: 0,
     opacity: 1,
     ior: 1.333, thickness: depth * 0.22,
@@ -301,7 +304,7 @@ export function surfaceMaterial(depth = 4) {
     envMapIntensity: 0.6,
     emissive: new THREE.Color(0x08243d), emissiveIntensity: 0.12,
     transparent: false, side: THREE.DoubleSide
-  }), 1, 0.5, 0.9);
+  }), 1, 0.22, 0.9);
 }
 
 // --- bubbles ----------------------------------------------------------------
