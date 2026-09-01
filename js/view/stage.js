@@ -13,8 +13,8 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { build as buildMaterials } from './materials.js?v=766fc05981';
-import { surfaceMaterial, setGradient, rippleNormal, LOWFX } from './fluid.js?v=766fc05981';
+import { build as buildMaterials } from './materials.js?v=a9cbd08e84';
+import { surfaceMaterial, setGradient, rippleNormal, LOWFX } from './fluid.js?v=a9cbd08e84';
 
 // A vertical sky gradient, baked once into an equirectangular strip.
 function skyTexture() {
@@ -127,7 +127,7 @@ export class Stage {
     // settings panel lets any of it be turned back on, one at a time, which is
     // the only way to find out which one a given device cannot afford.
     this.q = {
-      refraction: !mobile, bloom: !mobile, shadows: !mobile,
+      refraction: false, bloom: !mobile, shadows: !mobile,
       reflections: true, hidpi: !mobile, particles: true, steam: true
     };
 
@@ -433,21 +433,14 @@ export class Stage {
     const r = this.renderer;
     switch (key) {
       case 'refraction':
-        // Remembered per material the first time it is touched, so turning it
-        // back on restores what the material was actually built with rather
-        // than a guess. Changing transmission changes the shader, so the
+        // OFF by default and an option, not the way the picture is built: see
+        // the note in fluid.js. A material that wants real refraction carries
+        // the transmission it would use in userData.wetTr; turning this on
+        // gives it back. Changing transmission changes the shader, so the
         // program has to be rebuilt.
         this.eachMaterial((m) => {
-          if (!m.isMeshPhysicalMaterial) return;
-          if (m.userData.tr0 === undefined) {
-            m.userData.tr0 = m.transmission;
-            m.userData.op0 = m.opacity;
-            m.userData.rg0 = m.roughness;
-          }
-          if (!m.userData.tr0) return;
-          m.transmission = on ? m.userData.tr0 : 0;
-          m.opacity = on ? m.userData.op0 : Math.min(m.userData.op0, 0.84);
-          m.roughness = on ? m.userData.rg0 : Math.max(m.userData.rg0, 0.2);
+          if (!m.isMeshPhysicalMaterial || !m.userData.wetTr) return;
+          m.transmission = on ? m.userData.wetTr : 0;
           m.needsUpdate = true;
         });
         break;

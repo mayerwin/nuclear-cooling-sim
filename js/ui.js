@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
 // ui.js - the panels round the picture.
 // ---------------------------------------------------------------------------
-import { SCENARIOS } from './scenarios.js?v=766fc05981';
-import { SPEEDS, SPEED_LABELS, AUTO_IDX } from './sim.js?v=766fc05981';
-import { MODE } from './plant.js?v=766fc05981';
+import { SCENARIOS } from './scenarios.js?v=a9cbd08e84';
+import { SPEEDS, SPEED_LABELS, AUTO_IDX } from './sim.js?v=a9cbd08e84';
+import { MODE } from './plant.js?v=a9cbd08e84';
 
 const $ = (s) => document.querySelector(s);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -110,6 +110,8 @@ export class UI {
     // to start the audio, and a browser that refuses must not eat the click.
     $('#startBtn').addEventListener('click', () => {
       $('#modal').classList.remove('open');
+      // Everything the page costs starts here and not before.
+      try { window.__boot && window.__boot(); } catch (e) { console.error(e); }
       try { sim.sound.init(); } catch (e) { console.warn('audio unavailable', e); }
     });
     $('#ledger').innerHTML = LEDGER;

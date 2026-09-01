@@ -2,7 +2,7 @@
 // materials.js - one place where every surface in the plant is defined.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { surfaceMaterial, bubbleMaterial, fleckMaterial, LOWFX } from './fluid.js?v=766fc05981';
+import { surfaceMaterial, bubbleMaterial, fleckMaterial, LOWFX } from './fluid.js?v=a9cbd08e84';
 
 export const CUT = [
   new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0),
@@ -48,12 +48,18 @@ export function build() {
   // On a handset the vessel walls are plain transparency rather than real
   // glass, for the reason given in fluid.js: refraction costs a whole extra
   // pass of the scene per material, and there are dozens of them here.
+  // Plain transparency, not refraction. A vessel wall is a thing you look
+  // THROUGH at the water inside; refracting it costs a whole extra pass of the
+  // scene per material and, under a heavy frame, milks over and reads as solid
+  // metal, which is the opposite of what a cutaway is for.
   m.glass = new THREE.MeshPhysicalMaterial({
-    color: 0xdce8f2, roughness: LOWFX ? 0.3 : 0.05, metalness: 0,
-    transmission: LOWFX ? 0 : 0.94,
-    thickness: 1.6, ior: 1.4, transparent: true, opacity: LOWFX ? 0.2 : 1,
+    color: 0xdce8f2, roughness: 0.14, metalness: 0,
+    transmission: 0,
+    thickness: 1.6, ior: 1.4, transparent: true, opacity: 0.19,
+    depthWrite: false,
     side: THREE.DoubleSide, envMapIntensity: 1.4
   });
+  m.glass.userData.wetTr = 0.94;
   m.glassHot = m.glass.clone(); m.glassHot.color = new THREE.Color(0xf0c6b4);
 
   // The far half of a vessel that has had its near half taken off: steel,
@@ -139,10 +145,28 @@ export function tempColor(K) {
 // Blue, then warm, then orange. Straight from blue to orange passes through
 // brown, and brown water reads as dirty rather than hot, so the midpoint is a
 // warm cream that both ends can reach without going muddy.
-const COLD = new THREE.Color(0x2b8fd8), MID = new THREE.Color(0xffd2a0), HOT = new THREE.Color(0xff6a33);
+// Mixed in sRGB, not in the working linear space. Three's Color.lerp works on
+// linear components, and a fifth of the way from a saturated blue towards a
+// bright cream is, in linear, already most of the way there: the cold leg came
+// out a pale grey-blue at a tenth of the ramp. These are the numbers a person
+// picking colours would expect, so they are mixed the way that person means.
+const COLD = [0x2b, 0x8f, 0xd8], MID = [0xff, 0xd2, 0xa0], HOT = [0xff, 0x6a, 0x33];
+export function mixSRGB(out, a, b, f) {
+  return out.setRGB(
+    (a[0] + (b[0] - a[0]) * f) / 255,
+    (a[1] + (b[1] - a[1]) * f) / 255,
+    (a[2] + (b[2] - a[2]) * f) / 255,
+    THREE.SRGBColorSpace);
+}
+const WHITE_S = [255, 255, 255];
+// Lighten towards white, also in sRGB.
+export function paleSRGB(out, f) {
+  const c = out.getHex(THREE.SRGBColorSpace);
+  return mixSRGB(out, [(c >> 16) & 255, (c >> 8) & 255, c & 255], WHITE_S, f);
+}
 export function waterColor(u0, out = new THREE.Color()) {
   const u = Math.max(0, Math.min(1, u0));
-  return u < 0.5 ? out.copy(COLD).lerp(MID, u * 2) : out.copy(MID).lerp(HOT, (u - 0.5) * 2);
+  return u < 0.5 ? mixSRGB(out, COLD, MID, u * 2) : mixSRGB(out, MID, HOT, (u - 0.5) * 2);
 }
 export const heatOf = (K) => (K - 660) / 400;
 

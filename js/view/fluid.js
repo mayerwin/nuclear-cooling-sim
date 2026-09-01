@@ -117,9 +117,13 @@ export function liquidMaterial(dia) {
     // small, very bright streak, and where a pipe met a vessel that streak sat
     // across the joint as a white dart with bloom on top of it. Water is
     // slightly rough, and a slightly rough highlight is a sheen instead.
-    roughness: LOWFX ? 0.22 : 0.12,
+    roughness: 0.28,
     metalness: 0,
-    transmission: LOWFX ? 0 : 1,
+    // NO SCREEN-SPACE REFRACTION. See the note on REFRACTION below: this model
+    // carried seventy-three transmissive materials, and what a body of water
+    // in a pipe actually needs is a lit surface, a scrolling flow map and a
+    // bright edge, which is how a game draws one.
+    transmission: 0,
     ior: 1.333,
     thickness: dia * 0.9,
     attenuationColor: new THREE.Color(LIQUID.COLD),
@@ -128,33 +132,59 @@ export function liquidMaterial(dia) {
     normalScale: new THREE.Vector2(0.42, 0.42),
     // A mirror-smooth clearcoat turns every pipe into one blown-out highlight
     // under the key light, and the bloom pass then eats the machine behind it.
-    clearcoat: 0.22,
+    clearcoat: LOWFX ? 0 : 0.22,
     clearcoatRoughness: 0.42,
+    envMapIntensity: 0.55,
     emissive: new THREE.Color(0x081d33),
     emissiveIntensity: 0.3,
-    transparent: true,
-    opacity: LOWFX ? 0.82 : 1,
+    transparent: false,
+    opacity: 1,
     side: THREE.DoubleSide,
     depthWrite: true
-  }));
+  }), 0, 0.6, 1);
 }
+
+// REFRACTION, AND WHY THE DEFAULT IS OFF.
+//
+// Three renders a transmissive material by drawing the scene again into a
+// target and sampling it, so every such material costs draw calls on top of
+// the frame it is part of. Measured on this model at 1200x800: seventy-three
+// transmissive materials, 862 draw calls and 569 ms a frame; with transmission
+// off, 581 calls and 160 ms. Same picture, three and a half times the speed,
+// and the pass was never buying much - a pipe half a metre across refracts
+// almost nothing, and inside an unlit machine it sampled a dark background and
+// came out as a dark panel, which is what made a pool of water look painted.
+//
+// What replaces it is what a game uses: a lit body with a scrolling flow map,
+// an environment reflection, and a Fresnel rim. The rim is the whole trick. A
+// body of water is bright where you look along its surface and clear where you
+// look through it, and brightening the silhouette says "you are looking at
+// something transparent" far more cheaply than actually being transparent.
+//
+// The settings panel can still switch real refraction on for anyone who wants
+// to see it. It is an option, not the way the picture is built.
 
 // Water changes temperature *along* a pipe, not all at once at a joint. The
 // fuel heats it on the way up through the core; the boiler tubes and the pool
 // coil give that heat back on the way through. Drawing each run as one flat
 // colour puts the whole change on a flange, which is a lie you can see. So the
 // liquid carries two colours and mixes between them along its own length.
-export function gradientise(mat, axis = 0) {
+// wetTr is what this material's transmission would be if the settings panel
+// asks for real refraction. Nothing is built with it on.
+export function gradientise(mat, axis = 0, rim = 0, wetTr = 0) {
   mat.defines = Object.assign({}, mat.defines, { USE_UV: '' });
   mat.userData.g = {
     c0: { value: new THREE.Color(1, 1, 1) },
     c1: { value: new THREE.Color(1, 1, 1) },
-    axis: { value: axis }
+    axis: { value: axis },
+    rim: { value: rim }
   };
+  if (wetTr) mat.userData.wetTr = wetTr;
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uC0 = mat.userData.g.c0;
     sh.uniforms.uC1 = mat.userData.g.c1;
     sh.uniforms.uAxis = mat.userData.g.axis;
+    sh.uniforms.uRim = mat.userData.g.rim;
     // Applied to the FINAL colour, not to the diffuse term.
     //
     // In a transmissive material the diffuse term is almost entirely replaced
@@ -168,10 +198,24 @@ export function gradientise(mat, axis = 0) {
     // included, and one ramp then works on glass and on paint alike.
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>',
-        '#include <common>\nuniform vec3 uC0;\nuniform vec3 uC1;\nuniform float uAxis;')
+        '#include <common>\nuniform vec3 uC0;\nuniform vec3 uC1;\n'
+        + 'uniform float uAxis;\nuniform float uRim;')
+      // ON THE DIFFUSE, before the light is applied. It used to be multiplied
+      // into gl_FragColor, which sits AFTER tone mapping: the lit white body
+      // was compressed to near one and the tint then had nothing left to bite
+      // on, so every pipe came out pale. Tinting the diffuse gives a coloured
+      // body with white highlights, which is what water is.
+      .replace('#include <color_fragment>',
+        '#include <color_fragment>\n'
+        + '\tdiffuseColor.rgb *= mix( uC0, uC1,'
+        + ' clamp( mix( vUv.x, vUv.y, uAxis ), 0.0, 1.0 ) );')
+      // and the Fresnel edge on top, at grazing angles only. That bright rim
+      // is what says "you are looking at a body of clear liquid", and it is
+      // what the transmission pass used to be paying for.
       .replace('#include <colorspace_fragment>',
-        '\tgl_FragColor.rgb *= mix( uC0, uC1,'
-        + ' clamp( mix( vUv.x, vUv.y, uAxis ), 0.0, 1.0 ) );\n'
+        '\tfloat fres = pow( 1.0 - clamp( abs( dot( normalize( normal ),'
+        + ' normalize( vViewPosition ) ) ), 0.0, 1.0 ), 4.0 );\n'
+        + '\tgl_FragColor.rgb += gl_FragColor.rgb * fres * uRim;\n'
         + '#include <colorspace_fragment>');
   };
   mat.customProgramCacheKey = () => 'fluid-gradient';
@@ -243,17 +287,21 @@ export function steamMaterial() {
 export function surfaceMaterial(depth = 4) {
   const n = rippleNormal().clone();
   n.needsUpdate = true;
-  return new THREE.MeshPhysicalMaterial({
-    color: LOWFX ? 0x86bcdc : 0xffffff, roughness: LOWFX ? 0.24 : 0.05,
-    metalness: 0, transmission: LOWFX ? 0 : 1,
-    opacity: LOWFX ? 0.86 : 1,
+  // A free surface is the same body as the pipes, seen from above: same
+  // shading model, an isotropic ripple instead of a streamwise one, and a
+  // stronger rim, because the edge of a pool is where you see into it.
+  return gradientise(new THREE.MeshPhysicalMaterial({
+    color: 0xffffff, roughness: 0.2,
+    metalness: 0, transmission: 0,
+    opacity: 1,
     ior: 1.333, thickness: depth * 0.22,
     attenuationColor: new THREE.Color(LIQUID.COLD), attenuationDistance: depth * 2.6,
     normalMap: n, normalScale: new THREE.Vector2(0.16, 0.16),
-    clearcoat: 0.25, clearcoatRoughness: 0.22,
+    clearcoat: LOWFX ? 0 : 0.25, clearcoatRoughness: 0.22,
+    envMapIntensity: 0.6,
     emissive: new THREE.Color(0x08243d), emissiveIntensity: 0.12,
-    transparent: true, side: THREE.DoubleSide
-  });
+    transparent: false, side: THREE.DoubleSide
+  }), 1, 0.5, 0.9);
 }
 
 // --- bubbles ----------------------------------------------------------------

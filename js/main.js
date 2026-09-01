@@ -5,16 +5,16 @@
 // inside of the buildings in 3-D. Only one is on screen at a time.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { Sim } from './sim.js?v=766fc05981';
-import { Renderer } from './site/renderer.js?v=766fc05981';
-import { unproject } from './site/iso.js?v=766fc05981';
-import { Stage } from './view/stage.js?v=766fc05981';
-import { Unit, CUT_AZ } from './view/unit.js?v=766fc05981';
-import { Labels } from './view/labels.js?v=766fc05981';
-import { UI } from './ui.js?v=766fc05981';
-import { initPhysics } from './machines.js?v=766fc05981';
-import { state } from './view/state.js?v=766fc05981';
-import { clamp } from './util.js?v=766fc05981';
+import { Sim } from './sim.js?v=a9cbd08e84';
+import { Renderer } from './site/renderer.js?v=a9cbd08e84';
+import { unproject } from './site/iso.js?v=a9cbd08e84';
+import { Stage } from './view/stage.js?v=a9cbd08e84';
+import { Unit, CUT_AZ } from './view/unit.js?v=a9cbd08e84';
+import { Labels } from './view/labels.js?v=a9cbd08e84';
+import { UI } from './ui.js?v=a9cbd08e84';
+import { initPhysics } from './machines.js?v=a9cbd08e84';
+import { state } from './view/state.js?v=a9cbd08e84';
+import { clamp } from './util.js?v=a9cbd08e84';
 
 const SPAN = 29;
 const siteCanvas = document.getElementById('site');
@@ -23,10 +23,7 @@ const labelHost = document.getElementById('labels');
 
 try { await initPhysics(); } catch (e) { console.warn(e); }
 const sim = new Sim(siteCanvas);
-sim.world.bakeTerrain();
-sim.world.bakeOverlay();
 const renderer = new Renderer(siteCanvas, sim.world);
-renderer.buildOcean();
 
 // A device with no WebGL2 cannot draw the inside view at all. The site view
 // is plain canvas and always works, so the app degrades to that instead of
@@ -36,23 +33,48 @@ const GL_OK = (() => {
   catch (e) { return false; }
 })();
 let stage = null, units = [], labels = null;
-if (GL_OK) {
-  stage = new Stage(host, labelHost);
-  // The stations stand along the camera's screen-right axis for the CUT_AZ
-  // heading, so in the side-by-side view both sit at the same depth and draw
-  // the same size. Offsetting along plain world x put one behind the other.
-  const RIGHT = { x: Math.sin(CUT_AZ), z: -Math.cos(CUT_AZ) };
-  units = sim.plants.map((p, i) => new Unit(p, stage,
-    (i === 0 ? -SPAN : SPAN) * RIGHT.x, (i === 0 ? -SPAN : SPAN) * RIGHT.z));
-  for (const u of units) stage.scene.add(u.root);
-  labels = new Labels(stage, units);
-  stage.buildFlood(units.map((u) => [u.worldX, u.worldZ]));
-  stage.buildSea(CUT_AZ);
-} else {
-  const b = document.querySelector('[data-view=plant]');
-  b.disabled = true;
-  b.title = 'This device has no WebGL2, so the inside view cannot be drawn.';
+if (!GL_OK) {
+  const btn = document.querySelector('[data-view=plant]');
+  btn.disabled = true;
+  btn.title = 'This device has no WebGL2, so the inside view cannot be drawn.';
 }
+
+// NOTHING EXPENSIVE HAPPENS UNTIL SOMEONE ASKS FOR IT.
+//
+// Baking the terrain, building the ocean, compiling a WebGL scene of five
+// hundred meshes and then running a frame loop over it are all things a tab
+// sitting behind a welcome card has no business doing. A page that is open but
+// not being used should cost nothing, so all of it waits here until the card
+// is dismissed, and the frame loop does not start until the same moment.
+let booted = false;
+function boot() {
+  if (booted) return;
+  booted = true;
+  sim.world.bakeTerrain();
+  sim.world.bakeOverlay();
+  renderer.buildOcean();
+  if (GL_OK) {
+    stage = new Stage(host, labelHost);
+    // The stations stand along the camera's screen-right axis for the CUT_AZ
+    // heading, so in the side-by-side view both sit at the same depth and draw
+    // the same size. Offsetting along plain world x put one behind the other.
+    const RIGHT = { x: Math.sin(CUT_AZ), z: -Math.cos(CUT_AZ) };
+    units = sim.plants.map((p, i) => new Unit(p, stage,
+      (i === 0 ? -SPAN : SPAN) * RIGHT.x, (i === 0 ? -SPAN : SPAN) * RIGHT.z));
+    for (const u of units) stage.scene.add(u.root);
+    labels = new Labels(stage, units);
+    stage.buildFlood(units.map((u) => [u.worldX, u.worldZ]));
+    stage.buildSea(CUT_AZ);
+    window.__units = units;
+    window.__stage = stage;
+    window.__labels = labels;
+  }
+  resize();
+  sim.overview();
+  last = performance.now();
+  requestAnimationFrame(frame);
+}
+window.__boot = boot;
 
 // How big the page actually is RIGHT NOW. On a phone this is not
 // window.innerHeight and it is not what `position:fixed; inset:0` gives you:
@@ -333,6 +355,7 @@ document.getElementById('btnView').addEventListener('click', () => {
 
 let last = performance.now(), acc = 0;
 function frame(now) {
+  if (!booted) return;
   const dt = Math.min((now - last) / 1000, 0.06);
   last = now;
   syncSize();
@@ -356,13 +379,9 @@ function frame(now) {
   if (acc > 0.22) { ui.update(); acc = 0; }
   requestAnimationFrame(frame);
 }
-requestAnimationFrame(frame);
 
 sim.announce('Both units at 100% power. Grid connected, all systems normal.', 'ok');
 window.__sim = sim;
-window.__units = units;
-window.__stage = stage;
 window.__CUT_AZ = CUT_AZ;
-window.__labels = labels;
 // Handy for the inspection tools: pick a pixel and name what is under it.
 window.__THREE = THREE;
