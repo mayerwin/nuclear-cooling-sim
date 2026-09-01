@@ -3,8 +3,8 @@
 // debris, shockwaves and the advected radioactive plume that actually
 // deposits contamination onto the terrain.
 // ---------------------------------------------------------------------------
-import { P } from './iso.js?v=c9e7ae8639';
-import { clamp, lerp, TAU, rnd } from '../util.js?v=c9e7ae8639';
+import { P } from './iso.js?v=5f4ad1de4a';
+import { clamp, lerp, TAU, rnd } from '../util.js?v=5f4ad1de4a';
 
 const MAXP = 1400;
 

@@ -54,40 +54,11 @@ function noiseBuffer(ctx) {
   return buf;
 }
 
-// Pink rather than brown for the water and the air.
-//
-// Brown noise falls at 6 dB per octave, so however high you set the highpass
-// under it the energy piles up right at the corner: measured, the bed was 56%
-// inside 120 to 400 Hz and the loudest thing in the room was its own low
-// shelf. Pink falls at 3, which is the tilt moving water actually has, and it
-// spreads across the band instead of leaning on the bottom of it.
-// Paul Kellet's filter, which is three one-poles summed and is accurate to
-// about a third of a decibel from 10 Hz up.
-function pinkBuffer(ctx) {
-  const rate = ctx.sampleRate;
-  const n = Math.floor(rate * LOOP_SECONDS);
-  const buf = ctx.createBuffer(1, n, rate);
-  const d = buf.getChannelData(0);
-  let b0 = 0, b1 = 0, b2 = 0, sum = 0;
-  for (let i = 0; i < n; i++) {
-    const w = Math.random() * 2 - 1;
-    b0 = 0.99765 * b0 + w * 0.0990460;
-    b1 = 0.96300 * b1 + w * 0.2965164;
-    b2 = 0.57000 * b2 + w * 1.0526913;
-    d[i] = b0 + b1 + b2 + w * 0.1848;
-    sum += d[i];
-  }
-  const dc = sum / n;
-  let peak = 1e-6;
-  for (let i = 0; i < n; i++) { d[i] -= dc; peak = Math.max(peak, Math.abs(d[i])); }
-  for (let i = 0; i < n; i++) d[i] = clamp(d[i] / peak, -1, 1);
-  const fade = Math.floor(rate * LOOP_FADE);
-  for (let i = 0; i < fade; i++) {
-    const k = i / fade;
-    d[n - fade + i] = d[n - fade + i] * (1 - k) + d[i] * k;
-  }
-  return buf;
-}
+// If a sea loop is ever added to the repository, put its path here and it is
+// played underneath everything else. It has to be a real recording that loops
+// seamlessly; synthesised noise is what this replaced, and synthesised noise
+// is what it must not become again.
+const SEA_LOOP = null;
 
 export class Sound {
   constructor() {
@@ -104,7 +75,6 @@ export class Sound {
     if (!AC) return;
     const ctx = this.ctx = new AC();
     this.noise = noiseBuffer(ctx);
-    this.pink = pinkBuffer(ctx);
 
     const master = this.master = ctx.createGain();
     master.gain.value = this.muted ? 0 : MASTER;
@@ -114,33 +84,15 @@ export class Sound {
     master.connect(comp).connect(ctx.destination);
 
     // ---- the ambience -----------------------------------------------------
-    // A quiet coastal station, and it is meant to be a pleasant thing to sit
-    // with. That rules out three things, and every one of them was in here:
-    //
-    //   a sustained tone, at any pitch. A held oscillator is a drone, and a
-    //   232 Hz triangle is a reedy buzz. There is no oscillator in the
-    //   ambience now, only air and water.
-    //
-    //   hiss. Noise with energy above about two kilohertz is sibilance, and
-    //   half an hour of it is fatiguing however quiet it is. Every bed here
-    //   is LOW-passed as well as high-passed, so it is bounded at both ends.
-    //
-    //   a wall. Noise that never moves is a wall, and a wall is tiring. Each
-    //   bed breathes on its own slow oscillator, at rates that share no common
-    //   multiple, so the room swells and settles and never repeats.
-    //
-    // What is left is dark, soft, and slow: the sea beyond the wall and the
-    // air in a big building.
-    //
-    // The bands are where they are because of what came back off the analyser.
-    // Rolled off at 620 Hz this was 76% midbass and nothing above 1.2 kHz:
-    // no longer a rumble, but muffled, and muffled at 300 Hz is still boom.
-    // Moving water and moving air both carry well past a kilohertz; it is only
-    // past three or four that they turn into hiss.
-    this.layers.sea = this.bed({ hp: 220, lp: 1600, rate: 0.055, depth: 0.45, pink: true });
-    this.layers.air = this.bed({ hp: 560, lp: 3000, rate: 0.041, depth: 0.35, pink: true });
-    this.layers.mach = this.bed({ hp: 190, lp: 700, rate: 0.093, depth: 0.22 });
+    // There is no noise bed. There were three, filtered and slowly breathing,
+    // and however carefully they were shaped they were still a hiss under
+    // everything that added nothing to the picture and could not be mistaken
+    // for the sea. A synthesiser does not make surf; a recording of surf makes
+    // surf, and until there is one, silence is better than an approximation of
+    // one. What is left is the bells, and the one texture that carries
+    // information rather than atmosphere: a core that is boiling.
     this.layers.boil = this.bed({ hp: 480, lp: 2000, rate: 0.13, depth: 0.3 });
+    if (SEA_LOOP) this.loadSea(SEA_LOOP);
     this.buildChime();
     this.ready = true;
     this.scheduleNote(6);
@@ -149,6 +101,24 @@ export class Sound {
     // switch being thrown.
     master.gain.setValueAtTime(0, ctx.currentTime);
     master.gain.setTargetAtTime(this.muted ? 0 : MASTER, ctx.currentTime, 2.4);
+  }
+
+  // A real recording, looped. Nothing calls this until there is a file to
+  // call it with; it is here so that adding one is adding one file and one
+  // path, not rebuilding the ambience again.
+  async loadSea(url) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const buf = await this.ctx.decodeAudioData(await res.arrayBuffer());
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf; src.loop = true;
+      const g = this.ctx.createGain(); g.gain.value = 0;
+      src.connect(g).connect(this.master);
+      src.start();
+      g.gain.setTargetAtTime(0.16, this.ctx.currentTime, 3);
+      this.layers.sea = { gain: g.gain };
+    } catch (e) { /* no asset, no sea */ }
   }
 
   // One bed of moving air or water: looping brown noise, bounded above and
@@ -374,13 +344,14 @@ export class Sound {
     // Both views are the same station, so both are audible. The old test named
     // a view that no longer exists, which left the inside view silent and put
     // the whole ambience on the site view alone.
-    // The sea is always there and barely moves; the plant's own layers ride on
-    // top of it. Every one of these numbers is a fifth of what it was: the
-    // room should be something you notice when it stops.
-    this.layers.sea.gain.setTargetAtTime((0.62 + flow * 0.38) * 0.05, t, 0.9);
-    this.layers.air.gain.setTargetAtTime(0.05, t, 1.4);
-    this.layers.mach.gain.setTargetAtTime(0.004 + pump * 0.01, t, ramp);
-    this.layers.boil.gain.setTargetAtTime(boil * 0.026, t, ramp);
+    // Boiling only when it is really boiling. At 347 C the old threshold left
+    // it faintly audible the whole time, which made it part of the background
+    // instead of a thing that starts.
+    const hiss = clamp((boil - 0.3) / 0.7, 0, 1);
+    this.layers.boil.gain.setTargetAtTime(hiss * 0.05, t, ramp);
+    if (this.layers.sea) {
+      this.layers.sea.gain.setTargetAtTime((0.7 + flow * 0.3) * 0.16, t, 1.2);
+    }
     // a hotter core opens the boiling layer up, so it brightens as it dries
     this.layers.boil.freq.setTargetAtTime(1100 + clamp(hottest - 560, 0, 1600) * 0.55, t, 0.4);
     // The melody belongs to a plant that is fine. When one stops being fine it

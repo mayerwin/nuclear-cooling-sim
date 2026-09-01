@@ -5,16 +5,16 @@
 // inside of the buildings in 3-D. Only one is on screen at a time.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { Sim } from './sim.js?v=c9e7ae8639';
-import { Renderer } from './site/renderer.js?v=c9e7ae8639';
-import { unproject } from './site/iso.js?v=c9e7ae8639';
-import { Stage } from './view/stage.js?v=c9e7ae8639';
-import { Unit, CUT_AZ } from './view/unit.js?v=c9e7ae8639';
-import { Labels } from './view/labels.js?v=c9e7ae8639';
-import { UI } from './ui.js?v=c9e7ae8639';
-import { initPhysics } from './machines.js?v=c9e7ae8639';
-import { state } from './view/state.js?v=c9e7ae8639';
-import { clamp } from './util.js?v=c9e7ae8639';
+import { Sim } from './sim.js?v=5f4ad1de4a';
+import { Renderer } from './site/renderer.js?v=5f4ad1de4a';
+import { unproject } from './site/iso.js?v=5f4ad1de4a';
+import { Stage } from './view/stage.js?v=5f4ad1de4a';
+import { Unit, CUT_AZ } from './view/unit.js?v=5f4ad1de4a';
+import { Labels } from './view/labels.js?v=5f4ad1de4a';
+import { UI } from './ui.js?v=5f4ad1de4a';
+import { initPhysics } from './machines.js?v=5f4ad1de4a';
+import { state } from './view/state.js?v=5f4ad1de4a';
+import { clamp } from './util.js?v=5f4ad1de4a';
 
 const SPAN = 29;
 const siteCanvas = document.getElementById('site');
@@ -297,7 +297,26 @@ addEventListener('keydown', (e) => {
 addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => keys.clear());
 
+// WASD on the island as well as inside the buildings. It only ever moved the
+// 3-D camera, so on the site view the keys did nothing at all. Same meaning in
+// both places: A and D slide the view sideways, W and S move it up and down.
+function nudgeSite(dt) {
+  let sx = 0, sy = 0;
+  if (keys.has('a')) sx -= 1;
+  if (keys.has('d')) sx += 1;
+  if (keys.has('w')) sy -= 1;
+  if (keys.has('s')) sy += 1;
+  if (!sx && !sy) return;
+  // 700 crossed a third of the island in a second and hit the clamp; this is
+  // about a screen every two seconds at any zoom, measured.
+  const px = 320 * dt / sim.cam.zoom;
+  const d = unproject(sx * px, sy * px);
+  sim.cine = null;
+  sim.cam.snap(clamp(sim.cam.x + d.x, -10, 62), clamp(sim.cam.y + d.y, -10, 62));
+}
+
 document.getElementById('btnView').addEventListener('click', () => {
+  if (sim.view === 'site') { sim.overview(); return; }
   firstFocus = true;
   setFocus(sim.focus || 'both');
 });
@@ -319,6 +338,7 @@ function frame(now) {
     labels.update();
     stage.render();
   } else {
+    nudgeSite(dt);
     renderer.draw(sim);
   }
   ui.tick(dt);

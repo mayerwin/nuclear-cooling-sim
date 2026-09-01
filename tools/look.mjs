@@ -45,6 +45,9 @@ const CAMS = {
   sg:     { u: 0, t: [-8.5, 20, 0], d: 40 },
   head:   { u: 0, t: [-8.5, 13, 0], d: 20 },
   dome:   { u: 0, t: [-8.5, 26, 0], d: 24 },
+  outside:{ u: 0, t: [-6, 18, 0], d: 92, e: 0.18 },
+  back:   { u: 0, t: [0, 16, 0], d: 96, e: 0.2, az: Math.PI },
+  side:   { u: 0, t: [0, 16, 0], d: 88, e: 0.2, az: Math.PI * 0.62 },
   tank:   { u: 0, t: [-9, 3, 0], d: 26 },
   steam:  { u: 0, t: [8, 24, 0], d: 44 },
   turbine:{ u: 0, t: [21, 7, 0], d: 26 },
@@ -72,7 +75,7 @@ if (!FOCUS[shot]) await page.evaluate((c) => {
   u.root.updateWorldMatrix(true, false);
   const V = s.controls.target.constructor;
   const tgt = u.root.localToWorld(new V(c.t[0], c.t[1], c.t[2]));
-  const az = window.__CUT_AZ, e = c.e == null ? 0.14 : c.e;
+  const az = (window.__CUT_AZ + (c.az || 0)), e = c.e == null ? 0.14 : c.e;
   s.want = null;
   s.controls.minDistance = 0.5;   // the app clamps to 40; a close look needs closer
   s.controls.target.copy(tgt);

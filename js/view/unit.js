@@ -7,12 +7,12 @@
 // in at the water.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=c9e7ae8639';
+import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=5f4ad1de4a';
 import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles,
-  frameOf, setGradient, gradientise, LOWFX } from './fluid.js?v=c9e7ae8639';
-import { tempColor, waterColor, heatOf, loopHeat } from './materials.js?v=c9e7ae8639';
-import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=c9e7ae8639';
-import { Machines } from '../machines.js?v=c9e7ae8639';
+  frameOf, setGradient, gradientise, LOWFX } from './fluid.js?v=5f4ad1de4a';
+import { tempColor, waterColor, heatOf, loopHeat } from './materials.js?v=5f4ad1de4a';
+import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=5f4ad1de4a';
+import { Machines } from '../machines.js?v=5f4ad1de4a';
 
 const R_IN = 15.4, WALL = 1.0, SHELL_H = 31, DOME_R = R_IN + WALL;
 
@@ -1167,7 +1167,10 @@ export class Unit {
     // the turbine to the water underneath it, so it is drawn at a size that
     // answers the question, cut open like everything else, with the vapour
     // visibly falling down the inside of it.
-    const EX = X1 - 1.6, EY0 = AX - 2.3, EY1 = 5.6;
+    // Ending at 5.6 put the throat's rim in the middle of the condenser hood,
+    // so its far wall hung down inside the box as a loose curved grey sheet.
+    // It lands ON the hood instead.
+    const EX = X1 - 1.6, EY0 = AX - 2.3, EY1 = 5.82;
     const duct = new THREE.Mesh(
       new THREE.CylinderGeometry(1.15, 1.75, EY0 - EY1, 26, 1, true),
       this.stage.mat.steel.clone());
@@ -1183,7 +1186,7 @@ export class Unit {
     this.exhSteam.position.set(EX, (EY0 + EY1) / 2, t.z);
     g.add(this.exhSteam);
     // a flange where it lands on the condenser, so it arrives somewhere
-    g.add(collar(this.stage, EX, EY1 + 0.2, t.z, 'y', 1.8, 0.5));
+    g.add(collar(this.stage, EX, EY1 + 0.05, t.z, 'y', 1.8, 0.4));
 
     // Back the other way at its own height, so the two halves of the second
     // circuit run as one straight pair across the top of the picture: white
@@ -1211,13 +1214,17 @@ export class Unit {
     // back in, so it is drawn at a size you cannot miss: a pipe that arrives
     // at a shell and stops reads as a pipe with a cap on it.
     const FY = SG_BASE + 13.4;
-    const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(2.15, 0.16, 8, 28), this.stage.mat.steel);
-    ring.rotation.x = Math.PI / 2;
-    ring.position.set(s.x, FY, s.z);
-    ring.material = this.stage.mat.steel.clone();
-    ring.material.clippingPlanes = this.cut;
-    g.add(ring);
+    // The ring carries the feedwater, so the ring IS feedwater: the same
+    // liquid, the same colour, the same tube radius as the line arriving. As
+    // grey steel the blue simply stopped where the pipe met it and something
+    // else continued, which is the join the eye goes straight to.
+    this.feedRing = new THREE.Mesh(
+      new THREE.TorusGeometry(2.15, 0.33, 10, 44), liquidMaterial(0.66));
+    this.feedRing.rotation.x = Math.PI / 2;
+    this.feedRing.position.set(s.x, FY, s.z);
+    this.feedRing.material.clippingPlanes = this.cut;
+    this.feedRing.material.normalMap.repeat.set(14, 2);
+    g.add(this.feedRing);
     // A collar where it goes through the shell, and nothing else. There used
     // to be a bare grey rod here, carrying on from where the blue pipe stopped
     // short of the ring: the water ended in mid air inside the vessel and a
@@ -1295,21 +1302,39 @@ export class Unit {
     q.broken = true;
     const local = this.root.worldToLocal(worldPoint.clone());
     const g = this.root;
+    // The wound lies ON the pipe. A torus pinned to a fixed rotation sat
+    // across a sloping run at whatever angle the run happened to have, which
+    // is why it read as a black ring dropped on top rather than a hole in it.
+    const dir = new THREE.Vector3(0, 1, 0);
+    {
+      const path = q.path;
+      if (path) {
+        // the tangent nearest the point that was hit
+        let best = 0, bd = Infinity;
+        for (let i = 0; i <= 40; i++) {
+          const d = path.getPointAt(i / 40).distanceTo(local);
+          if (d < bd) { bd = d; best = i / 40; }
+        }
+        dir.copy(path.getTangentAt(best)).normalize();
+      }
+    }
     const torn = new THREE.Mesh(
-      new THREE.TorusGeometry(q.dia * 0.62, q.dia * 0.16, 8, 18),
-      new THREE.MeshStandardMaterial({ color: 0x1d1512, roughness: 0.9,
-        emissive: new THREE.Color(0x180a06), emissiveIntensity: 0.4 }));
+      new THREE.TorusGeometry(q.dia * 0.56, q.dia * 0.13, 8, 20),
+      new THREE.MeshStandardMaterial({ color: 0x2a211c, roughness: 0.95,
+        emissive: new THREE.Color(0x180a06), emissiveIntensity: 0.35 }));
     torn.position.copy(local);
-    torn.rotation.set(Math.PI / 2, 0, 0);
+    torn.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
     g.add(torn);
     const steam = q.leg && q.leg.kind === 'steam';
     let jet = null;
     if (!steam) {
       // water falls: a column from the wound to the floor
       const h = Math.max(1.2, local.y - 0.1);
+      // Wide enough to see. At a fifth of the pipe's diameter it was a thread
+      // of clear glass hanging under a black ring.
       jet = new THREE.Mesh(
-        new THREE.CylinderGeometry(q.dia * 0.2, q.dia * 0.45, h, 10),
-        liquidMaterial(q.dia * 0.8));
+        new THREE.CylinderGeometry(q.dia * 0.42, q.dia * 0.9, h, 12),
+        liquidMaterial(q.dia * 1.4));
       jet.material.normalMap.repeat.set(2, Math.max(3, Math.round(h)));
       jet.position.set(local.x, local.y - h / 2, local.z);
       g.add(jet);
@@ -1529,8 +1554,8 @@ export class Unit {
 // ---------------------------------------------------------------------------
 // per frame: solve the flows, step the machines, and let the geometry follow
 // ---------------------------------------------------------------------------
-import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=c9e7ae8639';
-import { Plume } from './plume.js?v=c9e7ae8639';
+import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=5f4ad1de4a';
+import { Plume } from './plume.js?v=5f4ad1de4a';
 
 Object.assign(Unit.prototype, {
 
@@ -1808,13 +1833,18 @@ Object.assign(Unit.prototype, {
           this.legCw.v * dt / 2.4 * c2.dir;
       }
       // and the feedwater falling to the surface inside the boiler's dome
+      // the ring, the pipe into it and the two pours off it are one run of
+      // water, so they are given one colour from one call
+      const feedC = waterColor(0.06, new THREE.Color()).lerp(WHITE, 0.3);
+      setGradient(this.feedRing.material, feedC);
+      this.feedRing.material.attenuationColor.copy(waterColor(0.06, cTmp));
+      this.feedRing.material.normalMap.offset.x -= dt * 0.9;
       const feeding = Math.abs(this.legFeed.v) > 0.02;
       this.feedPour.visible = feeding;
       this.feedPour2.visible = feeding;
       if (feeding) {
         this.feedPour.material.normalMap.offset.y -= dt * 2.2;
-        setGradient(this.feedPour.material,
-          waterColor(0.06, new THREE.Color()).lerp(WHITE, 0.3));
+        setGradient(this.feedPour.material, feedC);
       }
       if (this.seaMat) {
         // one material, shared by the bay and the channel, so the swell runs

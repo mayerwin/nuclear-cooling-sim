@@ -2,7 +2,7 @@
 // parts.js - the reusable pieces of plant, as real geometry.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { liquidMaterial, steamMaterial, Bubbles, frameOf } from './fluid.js?v=c9e7ae8639';
+import { liquidMaterial, steamMaterial, Bubbles, frameOf } from './fluid.js?v=5f4ad1de4a';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -39,28 +39,11 @@ export function pipe(pts, dia, mats, opts = {}) {
   casing.castShadow = true;
   group.add(casing);
 
-  // Flanges: the pipe's outside, at the spacing a real run would have them.
+  // No flanges. They were rings of grey metal every seven metres along every
+  // run, and what they actually did was chop each pipe into segments and put a
+  // hard grey edge across the water travelling down it. The frame is still
+  // needed: the tracers ride on it.
   const frame = frameOf(path, Math.max(48, Math.min(260, Math.round(len * 4))));
-  // Rings only where a run is long enough to need them. Two flanges on a two
-  // metre stub is jewellery, and it was reading as machinery.
-  const nRing = Math.round(len / 7);
-  const rings = new THREE.InstancedMesh(
-    new THREE.TorusGeometry(dia * 0.54, dia * 0.1, 6, 16), mats.flange, Math.max(1, nRing));
-  rings.count = nRing;
-  rings.frustumCulled = false;
-  {
-    const mm = new THREE.Matrix4(), q = new THREE.Quaternion();
-    const zAx = new THREE.Vector3(0, 0, 1), one = new THREE.Vector3(1, 1, 1);
-    for (let i = 0; i < nRing; i++) {
-      const t = (i + 0.5) / nRing * (frame.pts.length - 1);
-      const j = Math.min(frame.pts.length - 2, t | 0);
-      const tan = frame.pts[j + 1].clone().sub(frame.pts[j]).normalize();
-      q.setFromUnitVectors(zAx, tan);
-      mm.compose(frame.pts[j], q, one);
-      rings.setMatrixAt(i, mm);
-    }
-  }
-  group.add(rings);
 
   // The liquid fills the bore. A thin thread down the middle of a pipe is a
   // diagram; a full bore is what water in a pipe looks like.
