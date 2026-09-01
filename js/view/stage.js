@@ -13,8 +13,8 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { build as buildMaterials } from './materials.js?v=267d35cf82';
-import { surfaceMaterial, setGradient, rippleNormal, LOWFX } from './fluid.js?v=267d35cf82';
+import { build as buildMaterials } from './materials.js?v=766fc05981';
+import { surfaceMaterial, setGradient, rippleNormal, LOWFX } from './fluid.js?v=766fc05981';
 
 // A vertical sky gradient, baked once into an equirectangular strip.
 function skyTexture() {
@@ -347,7 +347,11 @@ export class Stage {
     const vTan = Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2);
     const hTan = vTan * this.camera.aspect;
     const usableW = opts.usableW ?? 1, usableH = opts.usableH ?? 1;
-    const dolly = (Math.max(halfW / (hTan * usableW), halfH / (vTan * usableH)) + halfD)
+    // Three fifths of the half-depth, not all of it. The full figure is the
+    // safe answer for a cube seen corner-on; for a station laid out in a plane
+    // and viewed square to it, it is most of a second station's worth of dolly
+    // spent on nothing.
+    const dolly = (Math.max(halfW / (hTan * usableW), halfH / (vTan * usableH)) + halfD * 0.6)
       * (opts.fill ?? 1) + (opts.pad || 0);
     this.focusOn(target, dolly, azimuth, elev, opts.snap);
   }

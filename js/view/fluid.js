@@ -113,7 +113,11 @@ export function liquidMaterial(dia) {
   n.needsUpdate = true;
   return gradientise(new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
-    roughness: LOWFX ? 0.22 : 0.045,
+    // Not mirror-smooth. At 0.045 the key light landed on every pipe as one
+    // small, very bright streak, and where a pipe met a vessel that streak sat
+    // across the joint as a white dart with bloom on top of it. Water is
+    // slightly rough, and a slightly rough highlight is a sheen instead.
+    roughness: LOWFX ? 0.22 : 0.12,
     metalness: 0,
     transmission: LOWFX ? 0 : 1,
     ior: 1.333,
@@ -124,8 +128,8 @@ export function liquidMaterial(dia) {
     normalScale: new THREE.Vector2(0.42, 0.42),
     // A mirror-smooth clearcoat turns every pipe into one blown-out highlight
     // under the key light, and the bloom pass then eats the machine behind it.
-    clearcoat: 0.35,
-    clearcoatRoughness: 0.28,
+    clearcoat: 0.22,
+    clearcoatRoughness: 0.42,
     emissive: new THREE.Color(0x081d33),
     emissiveIntensity: 0.3,
     transparent: true,
@@ -264,6 +268,14 @@ export class Bubbles {
     this.frame = frame;
     this.mesh = new THREE.InstancedMesh(BUBBLE_GEO, material, count);
     this.mesh.frustumCulled = false;
+    // Hidden until something steps it. An instanced mesh whose matrices have
+    // never been written draws every one of its bodies at the origin at unit
+    // scale, so a particle system that belongs to a machine this unit does not
+    // have - the passive station's pool, on the active station - put a hundred
+    // and ten white spheres on top of each other in the middle of the
+    // containment floor. Half of one sphere shows above the slab, and that is
+    // a small white dome standing in the middle of the building.
+    this.mesh.visible = false;
     this.mesh.castShadow = false;
     this.mesh.receiveShadow = false;
     this.u = new Float32Array(count);
@@ -296,7 +308,10 @@ export class Bubbles {
     // bubble, and a pipe full of bubbles is a pipe full of air. What says
     // "water moving" is something long and thin lying along the flow, so the
     // cross-section is halved and the length runs with the speed.
-    const stretch = 1.8 + Math.min(7, Math.abs(v) * 0.3);
+    // Bounded low. At nine times its own width a streak is a needle, and a
+    // handful of needles arriving at an elbow point every which way at once:
+    // the main steam line grew a white starburst at every corner it turned.
+    const stretch = 1.6 + Math.min(2.4, Math.abs(v) * 0.16);
     for (let i = 0; i < this.u.length; i++) {
       let u = this.u[i] + du;
       u -= Math.floor(u);
@@ -369,6 +384,14 @@ export class Riser {
   constructor(radius, count, material, aspect = 1) {
     this.mesh = new THREE.InstancedMesh(BUBBLE_GEO, material, count);
     this.mesh.frustumCulled = false;
+    // Hidden until something steps it. An instanced mesh whose matrices have
+    // never been written draws every one of its bodies at the origin at unit
+    // scale, so a particle system that belongs to a machine this unit does not
+    // have - the passive station's pool, on the active station - put a hundred
+    // and ten white spheres on top of each other in the middle of the
+    // containment floor. Half of one sphere shows above the slab, and that is
+    // a small white dome standing in the middle of the building.
+    this.mesh.visible = false;
     this.n = count;
     this.x = new Float32Array(count);
     this.z = new Float32Array(count);
@@ -425,6 +448,14 @@ export class Drip {
   constructor(count, material) {
     this.mesh = new THREE.InstancedMesh(BUBBLE_GEO, material, count);
     this.mesh.frustumCulled = false;
+    // Hidden until something steps it. An instanced mesh whose matrices have
+    // never been written draws every one of its bodies at the origin at unit
+    // scale, so a particle system that belongs to a machine this unit does not
+    // have - the passive station's pool, on the active station - put a hundred
+    // and ten white spheres on top of each other in the middle of the
+    // containment floor. Half of one sphere shows above the slab, and that is
+    // a small white dome standing in the middle of the building.
+    this.mesh.visible = false;
     this.n = count;
     this.x = new Float32Array(count);
     this.z = new Float32Array(count);

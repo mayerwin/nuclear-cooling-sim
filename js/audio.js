@@ -143,11 +143,14 @@ export class Sound {
       // recording puts a fifth of its energy below 120 Hz and 67% below 400,
       // and surf recorded close has a lot of spray in it, which at this level
       // is hiss. A highpass takes the boom out and a lowpass takes the spray
-      // out, and what is left is the swell. Measured after: nothing at all
-      // below 120 Hz and 3.5% above 3 kHz. What sits in 120-400 now is the
-      // melody, and a note is not a rumble.
+      // out, and what is left is the swell. At 230 Hz the highpass took the
+      // swell with it and left mostly spray, which is the one thing this bed
+      // was replaced for sounding like; at 160 the body of the wave is back
+      // and the rumble still is not. Measured after: 0.4% below 120 Hz, 18% in
+      // 120-400, and 7% above 3 kHz, with 19 dB between the quietest and
+      // loudest moments, which is a sea that breathes.
       const hp = this.ctx.createBiquadFilter();
-      hp.type = 'highpass'; hp.frequency.value = 230; hp.Q.value = 0.7;
+      hp.type = 'highpass'; hp.frequency.value = 160; hp.Q.value = 0.7;
       const lp = this.ctx.createBiquadFilter();
       lp.type = 'lowpass'; lp.frequency.value = 3200; lp.Q.value = 0.7;
       src.connect(hp).connect(lp).connect(g).connect(this.master);
@@ -264,6 +267,7 @@ export class Sound {
   setMuted(m) {
     this.muted = m;
     if (this.master) this.master.gain.setTargetAtTime(m ? 0 : MASTER, this.ctx.currentTime, 0.05);
+    return m;
   }
 
   // ---- one-shots ----------------------------------------------------------

@@ -2,7 +2,7 @@
 // parts.js - the reusable pieces of plant, as real geometry.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { liquidMaterial, steamMaterial, Bubbles, frameOf } from './fluid.js?v=267d35cf82';
+import { liquidMaterial, steamMaterial, Bubbles, frameOf } from './fluid.js?v=766fc05981';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -58,13 +58,28 @@ export function pipe(pts, dia, mats, opts = {}) {
   if (mat.alphaMap) mat.alphaMap.repeat.set(rx * 0.6, Math.max(1, Math.round(dia * 1.6)));
   if (steam) core.renderOrder = 3;
   group.add(core);
+  // Steam runs get their ends closed. A tube is open at both ends, and a torn
+  // alpha map on a double-sided open end, seen down the bore, is a starburst of
+  // white spikes: that is what the main steam line looked like where it enters
+  // the turbine casing.
+  if (steam) {
+    for (const e of [0, 1]) {
+      const cap = new THREE.Mesh(new THREE.CircleGeometry(bore, 16), mat);
+      cap.position.copy(path.getPointAt(e));
+      cap.lookAt(cap.position.clone().addScaledVector(path.getTangentAt(e), e ? 1 : -1));
+      cap.renderOrder = 3;
+      group.add(cap);
+    }
+  }
 
   // Tracers, spaced by length so a long run carries more of them than a short
   // one and the spacing means the same thing everywhere. They are advected
   // along this pipe's own centreline at this pipe's own velocity, so a run
   // added at any time shows its flow with nothing else to set up.
   const count = Math.max(12, Math.min(110, Math.round(len * 3.2)));
-  const bub = new Bubbles(frame, bore * (steam ? 0.3 : 0.44), count, mats.fleck);
+  // Steam tracers are no bigger than water ones. Scaled half again and then
+  // stretched, they were the brightest thing in the picture.
+  const bub = new Bubbles(frame, bore * (steam ? 0.22 : 0.44), count, mats.fleck);
   group.add(bub.mesh);
 
   return { group, casing, core, bub, len, path, mat, dia, bore, steam, tint: mat };

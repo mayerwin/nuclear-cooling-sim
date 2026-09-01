@@ -1,10 +1,10 @@
 // ---------------------------------------------------------------------------
-// fx.js — particle systems: steam, smoke, fire, hydrogen deflagration,
+// fx.js - particle systems: steam, smoke, fire, hydrogen deflagration,
 // debris, shockwaves and the advected radioactive plume that actually
 // deposits contamination onto the terrain.
 // ---------------------------------------------------------------------------
-import { P } from './iso.js?v=267d35cf82';
-import { clamp, lerp, TAU, rnd } from '../util.js?v=267d35cf82';
+import { P } from './iso.js?v=766fc05981';
+import { clamp, lerp, TAU, rnd } from '../util.js?v=766fc05981';
 
 const MAXP = 1400;
 
@@ -120,7 +120,7 @@ export class FX {
   }
 
   // Radioactive aerosol. `bqFrame` is the activity actually released during
-  // this frame *in simulation time* — so the particles carry the real budget
+  // this frame *in simulation time* - so the particles carry the real budget
   // even when the clock is running at 1800x.
   plume(x, y, z, bqFrame, dt, buoy = 1) {
     if (bqFrame <= 0) return;
@@ -167,7 +167,7 @@ export class FX {
         if (q.grow) q.r += q.grow * dt;
         if (q.kind === 'plume') {
           q.vz = Math.max(-0.02, q.vz - 0.08 * dt);
-          // crosswind turbulent diffusion — the plume widens as it travels
+          // crosswind turbulent diffusion - the plume widens as it travels
           const cw = 0.42 * dt;
           q.vx += (Math.random() - 0.5) * cw;
           q.vy += (Math.random() - 0.5) * cw;

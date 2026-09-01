@@ -6,7 +6,7 @@
 import {
   project, box, prism, cylinder, cone, shadow, shade, rgba, mix,
   hash2, poly, polyLine, TW, TH, TZ, EDGE
-} from './iso.js?v=267d35cf82';
+} from './iso.js?v=766fc05981';
 
 const TRUNK = '#6b5138';
 const LEAF_LIVE = ['#4e8f45', '#5aa04e', '#438239', '#67ab55'];

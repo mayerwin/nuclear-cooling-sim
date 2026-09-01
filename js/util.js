@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// util.js — deterministic RNG, value noise, colour + math helpers
+// util.js - deterministic RNG, value noise, colour + math helpers
 // ---------------------------------------------------------------------------
 
 export function mulberry32(seed) {

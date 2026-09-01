@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// scenarios.js — historically grounded initiating events. Each one is applied
+// scenarios.js - historically grounded initiating events. Each one is applied
 // to BOTH plants at the same instant; the only difference is how the two
 // cooling philosophies answer it.
 // ---------------------------------------------------------------------------

@@ -7,12 +7,12 @@
 // in at the water.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=267d35cf82';
+import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=766fc05981';
 import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles,
-  frameOf, setGradient, gradientise, LOWFX } from './fluid.js?v=267d35cf82';
-import { tempColor, waterColor, heatOf, loopHeat } from './materials.js?v=267d35cf82';
-import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=267d35cf82';
-import { Machines } from '../machines.js?v=267d35cf82';
+  frameOf, setGradient, gradientise, LOWFX } from './fluid.js?v=766fc05981';
+import { tempColor, waterColor, heatOf, loopHeat } from './materials.js?v=766fc05981';
+import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=766fc05981';
+import { Machines } from '../machines.js?v=766fc05981';
 
 const R_IN = 15.4, WALL = 1.0, SHELL_H = 31, DOME_R = R_IN + WALL;
 
@@ -32,7 +32,13 @@ export const L = {
   turb: { x: 26, z: 0 },
   // Under the boiler, inside the building. Standing it out on the left cost
   // fifteen metres of picture width for a box of water.
-  tank: { x: -8.5, z: 0, w: 9.4, d: 6.0, h: 4.4 },
+  // Under the boiler, and set back behind its legs rather than around them.
+  // Sitting on the centreline, two of the boiler's twelve-metre support columns
+  // rose straight out of the emergency water: two grey posts standing in a tank
+  // for no reason anyone can see. Moving it sideways instead would have put it
+  // behind the caption column, where a tank you are told about but cannot see
+  // is worse than one with posts in it.
+  tank: { x: -8.5, z: -4.6, w: 9.4, d: 4.4, h: 4.4 },
   // On the REACTOR side of the tank. Standing it on the far side meant the
   // suction ran left out of the tank and the discharge then ran right again,
   // back underneath the tank it had just come from: a pump that appears to
@@ -103,7 +109,11 @@ function drawV(v) {
 }
 
 export function fluidColour(u, out = new THREE.Color()) {
-  return waterColor(u, out).lerp(WHITE, 0.26);
+  // More white the hotter it gets. A saturated orange multiplied over what a
+  // transmissive body already carries goes rust, and rust-coloured water reads
+  // as dirty rather than as hot.
+  const t = Math.max(0, Math.min(1, u));
+  return waterColor(t, out).lerp(WHITE, 0.26 + t * 0.16);
 }
 
 // Paint a body of fluid. c1 is the colour at the far end if it changes along
@@ -117,7 +127,14 @@ function paintFluid(mat, c0, c1 = c0) {
   else mat.color.copy(c0);
   if (mat.attenuationColor) mat.attenuationColor.setHex(0xffffff);
   if (mat.userData.g) mat.color.setHex(0xffffff);
-  mat.emissive.copy(_fa.copy(c0).lerp(c1, 0.5)).multiplyScalar(0.26);
+  // NEUTRAL, not the water's colour. The gradient injection multiplies the
+  // whole fragment - transmitted light, diffuse and emissive alike - by that
+  // same colour, so an emissive already tinted blue came out blue SQUARED: a
+  // fifth of what it should be. Water in the shadow of a machine then had
+  // nothing of its own to show and went to a dark panel, while the identical
+  // recipe on a pipe against the sky came out three times brighter. Setting it
+  // grey lets the one multiply do the tinting.
+  mat.emissive.setScalar(0.14);
 }
 
 function tintWater(mat, colour, dt) {
@@ -361,8 +378,11 @@ export class Unit {
     this.root.add(this.riseCore.mesh);
     this.riseSg = new Riser(2.3, 220, stage.mat.bubble);
     // and the steam those bubbles turn into the moment they break the surface
-    this.sgVapour = new Riser(1.85, 64, stage.mat.puff);
-    this.root.add(this.sgVapour.mesh);
+    // Sprites, not spheres. Bubbles in water keep their round bodies because a
+    // bubble has a surface; vapour does not, and drawn as balls it was popcorn
+    // sitting on the water rather than steam coming off it.
+    this.sgVapour = new PuffCloud(70, { w: 3.6, d: 3.0, h: 5.2, size: 7, grow: 1.9 });
+    this.root.add(this.sgVapour.points);
     this.root.add(this.riseSg.mesh);
     this.risePool = new Riser(3.4, 110, stage.mat.bubble);
     this.root.add(this.risePool.mesh);
@@ -559,8 +579,11 @@ export class Unit {
       roughness: 0.4, metalness: 0.3, clippingPlanes: this.mHalfRpv.clippingPlanes });
     g.add(this.levelRing);
     // and the mark on the vessel that says where the top of the fuel is
+    // Inside the wall. At 3.26 against a vessel of 3.2 the ring poked through
+    // the steel, and the cut left two little gold darts sticking out either
+    // side of the reactor with nothing on screen to say what they were.
     const fuelMark = new THREE.Mesh(
-      new THREE.TorusGeometry(3.26, 0.1, 6, 40),
+      new THREE.TorusGeometry(3.02, 0.1, 6, 40),
       new THREE.MeshStandardMaterial({ color: 0xffb03a, emissive: 0x542f00,
         emissiveIntensity: 0.7, roughness: 0.5, metalness: 0.2,
         clippingPlanes: this.mHalfRpv.clippingPlanes }));
@@ -711,8 +734,11 @@ export class Unit {
     const plateIn = new THREE.MeshStandardMaterial({
       color: 0x7f8b96, roughness: 0.5, metalness: 0.7, side: THREE.DoubleSide });
     // the divider stands across the channel head, edge on to the cut
-    const div = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.6, 4.4), plateIn);
-    div.position.set(s.x + bx, SG_TS - 1.4, s.z + bz);
+    // Narrow enough and high enough to stay inside the head it divides. At
+    // 4.4 deep and starting a third of a metre off the floor, its corners came
+    // out through the bottom of the head as a grey blade hanging under it.
+    const div = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.2, 3.4), plateIn);
+    div.position.set(s.x + bx, SG_TS - 1.0, s.z + bz);
     div.rotation.y = 0;
     g.add(div);
 
@@ -741,8 +767,10 @@ export class Unit {
     // On legs, not a plinth: the suction comes up into the underside of the
     // casing, which is how a reactor coolant pump is actually fed, and a
     // plinth would hide the one pipe that explains the pump.
-    for (let i = 0; i < 4; i++) {
-      const a = Math.PI / 4 + (i / 4) * Math.PI * 2;
+    // Two legs, both on the far side. A ring of four put two of them at
+    // x = -2.4, which is inside the emergency pump's casing: a chrome rod went
+    // in the top of the blue volute and came out of the bottom.
+    for (const a of [Math.PI * 0.75, Math.PI * 1.25]) {
       const leg = tube(0.17, 0.17, COLD_Y - 1.1, this.stage.mat.steel, 8);
       leg.position.set(p.x + Math.cos(a) * 1.7, (COLD_Y - 1.1) / 2, p.z + Math.sin(a) * 1.7);
       g.add(leg);
@@ -1020,21 +1048,15 @@ export class Unit {
     // right over the water: looking down into the machine you saw a white
     // rippled sheet where the pool should be and read it as the pool. Steam
     // has no shape, so it is given a body with no ends.
-    // Steam has no walls. Given a body - a cylinder, a box, anything with a
-    // surface - the half of it the section leaves behind hangs in the machine
-    // as a pale curved sheet, and a sheet of grey inside the condenser is the
-    // one thing in here that is not part of the story. So the space above the
-    // tubes is filled with vapour itself: separate puffs, drifting down onto
-    // the cold tubes, thinning as they go, which is what the steam is doing.
-    // Not clipped. A sphere cut by a plane is a hollow shell, and a hollow
-    // shell of pale grey the size of a puff of steam, sitting near the camera,
-    // is a folded sheet of metal hanging in the machine: the single worst
-    // artefact in this view. Vapour is allowed to drift through the section.
-    this.condFog = new Riser(1.5, 26, m.puff.clone(), (CW - 1.0) / 3.0);
-    this.condFog.mesh.material.opacity = 0.05;
-    this.condFog.mesh.renderOrder = 3;
-    this.condFogAt = { x: CX, z: t.z, y0: CY - 0.6, h: 3.2 };
-    g.add(this.condFog.mesh);
+    // Steam has no walls, and no surface either. Given a body - a cylinder, a
+    // box, anything with a skin - the half of it the section leaves behind
+    // hangs in the machine as a pale curved sheet; given spheres it is
+    // popcorn. It is drawn as what it is: soft sprites drifting down onto the
+    // cold tubes and thinning as they go, with no silhouette anywhere.
+    this.condFog = new PuffCloud(60,
+      { w: CW - 1.0, d: CD - 1.2, h: 3.2, size: 5.5, grow: 1.4 });
+    this.condFogAt = { x: CX, z: t.z, y0: CY - 0.6 };
+    g.add(this.condFog.points);
     // and the water it becomes, lying in the bottom of the shell. A shallow
     // body with a lit, rippling free surface across it, well below the tubes,
     // so it reads as water collecting in the bottom of a machine and not as a
@@ -1057,6 +1079,17 @@ export class Unit {
     // A skin rather than a body: thin, so what tints the picture is the pool
     // underneath it and not the lid.
     this.condTop.material.thickness = 0.5;
+    // Mostly opaque, unlike the rest of the water in the plant. A fully
+    // transmissive body shows whatever is behind it, and what is behind this
+    // one is the shadowed inside of its own machine, so it came out three
+    // times darker than the line pumping out of it: the same recipe, the same
+    // number, and a hard step at the joint. Standing on its own diffuse it is
+    // the colour it is told to be wherever it stands.
+    for (const mm of [this.condWater.material, this.condTop.material]) {
+      mm.transmission = LOWFX ? 0 : 0.78;
+      mm.roughness = 0.13;
+      mm.metalness = 0;
+    }
     this.condTop.position.set(CX, this.condPoolTop + 0.02, t.z);
     g.add(this.condTop);
     this.surfCond = new Surface(24, { c: 2.0, damp: 1.1 });
@@ -1191,7 +1224,12 @@ export class Unit {
     // corner, not a network wrapped round the shell.
     this.steam = pipe([
       V(s.x, SG_BASE + 18.6, s.z), V(s.x, 31.4, s.z),
-      V(X0 - 1.6, 31.4, t.z), V(X0 - 1.6, AX, t.z), V(X0 + 0.9, AX, t.z)
+      // Into the TOP of the casing, which is where a turbine is fed, and which
+      // also settles the one artefact this line kept producing: a vapour core
+      // is a double-sided tube with a torn alpha map and no depth write, so an
+      // open end pointed anywhere near the camera is a starburst of white
+      // spikes. Coming down through the lid, the end faces the floor.
+      V(X0 - 1.6, 31.4, t.z), V(X0 + 1.4, 31.4, t.z), V(X0 + 1.4, AX + 2.0, t.z)
     ], 1.2, m, { bend: 3.0, steam: true });
     this.steam.kindBreak = 'steamline';
     this.steam.leg = this.legSteam;
@@ -1237,12 +1275,10 @@ export class Unit {
     // something is moving; separate bodies of vapour travelling down the throat
     // say WHAT is moving and which way, which is the question being answered
     // here: this is how the steam gets from the turbine to the water below it.
-    this.exhFall = new Riser(1.05, 70, m.puff);
-    this.exhFall.mesh.material = m.puff.clone();
-    this.exhFall.mesh.material.opacity = 0.2;
-    this.exhFall.mesh.renderOrder = 4;
-    this.exhFallAt = { x: EX, z: t.z, y0: EY1 + 0.1, h: EY0 - EY1 - 0.2 };
-    g.add(this.exhFall.mesh);
+    this.exhFall = new PuffCloud(80,
+      { w: 2.1, d: 1.8, h: EY0 - EY1 - 0.2, size: 6, grow: 1.5 });
+    this.exhFallAt = { x: EX, z: t.z, y0: EY1 + 0.1 };
+    g.add(this.exhFall.points);
     // a flange where it lands on the condenser, so it arrives somewhere
 
     // Back the other way at its own height, so the two halves of the second
@@ -1306,6 +1342,13 @@ export class Unit {
     const stackBase = tube(1.5, 1.9, 1.4, this.stage.mat.deck, 20);
     stackBase.position.set(st.x, 0.7, st.z);
     g.add(stackBase);
+    // The column between the base and the mouth. Without it the vent line
+    // arrived at twenty-six metres, turned up, and the whole stack hung in the
+    // sky twenty-five metres above the drum it was supposed to stand on.
+    const column = pipeLike(
+      [V(st.x, 1.1, st.z), V(st.x, st.h + 0.4, st.z)], 0.56, this.stage.mat.painted);
+    column.castShadow = true;
+    g.add(column);
     const mouth = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 0.55, 1.6, 20, 1, true),
       this.stage.mat.painted);
     mouth.material.side = THREE.DoubleSide;
@@ -1355,40 +1398,32 @@ export class Unit {
     q.broken = true;
     const local = this.root.worldToLocal(worldPoint.clone());
     const g = this.root;
-    // The wound lies ON the pipe. A torus pinned to a fixed rotation sat
-    // across a sloping run at whatever angle the run happened to have, which
-    // is why it read as a black ring dropped on top rather than a hole in it.
-    const dir = new THREE.Vector3(0, 1, 0);
-    {
-      const path = q.path;
-      if (path) {
-        // the tangent nearest the point that was hit
-        let best = 0, bd = Infinity;
-        for (let i = 0; i <= 40; i++) {
-          const d = path.getPointAt(i / 40).distanceTo(local);
-          if (d < bd) { bd = d; best = i / 40; }
-        }
-        dir.copy(path.getTangentAt(best)).normalize();
-      }
-    }
-    const torn = new THREE.Mesh(
-      new THREE.TorusGeometry(q.dia * 0.56, q.dia * 0.13, 8, 20),
-      new THREE.MeshStandardMaterial({ color: 0x2a211c, roughness: 0.95,
-        emissive: new THREE.Color(0x180a06), emissiveIntensity: 0.35 }));
-    torn.position.copy(local);
-    torn.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
-    g.add(torn);
     const steam = q.leg && q.leg.kind === 'steam';
+    // A HOLE IN THE WALL, not a ring round the run. A torus whose axis is the
+    // pipe's own axis encircles the pipe, and a ring round a pipe is a collar
+    // fitted to it however it is coloured. This one's axis is the direction
+    // the contents leave in - down for water, up for steam - so it sits in the
+    // pipe's surface as the torn lip of an opening, and it is the pipe's own
+    // steel rather than the near-black it used to be.
+    const out = new THREE.Vector3(0, steam ? 1 : -1, 0);
+    const torn = new THREE.Mesh(
+      new THREE.TorusGeometry(q.dia * 0.44, q.dia * 0.1, 6, 18),
+      new THREE.MeshStandardMaterial({ color: 0x93a0ac, roughness: 0.92,
+        metalness: 0.55, flatShading: true }));
+    torn.position.copy(local).addScaledVector(out, q.dia * 0.4);
+    torn.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), out);
+    g.add(torn);
     let jet = null;
     if (!steam) {
       // water falls: a column from the wound to the floor
       const h = Math.max(1.2, local.y - 0.1);
-      // Wide enough to see. At a fifth of the pipe's diameter it was a thread
-      // of clear glass hanging under a black ring.
+      // Narrow where it leaves the pipe and spreading a little as it falls. It
+      // used to open out to three times the pipe's diameter, which is not a
+      // stream getting away from a break, it is a traffic cone.
       jet = new THREE.Mesh(
-        new THREE.CylinderGeometry(q.dia * 0.42, q.dia * 0.9, h, 12),
+        new THREE.CylinderGeometry(q.dia * 0.3, q.dia * 0.66, h, 16),
         liquidMaterial(q.dia * 1.4));
-      jet.material.normalMap.repeat.set(2, Math.max(3, Math.round(h)));
+      jet.material.normalMap.repeat.set(2, Math.max(4, Math.round(h * 1.6)));
       jet.position.set(local.x, local.y - h / 2, local.z);
       g.add(jet);
     }
@@ -1571,7 +1606,11 @@ export class Unit {
         lip.position.set(t.x + ax * (t.w / 2 + 0.2), t.h, t.z + az * (t.d / 2 + 0.2));
         g.add(lip);
       }
+      // Mostly opaque, for the reason the condensate pool is: a transmissive
+      // body in an unlit box shows the unlit box, and comes out as a dark
+      // panel with a painted rim rather than as water.
       this.tankWater = slab(t.w - 0.7, 1, t.d - 0.7, ownWater(this.m.poolWater));
+      this.tankWater.material.transmission = LOWFX ? 0 : 0.78;
       this.tankWater.scale.y = t.h - 0.7;
       this.tankWater.position.set(t.x, (t.h - 0.7) / 2, t.z);
       g.add(this.tankWater);
@@ -1607,8 +1646,8 @@ export class Unit {
 // ---------------------------------------------------------------------------
 // per frame: solve the flows, step the machines, and let the geometry follow
 // ---------------------------------------------------------------------------
-import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=267d35cf82';
-import { Plume } from './plume.js?v=267d35cf82';
+import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=766fc05981';
+import { Plume, PuffCloud } from './plume.js?v=766fc05981';
 
 Object.assign(Unit.prototype, {
 
@@ -1772,13 +1811,17 @@ Object.assign(Unit.prototype, {
       // and so do the bubbles in it
       // In steam the carried droplets are the whole story, so they are drawn
       // big; in water they are bubbles and stay small.
-      q.bub.advance(dt, vd, q.len, moving ? (leg.kind === 'steam' ? 2.6 : 1) : 0.0001);
+      q.bub.advance(dt, vd, q.len, moving ? (leg.kind === 'steam' ? 1.5 : 1) : 0.0001);
       q.bub.mesh.visible = moving;
 
       if (leg.kind === 'steam') {
         // Vapour scatters instead of refracting, so it is a body you look at
         // rather than through: pale, torn, and moving fast enough to see.
-        mat.alphaMap.offset.x -= v * dt * 0.25;
+        // On the same compression as the tracers beside it and the vapour in
+        // the boiler it came from: raw velocity here made the streaks in the
+        // steam line race past bubbles that were leaving the water it boiled
+        // out of.
+        mat.alphaMap.offset.x -= vd * dt * 0.25;
         mat.opacity = moving ? 0.72 : 0.12;
         mat.emissiveIntensity = moving ? 0.42 : 0.05;
       } else {
@@ -1794,8 +1837,13 @@ Object.assign(Unit.prototype, {
         // The sea water leaving the condenser is warmer than the sea water
         // going in, because it has just taken a turbine's worth of heat out of
         // the steam. That is the whole point of the outfall, so it is drawn.
-        const u2 = q.warmOut ? u + 0.06 : u;
-        paintFluid(mat, fluidColour(u, cTmp), fluidColour(u2, _c2));
+        // The outfall has ALREADY crossed the tube bank, so it leaves the
+        // machine warm and goes on warming a little on the way out. Ramping it
+        // up from the intake's own blue said the water cooled in the
+        // condenser, and at a twentieth of the ramp the two sea lines measured
+        // four points apart out of 255 and were the same blue anyway.
+        const u1 = q.warmOut ? u + 0.13 : u, u2 = q.warmOut ? u + 0.2 : u;
+        paintFluid(mat, fluidColour(u1, cTmp), fluidColour(u2, _c2));
         // Everything else about this material was set when it was built.
         // Rewriting it every frame cost forty materials a dozen property
         // writes each for nothing, and it forced transmission back on the
@@ -1850,15 +1898,14 @@ Object.assign(Unit.prototype, {
         em.emissiveIntensity = 0.15 + rate * 0.5;
         {
           const f = this.exhFallAt;
-          this.exhFall.step(dt, f.y0, f.h, rate, f.x, f.z, 1.15, -1);
+          this.exhFall.step(dt, f.x, f.y0, f.z, rate, -1, 0.2 + rate * 0.3);
         }
         // and filling the shell, where it meets the cold tubes and stops being
         // steam. Thicker at the top where it arrives, thin at the bottom where
         // it has already given up.
         {
           const f = this.condFogAt;
-          this.condFog.step(dt, f.y0, f.h, rate, f.x, f.z, 1.7, -1);
-          this.condFog.mesh.material.opacity = 0.02 + rate * 0.05;
+          this.condFog.step(dt, f.x, f.y0, f.z, rate, -1, 0.1 + rate * 0.16);
         }
         for (const c of this.condDrip) {
           c.d.step(dt, this.cond.position.x + 0.4, L.turb.z - 0.5, 4.4, 1.6,
@@ -1877,8 +1924,8 @@ Object.assign(Unit.prototype, {
         // of water lit by nothing is a dark panel. It is given back the light
         // the hood takes off it, so it reads as the same water as the line
         // that pumps out of it.
-        this.condWater.material.emissive.multiplyScalar(2.3);
-        this.condTop.material.emissive.multiplyScalar(2.3);
+        this.condWater.material.emissive.setScalar(0.3);
+        this.condTop.material.emissive.setScalar(0.3);
         this.condWater.material.normalMap.offset.x += dt * 0.04;
         this.condTop.material.normalMap.offset.x += dt * 0.05;
         this.condTop.material.normalMap.offset.y += dt * 0.03;
@@ -1898,7 +1945,7 @@ Object.assign(Unit.prototype, {
         paintFluid(c2.rod.mat,
           fluidColour(c2.dir > 0 ? 0.04 : 0.09, cwC),
           fluidColour(c2.dir > 0 ? 0.06 : 0.11, _c2));
-        c2.rod.mat.emissive.multiplyScalar(2.3);
+        c2.rod.mat.emissive.setScalar(0.22);
         // the lower pass runs left, the upper pass runs back to the right
         c2.rod.mat.normalMap.offset.x -=
           drawV(this.legCw.v) * dt / 2.4 * c2.dir;
@@ -1951,9 +1998,14 @@ Object.assign(Unit.prototype, {
     // the fuel, which is the one thing a reactor does.
     this.coreWater.material.normalMap.offset.x += dt * 0.035;
     this.coreWater.material.normalMap.offset.y += dt * 0.021;
+    // The body of the water is held below the top of the ramp at normal
+    // power: the pipes are where the blue-to-orange trade is spent, and a
+    // vessel full of orange at 347 C leaves nowhere to go when it really is
+    // overheating.
+    const wTop = Math.min(heat, 0.62);
     paintFluid(this.coreWater.material,
-      fluidColour(cold, new THREE.Color()), fluidColour(heat, new THREE.Color()));
-    paintFluid(this.coreTop.material, fluidColour(heat, cTmp));
+      fluidColour(cold, new THREE.Color()), fluidColour(wTop, new THREE.Color()));
+    paintFluid(this.coreTop.material, fluidColour(wTop, cTmp));
     this.coreTop.material.normalMap.offset.x += dt * 0.03;
     this.coreWater.visible = st.lvl > 0.01;
     this.coreTop.visible = st.lvl > 0.01;
@@ -2075,8 +2127,9 @@ Object.assign(Unit.prototype, {
     // Vapour leaving the surface and climbing into the dome. The bubbles stop
     // at the waterline and these start there, so the change of state happens
     // at the one place in the picture where it should.
-    this.sgVapour.step(dt, SG_TS + sgH, Math.max(1.0, SG_BASE + 17.2 - SG_TS - sgH),
-      carrying ? 0.68 : 0.1, L.sg.x, L.sg.z, 1.5);
+    this.sgVapour.h = Math.max(1.0, SG_BASE + 17.2 - SG_TS - sgH);
+    this.sgVapour.step(dt, L.sg.x, SG_TS + sgH, L.sg.z,
+      carrying ? 0.68 : 0.1, 1, carrying ? 0.5 : 0.2);
     ripple(this.sgTop, this.surfSg, 2.62);
     // The shell side of the boiler is at its own boiling point, which is what
     // the feed line arriving cold and the steam line leaving hot are about.

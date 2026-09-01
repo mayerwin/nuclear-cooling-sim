@@ -5,16 +5,16 @@
 // inside of the buildings in 3-D. Only one is on screen at a time.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { Sim } from './sim.js?v=267d35cf82';
-import { Renderer } from './site/renderer.js?v=267d35cf82';
-import { unproject } from './site/iso.js?v=267d35cf82';
-import { Stage } from './view/stage.js?v=267d35cf82';
-import { Unit, CUT_AZ } from './view/unit.js?v=267d35cf82';
-import { Labels } from './view/labels.js?v=267d35cf82';
-import { UI } from './ui.js?v=267d35cf82';
-import { initPhysics } from './machines.js?v=267d35cf82';
-import { state } from './view/state.js?v=267d35cf82';
-import { clamp } from './util.js?v=267d35cf82';
+import { Sim } from './sim.js?v=766fc05981';
+import { Renderer } from './site/renderer.js?v=766fc05981';
+import { unproject } from './site/iso.js?v=766fc05981';
+import { Stage } from './view/stage.js?v=766fc05981';
+import { Unit, CUT_AZ } from './view/unit.js?v=766fc05981';
+import { Labels } from './view/labels.js?v=766fc05981';
+import { UI } from './ui.js?v=766fc05981';
+import { initPhysics } from './machines.js?v=766fc05981';
+import { state } from './view/state.js?v=766fc05981';
+import { clamp } from './util.js?v=766fc05981';
 
 const SPAN = 29;
 const siteCanvas = document.getElementById('site');
@@ -95,7 +95,11 @@ function resize() {
   renderer.topInset = narrow ? barH : 0;
   if (sim.view === 'site') sim.overview();
   if (stage) stage.resize(w, sceneH);
-  if (sim.focus) setFocus(sim.focus);
+  // Snapped, not eased. A resize is not something the viewer is watching
+  // happen, and turning a phone from landscape back to portrait left the
+  // camera drifting towards a framing it had not reached by the time anyone
+  // looked at it.
+  if (sim.focus) setFocus(sim.focus, true);
 }
 addEventListener('resize', resize);
 addEventListener('orientationchange', resize);
@@ -133,7 +137,7 @@ function usable() {
   };
 }
 
-function setFocus(f) {
+function setFocus(f, snap) {
   if (!stage) return;
   sim.focus = f;
   const u = usable();
@@ -150,6 +154,11 @@ function setFocus(f) {
   // The eight world corners of the frame, kept as points. Collapsed into a
   // world-axis box they measured a volume much larger than the station, because
   // the station is turned to face the cut.
+  // On a phone the frame is drawn tighter round the machinery: the vent stack
+  // stands eleven metres out to the left and thirty into the sky, and framing
+  // for it on a portrait screen shrank the plant by a fifth to make room for
+  // an empty corner.
+  const X0F = narrow ? -13 : -23, X1F = narrow ? 32 : 34, Y1F = narrow ? 33 : 37;
   const corners = (u, x0, x1, y0, y1, zz) => {
     u.root.updateWorldMatrix(true, false);
     const out = [];
@@ -161,13 +170,14 @@ function setFocus(f) {
   };
   if (f === 'both') {
     stage.framePoints(
-      [...corners(units[0], -23, 34, -4, 37, 12), ...corners(units[1], -23, 34, -4, 37, 12)],
-      { azimuth: CUT_AZ, elev: narrow ? 0.24 : 0.22, snap: firstFocus,
-        fill: narrow ? 1.02 : 0.92, ...u });
+      [...corners(units[0], X0F, X1F, -4, Y1F, 12),
+        ...corners(units[1], X0F, X1F, -4, Y1F, 12)],
+      { azimuth: CUT_AZ, elev: narrow ? 0.24 : 0.22, snap: firstFocus || snap,
+        fill: narrow ? 1.06 : 0.92, ...u });
   } else {
-    stage.framePoints(corners(units[f === 'active' ? 0 : 1], -23, 34, -4, 37, 12),
-      { azimuth: CUT_AZ, elev: narrow ? 0.2 : 0.18, snap: firstFocus,
-        fill: narrow ? 1.0 : 0.88, ...u });
+    stage.framePoints(corners(units[f === 'active' ? 0 : 1], X0F, X1F, -4, Y1F, 12),
+      { azimuth: CUT_AZ, elev: narrow ? 0.2 : 0.18, snap: firstFocus || snap,
+        fill: narrow ? 1.1 : 0.88, ...u });
   }
   firstFocus = false;
   labels.setFocus(f);

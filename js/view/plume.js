@@ -2,7 +2,7 @@
 // plume.js - steam and smoke, as points that rise, spread and thin out.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { hash1 } from '../flow.js?v=267d35cf82';
+import { hash1 } from '../flow.js?v=766fc05981';
 
 let sprite = null;
 function puffTexture() {
@@ -17,6 +17,99 @@ function puffTexture() {
   x.fillStyle = g; x.fillRect(0, 0, 128, 128);
   sprite = new THREE.CanvasTexture(c);
   return sprite;
+}
+
+// One soft sprite, sized in metres and fading with its own alpha attribute.
+function puffMaterial(color, size) {
+  return new THREE.ShaderMaterial({
+    uniforms: { uMap: { value: puffTexture() }, uColor: { value: new THREE.Color(color) },
+      uSize: { value: size } },
+    vertexShader: `
+      attribute float aScale; attribute float aAlpha;
+      varying float vA;
+      uniform float uSize;
+      void main() {
+        vA = aAlpha;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = uSize * aScale * (300.0 / -mv.z);
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `
+      uniform sampler2D uMap; uniform vec3 uColor; varying float vA;
+      void main() {
+        vec4 t = texture2D(uMap, gl_PointCoord);
+        gl_FragColor = vec4(uColor, t.a * vA);
+      }`,
+    transparent: true, depthWrite: false, blending: THREE.NormalBlending
+  });
+}
+
+// A body of vapour standing in a space: soft round sprites drifting through a
+// box, fading in where they arrive and out where they have given up. Not
+// spheres. A sphere has a hard silhouette, and a hundred hard silhouettes is
+// popcorn; steam has no edge, which is most of what makes it read as steam.
+export class PuffCloud {
+  // w, d: how wide and deep the space is. h: how far a puff travels through it.
+  // size is roughly seven times the diameter a puff should have in metres:
+  // gl_PointSize works in the same units Plume's does, where 300/distance is
+  // the projection, so a metre-wide puff is about a seven.
+  constructor(count, opts = {}) {
+    this.n = count;
+    this.w = opts.w == null ? 1 : opts.w;
+    this.d = opts.d == null ? 1 : opts.d;
+    this.h = opts.h == null ? 3 : opts.h;
+    this.grow = opts.grow == null ? 1.6 : opts.grow;
+    this.pos = new Float32Array(count * 3);
+    this.aScale = new Float32Array(count);
+    this.aAlpha = new Float32Array(count);
+    this.t = new Float32Array(count);
+    this.ox = new Float32Array(count);
+    this.oz = new Float32Array(count);
+    this.sp = new Float32Array(count);
+    this.sz = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      this.t[i] = hash1(i * 71 + 3);
+      this.ox[i] = hash1(i * 131 + 7) - 0.5;
+      this.oz[i] = hash1(i * 197 + 11) - 0.5;
+      this.sp[i] = 0.6 + hash1(i * 251 + 13) * 0.8;
+      this.sz[i] = 0.55 + hash1(i * 313 + 17) * 0.85;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3));
+    geo.setAttribute('aScale', new THREE.BufferAttribute(this.aScale, 1));
+    geo.setAttribute('aAlpha', new THREE.BufferAttribute(this.aAlpha, 1));
+    this.geo = geo;
+    this.mat = puffMaterial(opts.color == null ? 0xeef6fb : opts.color,
+      opts.size == null ? 30 : opts.size);
+    this.points = new THREE.Points(geo, this.mat);
+    this.points.frustumCulled = false;
+    this.points.renderOrder = 4;
+  }
+
+  // dir is -1 for vapour settling down a throat and +1 for vapour rising off
+  // water. rate from 0 to 1 is how hard the machine is working.
+  step(dt, cx, cy, cz, rate, dir = 1, opacity = 0.55) {
+    const on = rate > 0.005;
+    this.points.visible = on;
+    if (!on) return;
+    for (let i = 0; i < this.n; i++) {
+      this.t[i] += dt * this.sp[i] * (0.25 + rate * 1.1) / Math.max(0.6, this.h) * 2.2;
+      this.t[i] -= Math.floor(this.t[i]);
+      const u = this.t[i];
+      const along = dir > 0 ? u : 1 - u;
+      this.pos[i * 3] = cx + this.ox[i] * this.w;
+      this.pos[i * 3 + 1] = cy + along * this.h;
+      this.pos[i * 3 + 2] = cz + this.oz[i] * this.d;
+      // Fat and faint by the end of the run, small and solid at the start.
+      this.aScale[i] = this.sz[i] * (1 + u * this.grow);
+      // Never appearing or vanishing at a hard edge: in over the first tenth
+      // of the travel, out over the last third.
+      this.aAlpha[i] = opacity * Math.min(1, u / 0.1) * (1 - u * 0.72);
+    }
+    this.geo.attributes.position.needsUpdate = true;
+    this.geo.attributes.aScale.needsUpdate = true;
+    this.geo.attributes.aAlpha.needsUpdate = true;
+  }
 }
 
 export class Plume {
@@ -35,27 +128,7 @@ export class Plume {
     geo.setAttribute('aScale', new THREE.BufferAttribute(this.aScale, 1));
     geo.setAttribute('aAlpha', new THREE.BufferAttribute(this.aAlpha, 1));
     this.geo = geo;
-    this.mat = new THREE.ShaderMaterial({
-      uniforms: { uMap: { value: puffTexture() }, uColor: { value: new THREE.Color(color) },
-        uSize: { value: size } },
-      vertexShader: `
-        attribute float aScale; attribute float aAlpha;
-        varying float vA;
-        uniform float uSize;
-        void main() {
-          vA = aAlpha;
-          vec4 mv = modelViewMatrix * vec4(position, 1.0);
-          gl_PointSize = uSize * aScale * (300.0 / -mv.z);
-          gl_Position = projectionMatrix * mv;
-        }`,
-      fragmentShader: `
-        uniform sampler2D uMap; uniform vec3 uColor; varying float vA;
-        void main() {
-          vec4 t = texture2D(uMap, gl_PointCoord);
-          gl_FragColor = vec4(uColor, t.a * vA);
-        }`,
-      transparent: true, depthWrite: false, blending: THREE.NormalBlending
-    });
+    this.mat = puffMaterial(color, size);
     this.points = new THREE.Points(geo, this.mat);
     this.points.frustumCulled = false;
   }

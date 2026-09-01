@@ -9,8 +9,8 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { L } from './unit.js?v=267d35cf82';
-import { state } from './state.js?v=267d35cf82';
+import { L } from './unit.js?v=766fc05981';
+import { state } from './state.js?v=766fc05981';
 
 function tag(cls) {
   const el = document.createElement('div');
@@ -66,18 +66,25 @@ export class Labels {
   setFocus(f) { this.focus = f; }
 
   // The rectangle of the window that is not under a panel or the log.
+  // In the LABEL LAYER'S own coordinates, not the page's. On a phone the layer
+  // is the band between the toolbar and the log, so it starts partway down the
+  // page and is shorter than it; measuring the free space in page pixels and
+  // then placing a caption in band pixels put every caption too low by the
+  // height of the toolbar, and the bottom one was cut in half by the layer's
+  // own edge.
   freeRect() {
     const w = window.innerWidth, h = window.innerHeight;
+    const rc = this.stage.renderer.domElement.getBoundingClientRect();
     const bar = document.getElementById('bar').getBoundingClientRect().height;
     const feed = document.getElementById('feed').getBoundingClientRect();
     const wide = w > 980;
     const l = document.getElementById('left').getBoundingClientRect();
     const r = document.getElementById('right').getBoundingClientRect();
     return {
-      x0: (wide ? l.right : 0) + 10,
-      x1: (wide ? r.left : w) - 10,
-      y0: bar + 10,
-      y1: (feed.height ? feed.top : h) - 16
+      x0: Math.max(0, (wide ? l.right : 0) + 10 - rc.left),
+      x1: Math.min(rc.width, (wide ? r.left : w) - 10 - rc.left),
+      y0: Math.max(0, bar + 10 - rc.top),
+      y1: Math.min(rc.height, (feed.height ? feed.top : h) - 16 - rc.top)
     };
   }
 
@@ -191,7 +198,8 @@ export class Labels {
     // is a permanent offset between a caption and the leader pointing at it.
     cam.updateMatrixWorld();
     cam.matrixWorldInverse.copy(cam.matrixWorld).invert();
-    const w = window.innerWidth, h = window.innerHeight;
+    const rc = this.stage.renderer.domElement.getBoundingClientRect();
+    const w = rc.width, h = rc.height;
     const R = this.freeRect();
     const narrow = R.x1 - R.x0 < 620;
     const cols = { L: [], R: [], C: [] };
