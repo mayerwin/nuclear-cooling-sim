@@ -58,7 +58,7 @@ use the project's own tools:
 | G12 | The containment concrete does not read as hollow | WATCH | Cut faces capped up both cut planes, in the liner's grey. The dome's edge is deliberately left open (see G13) |
 | G13 | No grey band or arch across the middle of the view | DONE | The dome cap arch runs over the crown by construction, so it is not drawn at all |
 | G14 | Bubbles stay inside the vessel they belong to | DONE | Each riser is clipped on its own vessel's plane |
-| G15 | Steam enters the turbine at the side, and the casing reads as a real machine cut open | DONE | Closed-ended casing with end walls, floating hoops removed, steam in along the axis |
+| G15 | Steam enters the turbine at the side, and the casing reads as a real machine cut open | DONE | `look turbine`. Closed-ended casing with an end wall at each end, floating hoops removed, steam in along the axis at shaft height. The casing interior is dark: lit at the yard's brightness against a bright sea it was the same value as its background and the machine read as one pale smear |
 | G16 | The path from the wheel to the condenser is legible | DONE | Glass throat with vapour falling through it, in one stream from the inlet |
 | G17 | Breaking a pipe opens a hole with water coming out, and no black ring | DONE | Torn lip in the pipe's own steel, oriented as a hole in the wall |
 

@@ -7,12 +7,12 @@
 // in at the water.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=8e3dc0c488';
+import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=18a1a85940';
 import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles,
-  frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=8e3dc0c488';
-import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=8e3dc0c488';
-import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=8e3dc0c488';
-import { Machines } from '../machines.js?v=8e3dc0c488';
+  frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=18a1a85940';
+import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=18a1a85940';
+import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=18a1a85940';
+import { Machines } from '../machines.js?v=18a1a85940';
 
 const R_IN = 15.4, WALL = 1.0, SHELL_H = 31, DOME_R = R_IN + WALL;
 
@@ -905,6 +905,14 @@ export class Unit {
     const AX = 10.4, X0 = t.x - 8.8, X1 = t.x - 4.0;
     this.turbLen = X1 - X0;
     const casMat = this.stage.mat.painted.clone();
+    // DARK INSIDE. The inside of a turbine casing is a dark place, and lit at
+    // the yard's own brightness against a bright sea the machine came out the
+    // same value as its background: the wheel, the steam and the casing were
+    // one pale smear. Dark, the wheel stands in it and the steam crossing the
+    // blades is the brightest thing in the frame, which is the point.
+    casMat.color.setHex(0x39434e);
+    casMat.metalness = 0.2;
+    casMat.roughness = 0.7;
     casMat.side = THREE.DoubleSide;
     // Only the near half comes off, on the same plane as the building. The far
     // half and the lid stay: an open-topped machine full of steam is a machine
@@ -1345,8 +1353,12 @@ export class Unit {
     // Beginning it below the buckets left the machine with steam arriving on
     // its lid, nothing crossing the blades, and steam leaving underneath: three
     // separate events instead of one thing happening.
-    this.exhFall = new PuffCloud(110,
-      { w: 2.1, d: 1.8, h: AX + 2.0 - EY1, size: 6, grow: 1.6 });
+    // Fewer and fainter than when this column was only the throat. Stretched
+    // to the whole height of the machine at the old density it fogged the
+    // casing out, and a turbine you cannot see is not helped by knowing where
+    // its steam went.
+    this.exhFall = new PuffCloud(80,
+      { w: 1.9, d: 1.6, h: AX + 2.0 - EY1, size: 5.4, grow: 1.6 });
     this.exhFallAt = { x: EX, z: t.z, y0: EY1 + 0.1 };
     g.add(this.exhFall.points);
     // a flange where it lands on the condenser, so it arrives somewhere
@@ -1696,8 +1708,8 @@ export class Unit {
 // ---------------------------------------------------------------------------
 // per frame: solve the flows, step the machines, and let the geometry follow
 // ---------------------------------------------------------------------------
-import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=8e3dc0c488';
-import { Plume, PuffCloud } from './plume.js?v=8e3dc0c488';
+import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=18a1a85940';
+import { Plume, PuffCloud } from './plume.js?v=18a1a85940';
 
 Object.assign(Unit.prototype, {
 
@@ -1950,7 +1962,7 @@ Object.assign(Unit.prototype, {
         em.emissiveIntensity = 0.15 + rate * 0.5;
         {
           const f = this.exhFallAt;
-          this.exhFall.step(dt, f.x, f.y0, f.z, rate, -1, 0.2 + rate * 0.3);
+          this.exhFall.step(dt, f.x, f.y0, f.z, rate, -1, 0.1 + rate * 0.16);
         }
         // and filling the shell, where it meets the cold tubes and stops being
         // steam. Thicker at the top where it arrives, thin at the bottom where
