@@ -1,156 +1,578 @@
 [
-  {"id":"F1","area":"Fluids and colour","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"Particles in the water must read as flowing water, not as bubbles or white balls.",
-   "check":"look head: tracers are streaks along the bore. Root cause was `mats.fleck` missing from the unit's material table, so Three fell back to a white MeshBasicMaterial.",
-   "proof":[{"img":"proof/F1_tracers.png","caption":"Channel head: streaks, not beads"}]},
-  {"id":"F2","area":"Fluids and colour","raised":"2026-09-01","verified":"2026-09-02","status":"WATCH",
-   "req":"Colours must NEVER change suddenly; every change is a gradient.",
-   "check":"One recipe everywhere: fluidColour(u) + paintFluid(mat, c0, c1). Any new call site that mixes its own colour breaks this, hence WATCH.",
-   "proof":[{"img":"proof/F2_gradient.png","caption":"Sea water warming across the tube bank"}]},
-  {"id":"F3","area":"Fluids and colour","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"The condensate is the same temperature as the water going back to the boiler, so it must be the same colour, and the tank below the turbine must look full of water, not painted walls.",
-   "check":"look sump: pool and suction line painted from one call; measured within 7% per channel before the shading rework, same recipe since.",
-   "proof":[{"img":"proof/F3_condensate.png","caption":"Condensate pool and its suction line"}]},
-  {"id":"F4","area":"Fluids and colour","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"Water must visibly become more orangish towards the top of the reactor, realistically, not paint in front.",
-   "check":"look rpv: vertical ramp on the body of the water, cold at the bottom of the vessel to amber at the surface.",
-   "proof":[{"img":"proof/F4_reactor.png","caption":"Reactor: blue at the bottom, amber at the top"}]},
-  {"id":"F5","area":"Fluids and colour","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"Steam speed in the pipe must be consistent with the steam in the boiler; fluid speeds consistent overall.",
-   "check":"One compression law drawV(v) = 2.6 * |v|^0.55 drives every scroll, tracer, riser and vapour cloud.",
-   "proof":[{"img":"proof/F5_speeds.png","caption":"Boiler and its steam line"},{"text":"js/view/unit.js: drawV() is the only speed mapping; grep -n 'drawV(' shows every scroll and tracer uses it."}]},
-  {"id":"F6","area":"Fluids and colour","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"Junctions between pipe and vessel must be seamless: no colour step, no grey rod, no sleeve, no 'dark orange pipe and light orange tank'.",
-   "check":"look head: hot and cold legs run to the divider plate inside the head; all ten collars deleted; one colour call per junction.",
-   "proof":[{"img":"proof/F6_junction.png","caption":"Hot and cold legs entering the channel head"}]},
-  {"id":"F7","area":"Fluids and colour","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"The incoming water pipe must be seamless and properly connected to the rest.",
-   "check":"look dome: the feed line runs to a ring at the head of the downcomer and the water runs down the sheet from there.",
-   "proof":[{"img":"proof/F7_feed.png","caption":"Feed line into the boiler"}]},
-  {"id":"F8","area":"Fluids and colour","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"The blue pipe into the boiler must look like fluid going into a bigger tank.",
-   "check":"look dome.",
-   "proof":[{"img":"proof/F8_feed_tank.png","caption":"Boiler feed"}]},
-  {"id":"F9","area":"Fluids and colour","raised":"2026-09-02","verified":"2026-09-02","status":"WATCH",
-   "req":"Water must be rendered the way games and physical simulations render fluids: a clean, standard model, not a hack. 'No game would ship such poor graphics.'",
-   "check":"Standard real-time water model: two-octave flow map (aperiodic FBM, anisotropic along the bore), Beer-Lambert absorption by path length, Fresnel edge, glossy specular; refraction available as a toggle. Marked WATCH because the bar is 'game quality' and reflections of surroundings are still off by default for frame rate.",
-   "proof":[{"img":"proof/F9_fluid_pump.png","caption":"Pump body"},{"img":"proof/F9_fluid_unit.png","caption":"Whole unit"}]},
-  {"id":"F10","area":"Fluids and colour","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"If sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor.",
-   "check":"look turbine: intake at 0.02 of the ramp, outfall at 0.64 to 0.70, reactor at 0.75.",
-   "proof":[{"img":"proof/F10_outfall.png","caption":"Outfall amber, intake blue"}]},
-  {"id":"F11","area":"Fluids and colour","raised":"2026-09-02","verified":"2026-09-02","status":"DONE",
-   "req":"The INCOMING sea water is colder than the outgoing water and must be blue, not orange.",
-   "check":"The first tube pass flows right-to-left against its left-to-right geometry, so its gradient is reversed; the inlet box is blue below the divider and amber above.",
-   "proof":[{"img":"proof/F11_intake.png","caption":"Intake blue where the sea arrives"}]},
-  {"id":"F12","area":"Fluids and colour","raised":"2026-09-02","verified":"2026-09-02","status":"DONE",
-   "req":"The sea must look like one seamless surface, no patches with different textures.",
-   "check":"Open sea, forebay and channel all set their ripple repeat from SEA_TILE and share the two-octave flow.",
-   "proof":[{"img":"proof/F12_sea.png","caption":"Forebay and open sea"}]},
-
-  {"id":"G1","area":"Geometry and clutter","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"Get rid of the network of pipes around the concrete container; they connect to nothing.",
-   "check":"28 buttresses removed; steam and feed leave the containment in one corner.",
-   "proof":[{"img":"proof/G1_G2_containment.png","caption":"Containment from behind"}]},
-  {"id":"G2","area":"Geometry and clutter","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"No rings or pipes around the containment tank.",
-   "check":"Three tori deleted: springline, plinth, cut rim.",
-   "proof":[{"img":"proof/G1_G2_containment.png","caption":"No rings"}]},
-  {"id":"G3","area":"Geometry and clutter","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"Get rid of the middle white mini dome in the middle of the containment.",
-   "check":"It was 110 unstepped particle instances stacked at the origin. Riser, Drip and Bubbles start hidden.",
-   "proof":[{"img":"proof/G3_floor.png","caption":"Containment floor, nothing on it"}]},
-  {"id":"G4","area":"Geometry and clutter","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"Remove the grey metal rings from all pipes.",
-   "check":"Flanges removed from pipe(); all collars deleted.",
-   "proof":[{"img":"proof/G4_no_rings.png","caption":"Bare pipes into the head"}]},
-  {"id":"G5","area":"Geometry and clutter","raised":"2026-09-02","verified":"2026-09-02","status":"DONE",
-   "req":"No borders on the pumps interrupting the visible flow of water.",
-   "check":"Casing open-ended and shorter than the water in it.",
-   "proof":[{"img":"proof/G5_pump.png","caption":"Pump without rims"}]},
-  {"id":"G6","area":"Geometry and clutter","raised":"2026-09-02","verified":"2026-09-02","status":"DONE",
-   "req":"No ugly grey structure hiding the sea water pipes below the turbine.",
-   "check":"Condenser lid removed, floor reduced to 0.12 m, water boxes are glass.",
-   "proof":[{"img":"proof/G6_G7_condenser.png","caption":"Condenser and sea lines"}]},
-  {"id":"G7","area":"Geometry and clutter","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"No weird grey stuff at the bottom of the condenser.",
-   "check":"Two causes removed: a plinth torus passing through the machine, and vapour drawn as clipped spheres.",
-   "proof":[{"img":"proof/G6_G7_condenser.png","caption":"Condenser"}]},
-  {"id":"G8","area":"Geometry and clutter","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"No weird grey cylinder coming out of the blue tube into the boiler.",
-   "check":"look dome.",
-   "proof":[{"img":"proof/G8_boiler_inlet.png","caption":"Boiler inlet"}]},
-  {"id":"G9","area":"Geometry and clutter","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"The backup pump must be on the correct side of the tank and pump to something.",
-   "check":"L.eccs.x = -2.3: suction from the tank, discharge to the cold leg.",
-   "proof":[{"img":"proof/G9_G10_tank.png","caption":"Tank, pump, discharge"}]},
-  {"id":"G10","area":"Geometry and clutter","raised":"2026-09-02","verified":"2026-09-02","status":"DONE",
-   "req":"The backup water tank stays in front of the pillars where the circuit can be seen.",
-   "check":"L.tank.z = 0.",
-   "proof":[{"img":"proof/G9_G10_tank.png","caption":"Tank on the centreline"}]},
-  {"id":"G11","area":"Geometry and clutter","raised":"2026-09-02","verified":"2026-09-02","status":"DONE",
-   "req":"The vent is a hole in the container: nothing protruding inside, no pillar under it, no round protrusion at the bottom.",
-   "check":"Path starts flush at -R_IN; stack base and funnel deleted; the line turns up and clears the roof.",
-   "proof":[{"img":"proof/G11_vent.png","caption":"Vent: hole, elbow, up"}]},
-  {"id":"G12","area":"Geometry and clutter","raised":"2026-09-02","verified":"2026-09-02","status":"DONE",
-   "req":"The container concrete must not look hollow.",
-   "check":"Stencil section caps (js/view/section.js): the plane's cut through the wall and dome is capped exactly, the standard clipping_stencil technique. Shell closed at the foot so the count is meaningful.",
-   "proof":[{"img":"proof/G12_wall.png","caption":"Cut wall reads a metre thick"}]},
-  {"id":"G13","area":"Geometry and clutter","raised":"2026-09-02","verified":"2026-09-02","status":"DONE",
-   "req":"No grey vertical arch or bar in the middle of the reactor view.",
-   "check":"The cap planes that made it are gone; the stencil cap only draws where the plane is inside concrete.",
-   "proof":[{"img":"proof/G13_no_bar.png","caption":"Whole unit, nothing across it"}]},
-  {"id":"G14","area":"Geometry and clutter","raised":"2026-09-02","verified":"2026-09-02","status":"DONE",
-   "req":"Bubbles must not appear in the air outside the vessels.",
-   "check":"Each riser clipped on its own vessel's plane.",
-   "proof":[{"img":"proof/G14_bubbles.png","caption":"Side view: nothing outside the shell"}]},
-  {"id":"G15","area":"Geometry and clutter","raised":"2026-09-02","verified":"2026-09-02","status":"DONE",
-   "req":"Steam enters the turbine at the SIDE, and the turbine looks like a real machine cut half open: walls, no floating rings.",
-   "check":"Closed casing with an end wall at each end, dark inside; floating hoops removed; steam in along the axis at shaft height.",
-   "proof":[{"img":"proof/G15_G16_turbine.png","caption":"Turbine cut open"}]},
-  {"id":"G16","area":"Geometry and clutter","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"It must be clear how steam goes from the turbine to the condenser.",
-   "check":"Glass throat with vapour falling through it, one stream from the inlet past the wheel into the shell.",
-   "proof":[{"img":"proof/G15_G16_turbine.png","caption":"Steam down the throat"}]},
-  {"id":"G17","area":"Geometry and clutter","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"Click a pipe to break it must work: a hole with water coming out, no black ring.",
-   "check":"Torn lip in the pipe's own steel oriented as a hole in the wall; a narrow stream falls to the floor.",
-   "proof":[{"img":"proof/G17_break.png","caption":"Hot leg broken"}]},
-
-  {"id":"U1","area":"Interface and platform","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"On mobile it must render correctly when moving around, and the inside view must not be blank.",
-   "check":"Visual-viewport sizing, context-loss handling, LOWFX path, caption layer measured in its own frame.",
-   "proof":[{"img":"proof/U1_phone_inside.png","caption":"iPhone viewport, inside view"}]},
-  {"id":"U2","area":"Interface and platform","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"The welcome modal must be simple and make people want to click start.",
-   "check":"index.html: kicker, three-line headline, two comparison cards, one call to action.",
-   "proof":[{"img":"proof/U2_welcome.png","caption":"Welcome card"}]},
-  {"id":"U3","area":"Interface and platform","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"A config wheel at the top right to enable or disable each expensive feature individually.",
-   "check":"Seven toggles with live counters; each drives stage.setQuality.",
-   "proof":[{"img":"proof/U3_settings.png","caption":"Settings panel open"}]},
-  {"id":"U4","area":"Interface and platform","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"W A S D must work on the Site view.",
-   "check":"nudgeSite() in js/main.js; proof shows the camera before and after holding A then W.",
-   "proof":[{"img":"proof/U4_wasd_before.png","caption":"Before"},{"img":"proof/U4_wasd_after.png","caption":"After A, W"}]},
-  {"id":"U5","area":"Interface and platform","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"The background sound must be a pleasant nature-like sound with a soothing melody; no white noise; a real looped asset.",
-   "check":"audio/sea-waves.mp3 (MIT, credited), equal-power crossfade loop, highpass 160 Hz, lowpass 3.2 kHz, pentatonic bells over it. Measured: 0.4% below 120 Hz, 18% in 120-400, 7% above 3 kHz, 19 dB swing.",
-   "proof":[{"text":"audio/CREDITS.md, audio/LICENSE-sounds-for-focus.txt\njs/audio.js loadSea(): equal-power crossfade, loopStart after the head\nspectrum after filters: <120 Hz 0.4% | 120-400 18% | 400-1200 41% | 1200-3000 33% | >3 kHz 7% | swing 19 dB"}]},
-  {"id":"U6","area":"Interface and platform","raised":"2026-09-02","verified":"2026-09-02","status":"DONE",
-   "req":"30 fps makes no sense for this; use the established way to draw fluids, not a hack.",
-   "check":"73 transmissive materials removed (each forced an extra scene pass). Measured at 1200x800 on the same renderer.",
-   "proof":[{"text":"before: 862 draw calls, 569 ms/frame, 73 transmissive materials\nafter:  512 draw calls,  11 ms/frame,  0 transmissive materials"}]},
-  {"id":"U7","area":"Interface and platform","raised":"2026-09-02","verified":"2026-09-02","status":"DONE",
-   "req":"Do not execute any heavy code until the user has clicked Pick an accident.",
-   "check":"boot() in js/main.js builds terrain, ocean, WebGL scene and starts the frame loop only on Start.",
-   "proof":[{"text":"see proof/U7_lazy.txt: before Start {stage:false, units:0}; after Start {stage:true, units:2}"}]},
-  {"id":"U8","area":"Interface and platform","raised":"2026-09-02","verified":"2026-09-02","status":"DONE",
-   "req":"Commits must carry the repository owner's authorship.",
-   "check":"git log --format='%an <%ae> | %cn <%ce>' shows the owner as author and committer on every commit. The harness adds a Co-Authored-By trailer in the message body.",
-   "proof":[{"text":"author and committer on every commit: mayerwin <2272127+mayerwin@users.noreply.github.com>"}]},
-  {"id":"U9","area":"Interface and platform","raised":"2026-09-01","verified":"2026-09-02","status":"DONE",
-   "req":"No em dashes in interface copy.",
-   "check":"grep over index.html, js/ui.js, js/view/labels.js, js/scenarios.js returns nothing.",
-   "proof":[{"text":"grep -rn '\\u2014' index.html js/ui.js js/view/labels.js js/scenarios.js -> no matches"}]}
+ {
+  "id": "F1",
+  "area": "Fluids and colour",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "Particles in the water must read as flowing water, not as bubbles or white balls.",
+  "check": "look head: tracers are streaks along the bore. Root cause was `mats.fleck` missing from the unit's material table, so Three fell back to a white MeshBasicMaterial.",
+  "proof": [
+   {
+    "img": "proof/F1_tracers.png",
+    "caption": "Channel head: streaks, not beads"
+   }
+  ]
+ },
+ {
+  "id": "F2",
+  "area": "Fluids and colour",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "WATCH",
+  "req": "Colours must NEVER change suddenly; every change is a gradient.",
+  "check": "One recipe everywhere: fluidColour(u) + paintFluid(mat, c0, c1). Any new call site that mixes its own colour breaks this, hence WATCH.",
+  "proof": [
+   {
+    "img": "proof/F2_gradient.png",
+    "caption": "Sea water warming across the tube bank"
+   }
+  ]
+ },
+ {
+  "id": "F3",
+  "area": "Fluids and colour",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "The condensate is the same temperature as the water going back to the boiler, so it must be the same colour, and the tank below the turbine must look full of water, not painted walls.",
+  "check": "look sump: pool and suction line painted from one call. Measured on the current build: pool body (76,96,139), suction line (74,90,133), within 3% per channel.",
+  "proof": [
+   {
+    "img": "proof/F3_condensate.png",
+    "caption": "Condensate pool and its suction line"
+   }
+  ]
+ },
+ {
+  "id": "F4",
+  "area": "Fluids and colour",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "Water must visibly become more orangish towards the top of the reactor, realistically, not paint in front.",
+  "check": "look rpv: vertical ramp on the body of the water, cold at the bottom of the vessel to amber at the surface.",
+  "proof": [
+   {
+    "img": "proof/F4_reactor.png",
+    "caption": "Reactor: blue at the bottom, amber at the top"
+   }
+  ]
+ },
+ {
+  "id": "F5",
+  "area": "Fluids and colour",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "Steam speed in the pipe must be consistent with the steam in the boiler; fluid speeds consistent overall.",
+  "check": "One compression law drawV(v) = 2.6 * |v|^0.55 drives every scroll, tracer, riser and vapour cloud.",
+  "proof": [
+   {
+    "img": "proof/F5_speeds.png",
+    "caption": "Boiler and its steam line"
+   },
+   {
+    "text": "js/view/unit.js: drawV() is the only speed mapping; grep -n 'drawV(' shows every scroll and tracer uses it."
+   }
+  ]
+ },
+ {
+  "id": "F6",
+  "area": "Fluids and colour",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "Junctions between pipe and vessel must be seamless: no colour step, no grey rod, no sleeve, no 'dark orange pipe and light orange tank'.",
+  "check": "look head: hot and cold legs run to the divider plate inside the head; all ten collars deleted; one colour call per junction.",
+  "proof": [
+   {
+    "img": "proof/F6_junction.png",
+    "caption": "Hot and cold legs entering the channel head"
+   }
+  ]
+ },
+ {
+  "id": "F7",
+  "area": "Fluids and colour",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "The incoming water pipe must be seamless and properly connected to the rest.",
+  "check": "look dome: the feed line runs to a ring at the head of the downcomer and the water runs down the sheet from there.",
+  "proof": [
+   {
+    "img": "proof/F7_feed.png",
+    "caption": "Feed line into the boiler"
+   }
+  ]
+ },
+ {
+  "id": "F8",
+  "area": "Fluids and colour",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "The blue pipe into the boiler must look like fluid going into a bigger tank.",
+  "check": "look dome.",
+  "proof": [
+   {
+    "img": "proof/F8_feed_tank.png",
+    "caption": "Boiler feed"
+   }
+  ]
+ },
+ {
+  "id": "F9",
+  "area": "Fluids and colour",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "WATCH",
+  "req": "Water must be rendered the way games and physical simulations render fluids: a clean, standard model, not a hack. 'No game would ship such poor graphics.'",
+  "check": "Standard real-time water model: two-octave flow map (aperiodic FBM, anisotropic along the bore), Beer-Lambert absorption by path length, Fresnel edge, glossy specular; refraction available as a toggle. Marked WATCH because the bar is 'game quality' and reflections of surroundings are still off by default for frame rate.",
+  "proof": [
+   {
+    "img": "proof/F9_fluid_pump.png",
+    "caption": "Pump body"
+   },
+   {
+    "img": "proof/F9_fluid_unit.png",
+    "caption": "Whole unit"
+   }
+  ]
+ },
+ {
+  "id": "F10",
+  "area": "Fluids and colour",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "If sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor.",
+  "check": "look turbine: intake at 0.02 of the ramp, outfall at 0.64 to 0.70, reactor at 0.75.",
+  "proof": [
+   {
+    "img": "proof/F10_outfall.png",
+    "caption": "Outfall amber, intake blue"
+   }
+  ]
+ },
+ {
+  "id": "F11",
+  "area": "Fluids and colour",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "The INCOMING sea water is colder than the outgoing water and must be blue, not orange.",
+  "check": "The first tube pass flows right-to-left against its left-to-right geometry, so its gradient is reversed; the inlet box is blue below the divider and amber above.",
+  "proof": [
+   {
+    "img": "proof/F11_intake.png",
+    "caption": "Intake blue where the sea arrives"
+   }
+  ]
+ },
+ {
+  "id": "F12",
+  "area": "Fluids and colour",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "WATCH",
+  "req": "The sea must look like one seamless surface, no patches with different textures.",
+  "check": "Open sea, forebay and channel set their ripple repeat from SEA_TILE and share the two-octave flow. WATCH: at the bay camera the forebay still reads flatter than the open water beside it; the boundary itself needs its own shot before this is called done.",
+  "proof": [
+   {
+    "img": "proof/F12_sea.png",
+    "caption": "Forebay and open sea"
+   }
+  ]
+ },
+ {
+  "id": "G1",
+  "area": "Geometry and clutter",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "Get rid of the network of pipes around the concrete container; they connect to nothing.",
+  "check": "28 buttresses removed; steam and feed leave the containment in one corner.",
+  "proof": [
+   {
+    "img": "proof/G1_G2_containment.png",
+    "caption": "Containment from behind"
+   }
+  ]
+ },
+ {
+  "id": "G2",
+  "area": "Geometry and clutter",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "No rings or pipes around the containment tank.",
+  "check": "Three tori deleted: springline, plinth, cut rim.",
+  "proof": [
+   {
+    "img": "proof/G1_G2_containment.png",
+    "caption": "No rings"
+   }
+  ]
+ },
+ {
+  "id": "G3",
+  "area": "Geometry and clutter",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "Get rid of the middle white mini dome in the middle of the containment.",
+  "check": "It was 110 unstepped particle instances stacked at the origin. Riser, Drip and Bubbles start hidden.",
+  "proof": [
+   {
+    "img": "proof/G3_floor.png",
+    "caption": "Containment floor, nothing on it"
+   }
+  ]
+ },
+ {
+  "id": "G4",
+  "area": "Geometry and clutter",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "Remove the grey metal rings from all pipes.",
+  "check": "Flanges removed from pipe(); all collars deleted.",
+  "proof": [
+   {
+    "img": "proof/G4_no_rings.png",
+    "caption": "Bare pipes into the head"
+   }
+  ]
+ },
+ {
+  "id": "G5",
+  "area": "Geometry and clutter",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "No borders on the pumps interrupting the visible flow of water.",
+  "check": "Casing open-ended and shorter than the water in it.",
+  "proof": [
+   {
+    "img": "proof/G5_pump.png",
+    "caption": "Pump without rims"
+   }
+  ]
+ },
+ {
+  "id": "G6",
+  "area": "Geometry and clutter",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "No ugly grey structure hiding the sea water pipes below the turbine.",
+  "check": "Condenser lid removed, floor reduced to 0.12 m, water boxes are glass.",
+  "proof": [
+   {
+    "img": "proof/G6_G7_condenser.png",
+    "caption": "Condenser and sea lines"
+   }
+  ]
+ },
+ {
+  "id": "G7",
+  "area": "Geometry and clutter",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "No weird grey stuff at the bottom of the condenser.",
+  "check": "Two causes removed: a plinth torus passing through the machine, and vapour drawn as clipped spheres.",
+  "proof": [
+   {
+    "img": "proof/G6_G7_condenser.png",
+    "caption": "Condenser"
+   }
+  ]
+ },
+ {
+  "id": "G8",
+  "area": "Geometry and clutter",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "No weird grey cylinder coming out of the blue tube into the boiler.",
+  "check": "look dome.",
+  "proof": [
+   {
+    "img": "proof/G8_boiler_inlet.png",
+    "caption": "Boiler inlet"
+   }
+  ]
+ },
+ {
+  "id": "G9",
+  "area": "Geometry and clutter",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "The backup pump must be on the correct side of the tank and pump to something.",
+  "check": "L.eccs.x = -2.3: suction from the tank, discharge to the cold leg.",
+  "proof": [
+   {
+    "img": "proof/G9_G10_tank.png",
+    "caption": "Tank, pump, discharge"
+   }
+  ]
+ },
+ {
+  "id": "G10",
+  "area": "Geometry and clutter",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "The backup water tank stays in front of the pillars where the circuit can be seen.",
+  "check": "L.tank.z = 0.",
+  "proof": [
+   {
+    "img": "proof/G9_G10_tank.png",
+    "caption": "Tank on the centreline"
+   }
+  ]
+ },
+ {
+  "id": "G11",
+  "area": "Geometry and clutter",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "The vent is a hole in the container: nothing protruding inside, no pillar under it, no round protrusion at the bottom.",
+  "check": "Path starts flush at -R_IN; stack base and funnel deleted; the line turns up and clears the roof.",
+  "proof": [
+   {
+    "img": "proof/G11_vent.png",
+    "caption": "Vent: hole, elbow, up"
+   }
+  ]
+ },
+ {
+  "id": "G12",
+  "area": "Geometry and clutter",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "The container concrete must not look hollow.",
+  "check": "Stencil section caps (js/view/section.js): the plane's cut through the wall and dome is capped exactly, the standard clipping_stencil technique. Shell closed at the foot so the count is meaningful.",
+  "proof": [
+   {
+    "img": "proof/G12_wall.png",
+    "caption": "Cut wall reads a metre thick"
+   }
+  ]
+ },
+ {
+  "id": "G13",
+  "area": "Geometry and clutter",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "No grey vertical arch or bar in the middle of the reactor view.",
+  "check": "The cap planes that made it are gone; the stencil cap only draws where the plane is inside concrete.",
+  "proof": [
+   {
+    "img": "proof/G13_no_bar.png",
+    "caption": "Whole unit, nothing across it"
+   }
+  ]
+ },
+ {
+  "id": "G14",
+  "area": "Geometry and clutter",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "Bubbles must not appear in the air outside the vessels.",
+  "check": "Each riser clipped on its own vessel's plane.",
+  "proof": [
+   {
+    "img": "proof/G14_bubbles.png",
+    "caption": "Side view: nothing outside the shell"
+   }
+  ]
+ },
+ {
+  "id": "G15",
+  "area": "Geometry and clutter",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "Steam enters the turbine at the SIDE, and the turbine looks like a real machine cut half open: walls, no floating rings.",
+  "check": "Closed casing with an end wall at each end, dark inside; floating hoops removed; steam in along the axis at shaft height.",
+  "proof": [
+   {
+    "img": "proof/G15_G16_turbine.png",
+    "caption": "Turbine cut open"
+   }
+  ]
+ },
+ {
+  "id": "G16",
+  "area": "Geometry and clutter",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "It must be clear how steam goes from the turbine to the condenser.",
+  "check": "Glass throat with vapour falling through it, one stream from the inlet past the wheel into the shell.",
+  "proof": [
+   {
+    "img": "proof/G15_G16_turbine.png",
+    "caption": "Steam down the throat"
+   }
+  ]
+ },
+ {
+  "id": "G17",
+  "area": "Geometry and clutter",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "Click a pipe to break it must work: a hole with water coming out, no black ring.",
+  "check": "Torn lip in the pipe's own steel oriented as a hole in the wall; a narrow stream falls to the floor.",
+  "proof": [
+   {
+    "img": "proof/G17_break.png",
+    "caption": "Hot leg broken"
+   }
+  ]
+ },
+ {
+  "id": "U1",
+  "area": "Interface and platform",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "On mobile it must render correctly when moving around, and the inside view must not be blank.",
+  "check": "Visual-viewport sizing, context-loss handling, LOWFX path, caption layer measured in its own frame.",
+  "proof": [
+   {
+    "img": "proof/U1_phone_inside.png",
+    "caption": "iPhone viewport, inside view"
+   }
+  ]
+ },
+ {
+  "id": "U2",
+  "area": "Interface and platform",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "The welcome modal must be simple and make people want to click start.",
+  "check": "index.html: kicker, three-line headline, two comparison cards, one call to action.",
+  "proof": [
+   {
+    "img": "proof/U2_welcome.png",
+    "caption": "Welcome card"
+   }
+  ]
+ },
+ {
+  "id": "U3",
+  "area": "Interface and platform",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "A config wheel at the top right to enable or disable each expensive feature individually.",
+  "check": "Seven toggles with live counters; each drives stage.setQuality.",
+  "proof": [
+   {
+    "img": "proof/U3_settings.png",
+    "caption": "Settings panel open"
+   }
+  ]
+ },
+ {
+  "id": "U4",
+  "area": "Interface and platform",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "W A S D must work on the Site view.",
+  "check": "nudgeSite() in js/main.js; proof shows the camera before and after holding A then W.",
+  "proof": [
+   {
+    "img": "proof/U4_wasd_before.png",
+    "caption": "Before"
+   },
+   {
+    "img": "proof/U4_wasd_after.png",
+    "caption": "After A, W"
+   }
+  ]
+ },
+ {
+  "id": "U5",
+  "area": "Interface and platform",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "The background sound must be a pleasant nature-like sound with a soothing melody; no white noise; a real looped asset.",
+  "check": "audio/sea-waves.mp3 (MIT, credited), equal-power crossfade loop, highpass 160 Hz, lowpass 3.2 kHz, pentatonic bells over it. Measured: 0.4% below 120 Hz, 18% in 120-400, 7% above 3 kHz, 19 dB swing.",
+  "proof": [
+   {
+    "text": "audio/CREDITS.md, audio/LICENSE-sounds-for-focus.txt\njs/audio.js loadSea(): equal-power crossfade, loopStart after the head\nspectrum after filters: <120 Hz 0.4% | 120-400 18% | 400-1200 41% | 1200-3000 33% | >3 kHz 7% | swing 19 dB"
+   }
+  ]
+ },
+ {
+  "id": "U6",
+  "area": "Interface and platform",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "30 fps makes no sense for this; use the established way to draw fluids, not a hack.",
+  "check": "73 transmissive materials removed (each forced an extra scene pass). Measured at 1200x800 on the same renderer.",
+  "proof": [
+   {
+    "text": "before: 862 draw calls, 569 ms/frame, 73 transmissive materials\nafter:  512 draw calls,  11 ms/frame,  0 transmissive materials"
+   }
+  ]
+ },
+ {
+  "id": "U7",
+  "area": "Interface and platform",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "Do not execute any heavy code until the user has clicked Pick an accident.",
+  "check": "boot() in js/main.js builds terrain, ocean, WebGL scene and starts the frame loop only on Start.",
+  "proof": [
+   {
+    "text": "see proof/U7_lazy.txt: before Start {stage:false, units:0}; after Start {stage:true, units:2}"
+   }
+  ]
+ },
+ {
+  "id": "U8",
+  "area": "Interface and platform",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "Commits must carry the repository owner's authorship.",
+  "check": "git log --format='%an <%ae> | %cn <%ce>' shows the owner as author and committer on every commit. The harness adds a Co-Authored-By trailer in the message body.",
+  "proof": [
+   {
+    "text": "author and committer on every commit: mayerwin <2272127+mayerwin@users.noreply.github.com>"
+   }
+  ]
+ },
+ {
+  "id": "U9",
+  "area": "Interface and platform",
+  "raised": "2026-09-01",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "No em dashes in interface copy.",
+  "check": "grep over index.html, js/ui.js, js/view/labels.js, js/scenarios.js returns nothing.",
+  "proof": [
+   {
+    "text": "grep -rn '\\u2014' index.html js/ui.js js/view/labels.js js/scenarios.js -> no matches"
+   }
+  ]
+ }
 ]
