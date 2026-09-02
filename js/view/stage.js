@@ -13,9 +13,9 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { build as buildMaterials } from './materials.js?v=99ed3ff391';
+import { build as buildMaterials } from './materials.js?v=26b57b2691';
 import { surfaceMaterial, setGradient, rippleNormal, LOWFX, FLUID_TIME,
-  twoOctaveFlow, SEA_TILE } from './fluid.js?v=99ed3ff391';
+  twoOctaveFlow, SEA_TILE } from './fluid.js?v=26b57b2691';
 
 // A vertical sky gradient, baked once into an equirectangular strip.
 function skyTexture() {
@@ -130,7 +130,7 @@ export class Stage {
     // settings panel lets any of it be turned back on, one at a time, which is
     // the only way to find out which one a given device cannot afford.
     this.q = {
-      refraction: false, bloom: !mobile, shadows: !mobile,
+      refraction: false, bloom: false, shadows: !mobile,
       reflections: true, hidpi: !mobile, particles: true, steam: true
     };
 
@@ -171,16 +171,21 @@ export class Stage {
     floodShape.moveTo(-700, -700);
     floodShape.lineTo(700, -700); floodShape.lineTo(700, 700);
     floodShape.lineTo(-700, 700); floodShape.closePath();
-    for (const [ux, uz] of centres) {
-      const hole = new THREE.Path();
-      // Shape space is x, y; after rotateX(-PI/2) shape y maps to world -z.
-      hole.absarc(ux, -uz, 21.0, 0, Math.PI * 2, true);
-      floodShape.holes.push(hole);
-    }
+    // NO HOLE where the buildings stand. A real containment is sealed, and
+    // the sheet used to stop at its wall; but this model keeps the safety
+    // equipment that a tsunami actually drowns - the emergency tank, the pump
+    // beside it - inside the section where it can be seen, and the story of
+    // the wave is that equipment going under. So the water comes in and
+    // covers them. `centres` is kept for the callers.
+    void centres;
     this.flood = new THREE.Mesh(
       new THREE.ShapeGeometry(floodShape, 48).rotateX(-Math.PI / 2), surfaceMaterial(4));
     this.flood.material.attenuationDistance = 4;
     this.flood.material.clearcoat = 0;
+    // It is sea water, so it is the sea's colour. Nothing else ever painted
+    // this sheet, and a fluid material nobody has painted is white: the
+    // tsunami came in as a sheet of milk.
+    setGradient(this.flood.material, new THREE.Color(0x1d5f86));
     this.flood.material.emissiveIntensity = 0.04;
     this.flood.material.roughness = 0.3;
     this.flood.material.normalMap.repeat.set(60, 60);
@@ -239,7 +244,11 @@ export class Stage {
     }
     if (!this.flood) return;
     const cur = this.floodDepth || 0;
-    const next = cur + Math.sign(depth - cur) * Math.min(Math.abs(depth - cur), dt * 0.9);
+    // Two and a half metres a second: a wave arrives, it does not seep. A dt
+    // of more than five seconds is a tool driving the clock, and the sheet
+    // snaps to where the plant says it is.
+    const rate = dt > 5 ? 1e9 : dt * 2.5;
+    const next = cur + Math.sign(depth - cur) * Math.min(Math.abs(depth - cur), rate);
     this.floodDepth = next;
     this.flood.visible = next > 0.05;
     if (!this.flood.visible) return;
@@ -268,7 +277,11 @@ export class Stage {
     // Bloom at three fifths. It is a chain of blurs of a blur: at full
     // resolution it is four times the fill for a glow nobody can tell apart
     // from this one.
-    this.bloom.setSize(Math.max(2, Math.round(w * 0.6)), Math.max(2, Math.round(h * 0.6)));
+    // A third of the frame, not six tenths. Bloom is a chain of blurs over
+    // the whole screen and its cost goes with the area; measured ticked it
+    // took a quarter of the frame rate away, so it is off by default and, on,
+    // works on a buffer a ninth the size.
+    this.bloom.setSize(Math.max(2, Math.round(w * 0.34)), Math.max(2, Math.round(h * 0.34)));
     this.labels.setSize(w, h);
   }
 
@@ -455,6 +468,16 @@ export class Stage {
         this.eachMaterial((m) => {
           if (!m.isMeshPhysicalMaterial || !m.userData.wetTr) return;
           m.transmission = on ? m.userData.wetTr : 0;
+          // A transmissive body already darkens by what it lets through, and
+          // the fluid shader's absorption on top of that took blue water to
+          // near black. With refraction on, the shader's own absorption steps
+          // back to a quarter and the body's colour comes from the light it
+          // transmits, which is how the material was designed to be used.
+          const g = m.userData.g;
+          if (g) {
+            if (g.dens0 === undefined) g.dens0 = g.dens.value;
+            g.dens.value = on ? g.dens0 * 0.25 : g.dens0;
+          }
           m.needsUpdate = true;
         });
         break;

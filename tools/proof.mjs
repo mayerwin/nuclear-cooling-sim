@@ -33,15 +33,26 @@ const CAMS = {
   back:    [['G1_G2_containment', [290, 60, 1220, 830]]],
   focusA:  [['G3_floor', [500, 560, 950, 830]], ['G13_no_bar', [290, 60, 1220, 830]], ['F9_fluid_unit', [290, 60, 1220, 830]]],
   tank:    [['G9_G10_tank', [290, 330, 1210, 790]]],
-  outside: [['G11_vent', [300, 80, 700, 830]], ['G12_wall', [300, 80, 700, 830]]],
+  outside: [['G11_vent', [300, 80, 700, 830]], ['G12_wall', [300, 80, 700, 830]],
+            ['F13_engine_loop', [290, 60, 1220, 830]]],
   side:    [['G14_bubbles', [290, 60, 1220, 830]]],
-  focusB:  [['U1_desktop_passive', [0, 0, 1500, 950]]]
+  focusB:  [['U1_desktop_passive', [0, 0, 1500, 950]]],
+  // A key may carry a scenario and a time in plant minutes, as look.mjs takes
+  // them; the screenshot is then named camera-scenario.
+  'tank tsunami 55':  [['S1_flood', [290, 330, 1210, 790]]],
+  'breachsky chernobyl 12': [['S2_breach', [290, 60, 1220, 830]]]
 };
+CAMS.turbine.push(['F13_engine_turbine', [380, 520, 1250, 800]]);
 
-function run(cmd, args) {
-  const r = spawnSync(cmd, args, { stdio: 'inherit' });
+function run(cmd, args, env) {
+  const r = spawnSync(cmd, args, { stdio: 'inherit', env: Object.assign({}, process.env, env || {}) });
   if (r.status !== 0) throw new Error(`${cmd} ${args.join(' ')} failed`);
 }
+// '/tmp/look/<camera>.png', or '<camera>-<scenario>.png' for a scenario shot
+const shotOf = (spec) => {
+  const [cam, scen] = spec.split(' ');
+  return `/tmp/look/${cam}${scen ? '-' + scen : ''}.png`;
+};
 
 async function page(browser, vp = { width: 1500, height: 950 }, opts = {}) {
   const p = await browser.newPage(Object.assign({ viewport: vp, deviceScaleFactor: 1 }, opts));
@@ -105,12 +116,20 @@ async function specials() {
 }
 
 function cameras() {
-  for (const cam of Object.keys(CAMS)) run('node', ['tools/look.mjs', cam]);
+  for (const spec of Object.keys(CAMS)) run('node', ['tools/look.mjs', ...spec.split(' ')]);
+  // The plain pump shot is kept aside: the refraction shot below reuses its
+  // camera and would otherwise overwrite it before the crops are cut.
+  copyFileSync('/tmp/look/pump.png', '/tmp/look/pump-plain.png');
   const plan = [];
-  for (const [cam, outs] of Object.entries(CAMS)) {
-    for (const [name, box] of outs) plan.push({ src: `/tmp/look/${cam}.png`, out: `${OUT}/${name}.png`, box });
+  for (const [spec, outs] of Object.entries(CAMS)) {
+    const src = spec === 'pump' ? '/tmp/look/pump-plain.png' : shotOf(spec);
+    for (const [name, box] of outs) plan.push({ src, out: `${OUT}/${name}.png`, box });
   }
   plan.push({ src: `${OUT}/G17_break_full.png`, out: `${OUT}/G17_break.png`, box: [440, 420, 860, 800] });
+  // U10: the same pump with real refraction switched on. Taken last, because
+  // it overwrites the plain pump shot the F9 and G5 crops were cut from.
+  run('node', ['tools/look.mjs', 'pump'], { REFRACT: '1' });
+  plan.push({ src: '/tmp/look/pump.png', out: `${OUT}/U10_refraction.png`, box: [450, 300, 1100, 780] });
   writeFileSync('/tmp/proof-plan.json', JSON.stringify(plan));
   run('python3', ['-c', `
 import json

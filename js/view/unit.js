@@ -7,13 +7,13 @@
 // in at the water.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=99ed3ff391';
+import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=26b57b2691';
 import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles,
-  frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=99ed3ff391';
-import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=99ed3ff391';
-import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=99ed3ff391';
-import { Machines } from '../machines.js?v=99ed3ff391';
-import { SectionCap } from './section.js?v=99ed3ff391';
+  frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=26b57b2691';
+import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=26b57b2691';
+import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=26b57b2691';
+import { Machines } from '../machines.js?v=26b57b2691';
+import { SectionCap } from './section.js?v=26b57b2691';
 
 const R_IN = 15.4, WALL = 1.0, SHELL_H = 31, DOME_R = R_IN + WALL;
 
@@ -107,6 +107,37 @@ const WHITE = new THREE.Color(0xffffff);
 function drawV(v) {
   return Math.sign(v) * 2.6 * Math.pow(Math.abs(v), 0.55);
 }
+
+// TEMPERATURE TO COLOUR, once, for everything wet in the model.
+//
+// Nothing is told what colour to be any more. Water carries a temperature
+// (see Leg in flow.js), and this is the only place a temperature becomes a
+// colour. The map is monotone in degrees and deliberately not linear: the sea
+// side lives between 15 and 100, the primary loop between 285 and 340, and
+// both bands are given room so a change inside either one is a change you can
+// see. Steam is not on it; vapour has its own material.
+// The sea band runs from 15 to about 110, and the map climbs steeply across it
+// so that water which has crossed the condenser is visibly warm; the map is
+// nearly flat from there to the primary's band, which climbs steeply again so
+// that the cold leg and the hot leg, thirty-five degrees apart, are told
+// apart. Monotone throughout: nothing cooler is ever drawn warmer.
+const T_MAP = [[15, 0.02], [40, 0.12], [70, 0.30], [110, 0.60], [230, 0.64],
+  [285, 0.66], [300, 0.70], [325, 0.82], [360, 0.92], [800, 1.0]];
+export function uOfT(T) {
+  if (T <= T_MAP[0][0]) return T_MAP[0][1];
+  for (let i = 1; i < T_MAP.length; i++) {
+    if (T <= T_MAP[i][0]) {
+      const [t0, u0] = T_MAP[i - 1], [t1, u1] = T_MAP[i];
+      return u0 + (u1 - u0) * (T - t0) / (t1 - t0);
+    }
+  }
+  return 1;
+}
+export function colourOfT(T, out = new THREE.Color()) { return fluidColour(uOfT(T), out); }
+// Temperatures the plant model does not carry itself, in degrees C. The sea
+// and the tanks are what they are; the boiler is saturated water at 70 bar;
+// the condensate is what a condenser at vacuum makes.
+export const T_SEA = 15, T_TANK = 18, T_BOILER = 285, T_COND = 40;
 
 export function fluidColour(u, out = new THREE.Color()) {
   // Almost the ramp itself. The old figures whitened the colour by a third
@@ -476,16 +507,21 @@ export class Unit {
     this.tear = new THREE.Group();
     const tearMat = new THREE.MeshStandardMaterial({
       color: 0x2b1a14, roughness: 0.9, emissive: 0x120806, side: THREE.DoubleSide });
-    for (let i = 0; i <= 14; i++) {
-      const a = bA - halfW + (i / 14) * halfW * 2;
-      for (const yy of [9, 22]) {
-        const j = 0.5 + hash1(i * 7 + yy) * 1.6;
-        const spike = new THREE.Mesh(new THREE.ConeGeometry(0.45, j * 2.4, 5), tearMat);
-        spike.position.set(Math.sin(a) * (R_IN + WALL / 2),
-          yy + (yy > 15 ? -j : j), Math.cos(a) * (R_IN + WALL / 2));
-        spike.rotation.x = yy > 15 ? Math.PI : 0;
-        this.tear.add(spike);
-      }
+    // A ragged rim. Broken concrete is slabs and shards lying in the plane
+    // of the wall, not a row of cones pointing at the hole: each piece is a
+    // flat, randomly-sized block set into the wall's own surface round the
+    // opening, tilted a little, dark where the reinforcement shows.
+    for (let i = 0; i < 26; i++) {
+      const edgeTop = i % 2 === 0;
+      const a = bA - halfW + hash1(i * 11 + 3) * halfW * 2;
+      const w = 0.5 + hash1(i * 17 + 5) * 1.1, h = 0.4 + hash1(i * 23 + 7) * 1.3;
+      const shard = new THREE.Mesh(new THREE.BoxGeometry(w, h, WALL * 1.15), tearMat);
+      const yy = edgeTop ? 22 + hash1(i * 29) * 1.2 : 9 - hash1(i * 31) * 1.2;
+      shard.position.set(Math.sin(a) * (R_IN + WALL / 2), yy, Math.cos(a) * (R_IN + WALL / 2));
+      shard.rotation.y = a;
+      shard.rotation.z = (hash1(i * 37) - 0.5) * 0.9;
+      shard.rotation.x = (hash1(i * 41) - 0.5) * 0.5;
+      this.tear.add(shard);
     }
     // rubble at the foot of it
     for (let i = 0; i < 22; i++) {
@@ -1056,7 +1092,7 @@ export class Unit {
     tray.position.set(CX, CY - CH / 2, t.z);
     g.add(tray);
 
-    this.legCw = new Leg('sea water', 2.2, 2, { rho: FLUID.rhoCold });
+    this.legCw = new Leg('sea water', 2.2, 2, { rho: FLUID.rhoCold, gain: 10 });
     this.cw = new Circuit('sea water', [this.legCw]);
     // The tube bank, and the water boxes that are the whole reason it is
     // legible. A metre-wide pipe cannot simply become a thin tube in mid air:
@@ -1245,10 +1281,14 @@ export class Unit {
       V(TX, TY_OUT, t.z - 0.5)
     ], 0.9, m, { bend: 1.0 });
     cwIn.kindBreak = cwOut.kindBreak = 'cw';
+    // The sea leg is drawn in two pieces: the intake, which is the leg's inlet
+    // end, and the outfall, which is its outlet end. Each piece carries which
+    // end of the leg it is. Both are also built from the machine towards the
+    // sea while the water in the intake comes the other way, so the intake
+    // says its geometry runs against its flow.
     cwIn.leg = cwOut.leg = this.legCw;
-    // The return leg has been through the condenser, so it leaves warmer than
-    // it arrived and is drawn warming along its length.
-    cwOut.warmOut = true;
+    cwIn.tempAt = 'in'; cwIn.flowDir = -1;
+    cwOut.tempAt = 'out';
     g.add(cwIn.group); g.add(cwOut.group);
     this.pipes.push(cwIn, cwOut);
 
@@ -1379,7 +1419,7 @@ export class Unit {
     this.feed = pipe([
       V(CX - CW / 2 - 3.0, 1.6, t.z), V(X0 - 4.2, 1.6, t.z), V(X0 - 4.2, 33.0, t.z),
       V(s.x - 4.4, 33.0, s.z), V(s.x - 4.4, SG_BASE + 13.4, s.z),
-      V(s.x - 2.15, SG_BASE + 13.4, s.z)
+      V(s.x - 2.35, SG_BASE + 13.4, s.z), V(s.x - 2.35, SG_BASE + 12.6, s.z)
     ], 0.7, m, { bend: 2.4 });
     this.feed.kindBreak = 'feedline';
     this.feed.leg = this.legFeed;
@@ -1400,13 +1440,11 @@ export class Unit {
     // and cut in half that is a blue plank lying across the boiler with two
     // blue posts under it. One ring, feeding one sheet of water that runs all
     // the way down to the pool, is the same story with nothing extra in it.
-    this.feedRing = new THREE.Mesh(
-      new THREE.TorusGeometry(2.42, 0.15, 8, 48), liquidMaterial(0.3));
-    this.feedRing.rotation.x = Math.PI / 2;
-    this.feedRing.position.set(s.x, FY, s.z);
-    this.feedRing.material.clippingPlanes = this.cut;
-    this.feedRing.material.normalMap.repeat.set(20, 2);
-    g.add(this.feedRing);
+    // NO RING. Cut in half a ring is an arc, and an arc of pipe joined to
+    // nothing is what it read as however slim it was drawn. The feed line
+    // runs through the shell and ends INSIDE the downcomer, at the top of the
+    // sheet, so the water is seen to arrive on the one surface it runs down.
+    this.feedRing = null;
     this.pipes.push(this.steam, this.feed);
 
     // the stack the containment can be vented through
@@ -1420,9 +1458,25 @@ export class Unit {
     // needs to be.
     const st = L.stack;
     const VY = 26;
+    // THE HOLE. The line takes the building's air, so where it meets the wall
+    // there is an opening: a dark disc on the inside face, the pipe's own
+    // bore, with the pipe running away from it through the concrete. Without
+    // it the pipe was joined to a blank wall.
+    const hole = new THREE.Mesh(new THREE.CircleGeometry(0.48, 24),
+      new THREE.MeshStandardMaterial({ color: 0x0c1116, roughness: 1 }));
+    hole.rotation.y = Math.PI / 2;
+    hole.position.set(-R_IN + 0.03, VY, 0);
+    g.add(hole);
     this.vent = pipe([
       V(-R_IN, VY, 0), V(-R_IN - 3.2, VY, 0), V(-R_IN - 3.2, st.h, 0)
     ], 0.8, m, { bend: 1.6, steam: true });
+    // and the cover on top, which is what says "this is where it comes out"
+    const mouth = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 0.55, 1.6, 20, 1, true),
+      this.stage.mat.painted);
+    mouth.material = this.stage.mat.painted.clone();
+    mouth.material.side = THREE.DoubleSide;
+    mouth.position.set(-R_IN - 3.2, st.h + 0.5, 0);
+    g.add(mouth);
     this.legVent = new Leg('vent', 0.8, 1, { rho: FLUID.rhoSteam, kind: 'steam' });
     this.vent.kindBreak = 'vent';
     this.vent.leg = this.legVent;
@@ -1703,8 +1757,8 @@ export class Unit {
 // ---------------------------------------------------------------------------
 // per frame: solve the flows, step the machines, and let the geometry follow
 // ---------------------------------------------------------------------------
-import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=99ed3ff391';
-import { Plume, PuffCloud } from './plume.js?v=99ed3ff391';
+import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=26b57b2691';
+import { Plume, PuffCloud } from './plume.js?v=26b57b2691';
 
 Object.assign(Unit.prototype, {
 
@@ -1760,6 +1814,45 @@ Object.assign(Unit.prototype, {
     for (const k in this.plumes) this.root.add(this.plumes[k].points);
   },
 
+  // WHERE THE HEAT GOES. This is the whole thermal description of the plant
+  // as far as the picture is concerned: one inlet temperature per circuit, and
+  // the legs that add or remove heat. Everything else follows down the chain.
+  solveTemps(st) {
+    const p = this.plant;
+    // Water off the fuel, in degrees C. The plant model carries cladding
+    // temperature in kelvin; the water leaves a little below it.
+    const Thot = Math.max(T_TANK, p.Tclad - 273.15 - 8);
+    // The rise across the core is the heat over the flow, capped by what the
+    // model already says the design rise is; with no flow there is no rise
+    // and the whole loop sits at one temperature.
+    const dTcore = this.primary.mdot > 1 ? FLUID.dTcore * Math.min(1.6,
+      (p.qDecay || THERMAL_W) / THERMAL_W * ratedMdot() / this.primary.mdot) : 0;
+    this.legCore.dT = dTcore;
+    this.legTubes.dT = -dTcore * ((st.s.feed || 0) > 0 || (st.s.aux || 0) > 0 ? 1 : 0.3);
+    this.primary.setTemps(Thot - dTcore);
+    // The secondary's water is condensate; its steam is not on the colour map.
+    this.legFeed.dT = 0;
+    this.secondary.setTemps(T_COND);
+    // The sea: in at the sea's own temperature, warmed across the bank by the
+    // condensing duty. Ten degrees in life; drawn with the leg's gain.
+    // Moving water carries heat; the leg's own velocity is the test, because
+    // the sea circuit's speed is set on the leg directly, not through a mass
+    // flow on the circuit. Tested on the circuit's flow it was always zero and
+    // the outfall left at the sea's own temperature.
+    this.legCw.dT = Math.abs(this.legCw.v) > 0.01 || this.cw.mdot > 1 ? 10 : 0;
+    this.cw.setTemps(T_SEA);
+    if (this.legCond) { this.legCond.T0 = this.legCond.T1 = T_COND; }
+    // Emergency water is tank water.
+    if (this.inject) this.inject.setTemps(T_TANK);
+    if (this.gravity) { this.gravity.setTemps(T_TANK); this.recircC.setTemps(T_TANK); this.fillC.setTemps(T_TANK); }
+    // The pool loop takes hot-leg water up, gives FLUID.dTprhr to the pool,
+    // and brings it back.
+    if (this.prhr) {
+      this.legCoil.dT = Math.abs(this.legCoil.v) > 0.01 || this.prhr.mdot > 0.5 ? -FLUID.dTprhr : 0;
+      this.prhr.setTemps(this.legHot.T1);
+    }
+  },
+
   solve(st) {
     const p = this.plant;
     const rated = ratedMdot();
@@ -1796,6 +1889,7 @@ Object.assign(Unit.prototype, {
     const p = this.plant, m = this.m;
     if (!this.plumes) this.addPlumes();
     this.solve(st);
+    this.solveTemps(st);
 
     // ---- machines: torque in, angle out ----
     const vOut = this.legCold.v;
@@ -1840,8 +1934,7 @@ Object.assign(Unit.prototype, {
     this.impeller.rotation.y = this.mach.impeller.angle;
     // the water in the volute is dragged round with the impeller
     this.pumpWater.material.normalMap.offset.x = this.mach.impeller.angle / 6.283;
-    tintWater(this.pumpWater.material,
-      fluidColour(loopHeat(p.Tclad - FLUID.dTcore), new THREE.Color()), 0);
+    tintWater(this.pumpWater.material, colourOfT(this.legCold.T0, new THREE.Color()), 0);
     this.rotor.rotation.x = this.mach.shaft.angle;
     this.spin = Math.abs(this.mach.shaft.speed);
 
@@ -1882,27 +1975,16 @@ Object.assign(Unit.prototype, {
         mat.opacity = moving ? 0.72 : 0.12;
         mat.emissiveIntensity = moving ? 0.42 : 0.05;
       } else {
-        // Everything downstream of a heat exchanger is drawn cold, everything
-        // straight off the fuel is drawn hot. That colour change, across the
-        // boiler and across the pool coil, is the heat leaving the reactor.
-        const u = leg.name === 'feedwater' || leg.name === 'back from the pool'
-          || leg.name === 'suction' || leg.name === 'injection' || leg.name === 'gravity'
-          || leg.name === 'coil out'
-          || leg.name === 'condensate'
-          ? 0.06
-          : leg.name === 'sea water' ? 0.02
-            : (leg.name === 'cold leg' || leg.name === 'boiler tubes') ? cold : heat;
-        // The sea water leaving the condenser is warmer than the sea water
-        // going in, because it has just taken a turbine's worth of heat out of
-        // the steam. That is the whole point of the outfall, so it is drawn.
-        // The outfall has ALREADY crossed the tube bank, so it leaves the
-        // machine warm and goes on warming a little on the way out. A turbine's
-        // worth of heat into a river of sea water is a few degrees in life and
-        // nothing at all on screen, so it is drawn at a third of the ramp:
-        // clearly warmer than the intake beside it, clearly cooler than the
-        // water coming off the fuel.
-        const u1 = q.warmOut ? u + 0.62 : u, u2 = q.warmOut ? u + 0.68 : u;
-        paintFluid(mat, fluidColour(u1, cTmp), fluidColour(u2, _c2));
+        // The leg knows its own inlet and outlet temperature; the pipe is
+        // painted from one to the other along its length, in the direction the
+        // water goes. A run whose geometry is laid out against its flow says so
+        // with flowDir, and a run that is only one END of a leg (the sea intake
+        // is the sea leg's inlet, the outfall its outlet) says which end.
+        let Ta = leg.T0, Tb = leg.T1;
+        if (q.tempAt === 'in') Tb = Ta;
+        else if (q.tempAt === 'out') Ta = Tb;
+        if (q.flowDir === -1) { const t = Ta; Ta = Tb; Tb = t; }
+        paintFluid(mat, colourOfT(Ta, cTmp), colourOfT(Tb, _c2));
         // Everything else about this material was set when it was built.
         // Rewriting it every frame cost forty materials a dozen property
         // writes each for nothing, and it forced transmission back on the
@@ -1921,8 +2003,8 @@ Object.assign(Unit.prototype, {
     // The boiler tubes and the pool coil carry the change itself: hot in at
     // one end, cold out at the other, mixed along the run.
     {
-      const hotC = fluidColour(heat, new THREE.Color());
-      const coldC = fluidColour(cold, new THREE.Color());
+      const hotC = colourOfT(this.legHot.T1, new THREE.Color());
+      const coldC = colourOfT(this.legTubes.T1, new THREE.Color());
       const wet = st.lvl > 0.02;
       // The two chambers of the channel head, painted from the same call as
       // the legs that arrive in them, so the pipe does not step into the
@@ -1976,7 +2058,7 @@ Object.assign(Unit.prototype, {
         // it or cools it: it condenses here and it is pumped from here to the
         // boiler, at one temperature the whole way.
         // the same call that paints the condensate line out of it
-        fluidColour(0.06, cTmp);
+        colourOfT(T_COND, cTmp);
         paintFluid(this.condWater.material, cTmp);
         paintFluid(this.condTop.material, cTmp);
 
@@ -1990,21 +2072,22 @@ Object.assign(Unit.prototype, {
         this.condPump.impeller.rotation.y += dt * (0.6 + rate * 9);
         this.legCond.v = 0.4 + rate * 2.6;
         this.condPump.water.material.normalMap.offset.x -= dt * (0.1 + rate * 1.2);
-        tintWater(this.condPump.water.material, fluidColour(0.07, cTmp), 0);
+        tintWater(this.condPump.water.material, colourOfT(T_COND, cTmp), 0);
       }
       // the condenser's tube bank runs at the sea water leg's own speed
       const cwC = new THREE.Color();
       for (const c2 of this.condTubes) {
         // cold going in, warm coming back: the bank is where the heat crosses
-        // IN THE DIRECTION THE WATER GOES. Both tubes are built left to
-        // right, so their gradients run left to right - but the first pass
-        // FLOWS right to left, from the inlet box across to the turning box.
-        // Painted cold-to-warm along the geometry it came out warmest exactly
-        // where the cold sea arrives, and the intake read as hot water.
+        // The sea leg's rise is split across its two passes: the first takes
+        // the water from the leg's inlet temperature to the midpoint, the
+        // second from the midpoint to the outlet. Both tubes are built left
+        // to right; the first pass FLOWS right to left, so its ends are
+        // swapped. Nothing here knows a colour, only a temperature.
+        const Tmid = (this.legCw.T0 + this.legCw.T1) / 2;
         const lo = c2.dir > 0;
         paintFluid(c2.rod.mat,
-          fluidColour(lo ? 0.34 : 0.34, cwC),
-          fluidColour(lo ? 0.03 : 0.66, _c2));
+          colourOfT(lo ? Tmid : Tmid, cwC),
+          colourOfT(lo ? this.legCw.T0 : this.legCw.T1, _c2));
         // the lower pass runs left, the upper pass runs back to the right
         c2.rod.mat.normalMap.offset.x -=
           drawV(this.legCw.v) * dt / 2.4 * c2.dir;
@@ -2017,16 +2100,14 @@ Object.assign(Unit.prototype, {
         // warm water leaves from the top, which is what the plate across it is
         // for. Its body is drawn with that change up its own height.
         paintFluid(this.boxWater[0].material,
-          fluidColour(0.03, cwC), fluidColour(0.66, _c2));
-        paintFluid(this.boxWater[1].material, fluidColour(0.34, cwC));
+          colourOfT(this.legCw.T0, cwC), colourOfT(this.legCw.T1, _c2));
+        paintFluid(this.boxWater[1].material,
+          colourOfT((this.legCw.T0 + this.legCw.T1) / 2, cwC));
       }
       // and the feedwater falling to the surface inside the boiler's dome
       // the ring, the pipe into it and the two pours off it are one run of
       // water, so they are given one colour from one call
-      const feedC = fluidColour(0.06, new THREE.Color());
-      paintFluid(this.feedRing.material, feedC);
-      this.feedRing.material.normalMap.offset.x -= dt * 0.9;
-      this.feedRing.visible = Math.abs(this.legFeed.v) > 0.02;
+      const feedC = colourOfT(this.legFeed.T1, new THREE.Color());
       if (this.seaMat) {
         // one material, shared by the bay and the channel, so the swell runs
         // in from the horizon as a single body of water
@@ -2066,10 +2147,11 @@ Object.assign(Unit.prototype, {
     // power: the pipes are where the blue-to-orange trade is spent, and a
     // vessel full of orange at 347 C leaves nowhere to go when it really is
     // overheating.
-    const wTop = Math.min(heat, 0.70);
+    // Cold-leg water at the bottom, hot-leg water at the top: the vessel's
+    // column is the core leg, painted from its inlet to its outlet.
     paintFluid(this.coreWater.material,
-      fluidColour(cold, new THREE.Color()), fluidColour(wTop, new THREE.Color()));
-    paintFluid(this.coreTop.material, fluidColour(wTop, cTmp));
+      colourOfT(this.legCore.T0, new THREE.Color()), colourOfT(this.legCore.T1, new THREE.Color()));
+    paintFluid(this.coreTop.material, colourOfT(this.legCore.T1, cTmp));
     this.coreTop.material.normalMap.offset.x += dt * 0.03;
     this.coreWater.visible = st.lvl > 0.01;
     this.coreTop.visible = st.lvl > 0.01;
@@ -2170,7 +2252,11 @@ Object.assign(Unit.prototype, {
       // the downcomer runs from the feed nozzle to the tube sheet, and its
       // water moves DOWNWARD, which is the direction the recirculation goes
       {
-        const dTop = Math.min(surf, SG_BASE + 13.2), dBot = SG_TS + 0.2;
+        // From the end of the feed line DOWN to the tube sheet, whatever the
+        // water level: the sheet is what the arriving water runs down, so it
+        // starts where the pipe stops. Clipped to the surface, it lived under
+        // the water and the pipe ended in mid-air above it, going nowhere.
+        const dTop = SG_BASE + 12.6, dBot = SG_TS + 0.2;
         const dh = Math.max(0.6, dTop - dBot);
         this.sgDown.scale.y = dh;
         this.sgDown.position.set(L.sg.x, dBot + dh / 2, L.sg.z);
@@ -2179,8 +2265,9 @@ Object.assign(Unit.prototype, {
         // Cold at the top where the feedwater lands on it, warm at the bottom
         // where it turns into the bundle: the recirculation, drawn along the
         // one surface it happens on.
-        paintFluid(dm, fluidColour(carrying ? 0.24 : 0.10, _c2),
-          fluidColour(0.05, cTmp));
+        // Feedwater at the top where it lands, boiler water at the bottom
+        // where it joins: the downcomer is the one place the two meet.
+        paintFluid(dm, colourOfT(T_BOILER, _c2), colourOfT(this.legFeed.T1, cTmp));
         dm.opacity = 0.34;
       }
       // and the boiling band rides on the surface, thicker the harder it boils
@@ -2207,7 +2294,7 @@ Object.assign(Unit.prototype, {
     ripple(this.sgTop, this.surfSg, 2.62);
     // The shell side of the boiler is at its own boiling point, which is what
     // the feed line arriving cold and the steam line leaving hot are about.
-    tintWater(this.sgWater.material, fluidColour(carrying ? 0.20 : 0.08, cTmp), dt);
+    tintWater(this.sgWater.material, colourOfT(T_BOILER, cTmp), dt);
 
     // The gravity valve: shut and green while nothing needs it, open and amber
     // once it is doing the work. It is the whole design argument in one part.
@@ -2218,7 +2305,7 @@ Object.assign(Unit.prototype, {
       this.fillPour.visible = open && st.lvl < 0.995;
       if (open) {
         this.fillPour.material.normalMap.offset.y -= dt * 2.4;
-        paintFluid(this.fillPour.material, fluidColour(0.06, cTmp));
+        paintFluid(this.fillPour.material, colourOfT(this.legFill.T1, cTmp));
       }
     }
 
@@ -2232,11 +2319,11 @@ Object.assign(Unit.prototype, {
       this.risePool.step(dt, L.pool.y + 0.5, Math.max(0.4, ph),
         (st.s.prhr || 0) > 0 ? 0.75 : 0.03, L.pool.x, L.pool.z, 0.55);
       const warm = (st.s.prhr || 0) > 0 ? 0.2 : 0.04;
-      fluidColour(warm, cTmp);
+      colourOfT(this.legCoilOut ? this.legCoilOut.T1 : T_TANK, cTmp);
       tintWater(this.poolWater.material, cTmp, dt);
     }
 
-    if (this.tankWater) tintWater(this.tankWater.material, fluidColour(0.04, cTmp), dt);
+    if (this.tankWater) tintWater(this.tankWater.material, colourOfT(T_TANK, cTmp), dt);
 
     // ---- the water that got out of the tank and is lying on the floor ----
     if (this.sumpWater) {
@@ -2245,14 +2332,14 @@ Object.assign(Unit.prototype, {
       this.sumpWater.visible = dep > 0.04;
       this.sumpWater.scale.y = Math.max(0.05, dep);
       this.sumpWater.position.set(0, dep / 2 + 0.05, 0);
-      tintWater(this.sumpWater.material, fluidColour(0.03, cTmp), dt);
+      tintWater(this.sumpWater.material, colourOfT(T_TANK, cTmp), dt);
       this.sumpWater.material.emissiveIntensity = 0.34;
       this.sumpWater.material.attenuationDistance = 3.2;
       const leaking = p.irwstCracked && p.irwst > 1e5;
       this.leakJet.visible = leaking;
       if (leaking) {
         this.leakJet.material.normalMap.offset.y += dt * 2.2;
-        tintWater(this.leakJet.material, fluidColour(0.06, cTmp), 0);
+        tintWater(this.leakJet.material, colourOfT(this.legCold.T0, cTmp), 0);
       }
     }
 
@@ -2271,8 +2358,8 @@ Object.assign(Unit.prototype, {
         b.jet.visible = on;
         if (on) {
           b.jet.material.normalMap.offset.y -= dt * 2.6;
-          paintFluid(b.jet.material, fluidColour(
-            b.q.kindBreak === 'primary' ? heat : 0.06, cTmp));
+          paintFluid(b.jet.material, colourOfT(
+            b.q.leg ? b.q.leg.T1 : T_COND, cTmp));
         }
       }
       b.spray.step(dt, on ? (b.steam ? 26 : 14) : 0, b.at.x, b.at.y, b.at.z,
@@ -2289,7 +2376,7 @@ Object.assign(Unit.prototype, {
         : (st.live && p.pumpsOk) ? 0xffc44d : 0xff5c48);
       this.eccsImpeller.rotation.y = this.mach.aux.angle;
       this.eccsWater.material.normalMap.offset.x = this.mach.aux.angle / 6.283;
-      tintWater(this.eccsWater.material, fluidColour(0.05, cTmp), 0);
+      tintWater(this.eccsWater.material, colourOfT(T_TANK, cTmp), 0);
     }
 
     // ---- damage ----
@@ -2304,9 +2391,13 @@ Object.assign(Unit.prototype, {
     this.plumes.vent.step(dt, st.s.vent ? 26 : 0, st2.x, st2.h, st2.z,
       { spread: 2, vy: 9, vx: 1.4, life: 5, grow: 2.6, alpha: 0.45 });
     const bA = this.breachAz;
+    // Released OUTSIDE the wall, well clear of it, and rising. Emitted a
+    // metre off the concrete with a five-metre spread, half the smoke was
+    // born inside the building and drifted across the cutaway; smoke leaving
+    // through a hole starts at the hole and goes up.
     this.plumes.breach.step(dt, p.ctmtIntact ? 0 : 34,
-      Math.sin(bA) * (R_IN + 1), 16, Math.cos(bA) * (R_IN + 1),
-      { spread: 5, vy: 7, vx: 4, life: 6, grow: 4, alpha: 0.5, buoy: 1.4 });
+      Math.sin(bA) * (R_IN + 4.5), 17, Math.cos(bA) * (R_IN + 4.5),
+      { spread: 2.2, vy: 9, vx: 1.6, life: 6, grow: 4, alpha: 0.5, buoy: 1.6 });
     // Steam the turbine is not taking has to go somewhere, and in a real plant
     // it goes to atmosphere through the relief valves. Drawing it says where
     // the water in the boiler is going.

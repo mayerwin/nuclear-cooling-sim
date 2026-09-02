@@ -59,6 +59,21 @@ export class Leg {
     this.kind = opts.kind || 'water';
     this.v = 0;
     this.phase = 0;
+    // TEMPERATURE TRAVELS WITH THE WATER. A leg has an inlet temperature, an
+    // outlet temperature, and the heat it picks up or gives away on the way
+    // (dT, in degrees; negative is cooling). Nothing downstream is told what
+    // colour to be: the circuit walks its legs in flow order and each inlet is
+    // the previous outlet. Set the sea at 15 degrees, say where the heat goes
+    // in, and every pipe after that follows.
+    //
+    // `gain` is a DISPLAY multiplier on dT and nothing else. A turbine's worth
+    // of heat into a river of sea water is ten degrees in life, which is no
+    // colour at all on screen; drawn with a gain it is a visible change, and
+    // the number stays in one place where it can be read.
+    this.T0 = 15;
+    this.T1 = 15;
+    this.dT = 0;
+    this.gain = opts.gain || 1;
   }
 }
 
@@ -71,6 +86,18 @@ export class Circuit {
     for (const l of this.legs) l.v = (mdot / l.rho) / l.area;
   }
   advance(dt) { for (const l of this.legs) l.phase += l.v * dt; }
+  // Walk the chain from a known inlet temperature. When the water is not
+  // moving nothing is carried, and each leg sits at whatever it is standing
+  // next to, which the caller has already set.
+  setTemps(Tin) {
+    let T = Tin;
+    for (const l of this.legs) {
+      l.T0 = T;
+      l.T1 = T + l.dT * l.gain;
+      T = l.T1;
+    }
+    return T;
+  }
 }
 
 // A free surface, as a row of water columns under the shallow-water equations.

@@ -30,7 +30,7 @@ export const SCENARIOS = [
       { t: 8, msg: 'Emergency diesel generators start, buses re-energised', fn: (s, p) => { p.dieselsOk = true; } },
       { t: 2460, msg: '14 m tsunami overtops the 5.7 m seawall', fn: (s, p) => { p.flooded = 14; p.uhs = false; p.dieselsOk = false; p.pumpsOk = false; } },
       { t: 2480, msg: 'Seawater pumps, diesels and DC switchgear submerged. STATION BLACKOUT', fn: (s, p) => { p.battery = p.mode === 'passive' ? p.battery : 0.55; } },
-      { t: 4000, msg: 'Seawater has receded; site is debris-strewn and inaccessible', fn: (s, p) => { p.operators = p.mode === 'passive'; } }
+      { t: 4000, msg: 'Seawater has receded; site is debris-strewn and inaccessible', fn: (s, p) => { p.operators = p.mode === 'passive'; p.flooded = 0.8; } }
     ]
   },
   {

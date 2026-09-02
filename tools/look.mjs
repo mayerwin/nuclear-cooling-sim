@@ -36,6 +36,11 @@ if (scen) {
     s.run(x); s.speedIdx = 4;
     for (let i = 0; i < target / 45; i++) s.update(0.05);
   }, [scen, secs * 60]);
+  // The flood sheet rises in wall time; a tool that just drove the clock
+  // forward by an hour puts it where the plant says it is.
+  await page.evaluate(() => {
+    if (window.__floodDepth && window.__stage) window.__stage.setFlood(window.__floodDepth(), 10);
+  });
   await page.waitForTimeout(2500);
 }
 
@@ -63,7 +68,9 @@ const CAMS = {
   pool:   { u: 1, t: [4.5, 22, 0], d: 30 },
   prhr:   { u: 1, t: [2, 16, 0], d: 50 },
   passive:{ u: 1, t: [2, 15, 0], d: 84 },
-  breach: { u: 0, t: [2, 14, 0], d: 54 }
+  breach: { u: 0, t: [2, 14, 0], d: 54 },
+  // the breached wall from outside, with sky above it for the smoke
+  breachsky: { u: 0, t: [-9, 30, -3], d: 96, e: 0.14, az: Math.PI * 0.86 }
 };
 
 // The three shots the app itself frames: no camera override, just the button.
@@ -89,6 +96,9 @@ if (!FOCUS[shot]) await page.evaluate((c) => {
     tgt.z + Math.sin(az) * Math.cos(e) * c.d);
   s.controls.update();
 }, c);
+// REFRACT=1 turns real refraction on, so the settings panel's expensive path
+// can be looked at and kept honest.
+if (process.env.REFRACT) await page.evaluate(() => { window.__stage.setQuality('refraction', true); });
 if (process.env.NOBLOOM) await page.evaluate(() => { window.__stage.bloom.enabled = false; });
 // Software rendering: a close, busy frame can take many seconds, and a
 // screenshot taken before the first one lands comes back empty.

@@ -5,16 +5,16 @@
 // inside of the buildings in 3-D. Only one is on screen at a time.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { Sim } from './sim.js?v=99ed3ff391';
-import { Renderer } from './site/renderer.js?v=99ed3ff391';
-import { unproject } from './site/iso.js?v=99ed3ff391';
-import { Stage } from './view/stage.js?v=99ed3ff391';
-import { Unit, CUT_AZ } from './view/unit.js?v=99ed3ff391';
-import { Labels } from './view/labels.js?v=99ed3ff391';
-import { UI } from './ui.js?v=99ed3ff391';
-import { initPhysics } from './machines.js?v=99ed3ff391';
-import { state } from './view/state.js?v=99ed3ff391';
-import { clamp } from './util.js?v=99ed3ff391';
+import { Sim } from './sim.js?v=26b57b2691';
+import { Renderer } from './site/renderer.js?v=26b57b2691';
+import { unproject } from './site/iso.js?v=26b57b2691';
+import { Stage } from './view/stage.js?v=26b57b2691';
+import { Unit, CUT_AZ } from './view/unit.js?v=26b57b2691';
+import { Labels } from './view/labels.js?v=26b57b2691';
+import { UI } from './ui.js?v=26b57b2691';
+import { initPhysics } from './machines.js?v=26b57b2691';
+import { state } from './view/state.js?v=26b57b2691';
+import { clamp } from './util.js?v=26b57b2691';
 
 const SPAN = 29;
 const siteCanvas = document.getElementById('site');
@@ -354,6 +354,13 @@ document.getElementById('btnView').addEventListener('click', () => {
   setFocus(sim.focus || 'both');
 });
 
+// How deep the water on the yard is, from what the plant says got past the
+// wall. One place, so the frame loop and the inspection tools agree.
+function floodDepthNow() {
+  return Math.max(...sim.plants.map((p) => clamp((p.flooded - 5.7) * 0.9, 0, 7.6)));
+}
+window.__floodDepth = floodDepthNow;
+
 let last = performance.now(), acc = 0;
 function frame(now) {
   if (!booted) return;
@@ -365,8 +372,12 @@ function frame(now) {
     for (const u of units) if (u.root.visible) u.update(state(u.plant), dt);
     // The wave clears the seawall by this much, and what gets past it stands
     // on the site: that is what drowns the diesels in the basement.
-    stage.setFlood(Math.max(...sim.plants.map(
-      (p) => clamp((p.flooded - 5.7) * 0.42, 0, 4.6))), dt);
+    // The flood sheet stands on the sea (-2.6), so what gets past the wall
+    // has to climb that far before it is on the yard at all. A fourteen-metre
+    // wave over a 5.7 m wall puts about five metres of water on the deck:
+    // enough to drown the emergency tank and the pump beside it, which is the
+    // whole point of the Fukushima story, and which at 0.42 it never reached.
+    stage.setFlood(floodDepthNow(), dt);
     stage.nudge(keys, dt);
     stage.update(dt);
     labels.update();
