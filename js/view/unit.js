@@ -7,13 +7,12 @@
 // in at the water.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=8a2f5a9489';
-import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles,
-  frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=8a2f5a9489';
-import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=8a2f5a9489';
-import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=8a2f5a9489';
-import { Machines } from '../machines.js?v=8a2f5a9489';
-import { SectionCap } from './section.js?v=8a2f5a9489';
+import { pipe, vessel, tube, slab, V, roundedPath } from './parts.js?v=9d21864aec';
+import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles, frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=9d21864aec';
+import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=9d21864aec';
+import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=9d21864aec';
+import { Machines } from '../machines.js?v=9d21864aec';
+import { SectionCap } from './section.js?v=9d21864aec';
 
 const R_IN = 15.4, WALL = 1.0, SHELL_H = 31, DOME_R = R_IN + WALL;
 
@@ -172,6 +171,7 @@ const _fa = new THREE.Color(), _c2 = new THREE.Color();
 // Scratch colours for the per-frame paint. update() used to allocate a dozen
 // THREE.Color objects a frame per unit; these are the same dozen, once.
 const _cA = new THREE.Color(), _cB = new THREE.Color(), _hot = new THREE.Color(), _cold = new THREE.Color();
+const FUEL_GREY = new THREE.Color(0x6f7d88);
 function paintFluid(mat, c0, c1 = c0) {
   if (mat.userData.g) setGradient(mat, c0, c1);
   else mat.color.copy(c0);
@@ -1674,8 +1674,8 @@ export class Unit {
 // ---------------------------------------------------------------------------
 // per frame: solve the flows, step the machines, and let the geometry follow
 // ---------------------------------------------------------------------------
-import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=8a2f5a9489';
-import { Plume, PuffCloud } from './plume.js?v=8a2f5a9489';
+import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=9d21864aec';
+import { Plume, PuffCloud } from './plume.js?v=9d21864aec';
 
 Object.assign(Unit.prototype, {
 
@@ -2095,7 +2095,7 @@ Object.assign(Unit.prototype, {
     this.fuelMat.emissive.copy(tempColor(Math.max(p.Tclad, 620 + burn * 500)));
     this.fuelMat.emissiveIntensity = 0.12 + glow * 0.85;
     this.fuelMat.color.copy(tempColor(Math.max(p.Tclad, 620 + burn * 500)))
-      .lerp(new THREE.Color(0x6f7d88), 1 - Math.max(glow, 0.25));
+      .lerp(FUEL_GREY, 1 - Math.max(glow, 0.25));
     // what is left of a melted core is a pool of it on the bottom head
     const dam = clamp(p.coreDamage, 0, 1);
     if (!this.melt) {

@@ -2,7 +2,7 @@
 // parts.js - the reusable pieces of plant, as real geometry.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { liquidMaterial, steamMaterial, Bubbles, frameOf } from './fluid.js?v=8a2f5a9489';
+import { liquidMaterial, steamMaterial, Bubbles, frameOf } from './fluid.js?v=9d21864aec';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
