@@ -13,9 +13,9 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { build as buildMaterials } from './materials.js?v=29b6a124b2';
+import { build as buildMaterials } from './materials.js?v=dca3e57c37';
 import { surfaceMaterial, setGradient, rippleNormal, LOWFX, FLUID_TIME,
-  twoOctaveFlow, SEA_TILE } from './fluid.js?v=29b6a124b2';
+  twoOctaveFlow, SEA_TILE } from './fluid.js?v=dca3e57c37';
 
 // A vertical sky gradient, baked once into an equirectangular strip.
 function skyTexture() {
@@ -48,7 +48,7 @@ export class Stage {
       antialias: !mobile, powerPreference: 'high-performance', stencil: true });
     // One device pixel per pixel on a handset. At 3x the same frame costs nine
     // times the fill, and this scene is fill-bound.
-    this.renderer.setPixelRatio(Math.min(mobile ? 1 : 2, window.devicePixelRatio || 1));
+    this.renderer.setPixelRatio(Math.min(mobile ? 1 : 1.5, window.devicePixelRatio || 1));
     // Losing the context used to be terminal: the default was prevented, which
     // asks the browser to restore it, and then nothing listened for the
     // restore, so the canvas stayed blank for the rest of the session. Now the
@@ -67,10 +67,15 @@ export class Stage {
     // Shadow maps are a second pass over every caster. A phone spends that
     // budget better on the machinery itself.
     this.renderer.shadowMap.enabled = !mobile;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.localClippingEnabled = true;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 0.96;
+    // Real refraction, when it is switched on, draws the scene again into a
+    // target for the transmissive materials to sample. That target is half
+    // the frame on each axis now: a quarter of the pixels, and nothing lost in
+    // a refracted image that is blurred by roughness anyway.
+    this.renderer.transmissionResolutionScale = 0.5;
     // The refraction pass is a second render of the whole scene. Half
     // resolution costs nothing visible, because refraction blurs anyway.
     this.renderer.transmissionResolutionScale = mobile ? 0.2 : 0.4;
@@ -496,7 +501,9 @@ export class Stage {
         this.scene.environment = on ? this.envTex : null;
         break;
       case 'hidpi':
-        r.setPixelRatio(on ? Math.min(2, window.devicePixelRatio || 1) : 1);
+        // Capped at 1.5: a 2x panel is four times the fill of a 1x one, and
+        // between 1.5 and 2 there is nothing a person can see in this picture.
+        r.setPixelRatio(on ? Math.min(1.5, window.devicePixelRatio || 1) : 1);
         this.resize(this.lastW, this.lastH);
         break;
       case 'particles':

@@ -98,6 +98,22 @@ export class Circuit {
     }
     return T;
   }
+  // The coldest and hottest water in this circuit right now. Colour is scaled
+  // between the two, so a circuit whose water runs from 290 to 325 shows that
+  // span as fully as one that runs from 15 to 115: the same orange means
+  // "the hot end of this circuit", not the same number of degrees. `extra`
+  // is for temperatures the circuit holds but its legs do not carry, such as
+  // the water standing in the boiler.
+  range(extra = []) {
+    let lo = Infinity, hi = -Infinity;
+    for (const l of this.legs) {
+      if (l.kind === 'steam') continue;
+      lo = Math.min(lo, l.T0, l.T1); hi = Math.max(hi, l.T0, l.T1);
+    }
+    for (const t of extra) { lo = Math.min(lo, t); hi = Math.max(hi, t); }
+    if (!isFinite(lo)) { lo = 0; hi = 0; }
+    return { lo, hi };
+  }
 }
 
 // A free surface, as a row of water columns under the shallow-water equations.

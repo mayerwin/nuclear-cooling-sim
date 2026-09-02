@@ -2,7 +2,7 @@
 // plume.js - steam and smoke, as points that rise, spread and thin out.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { hash1 } from '../flow.js?v=29b6a124b2';
+import { hash1 } from '../flow.js?v=dca3e57c37';
 
 let sprite = null;
 function puffTexture() {
@@ -10,11 +10,44 @@ function puffTexture() {
   const c = document.createElement('canvas');
   c.width = c.height = 128;
   const x = c.getContext('2d');
-  const g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
-  g.addColorStop(0, 'rgba(255,255,255,0.9)');
-  g.addColorStop(0.4, 'rgba(255,255,255,0.35)');
-  g.addColorStop(1, 'rgba(255,255,255,0)');
-  x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+  // A soft disc with noise in it. A plain radial blur reads as a blurred
+  // ball, and a column of blurred balls is fog at best; vapour has structure
+  // at every scale, so the disc is broken up with three octaves of value
+  // noise and ragged at its edge, which is what lets overlapping puffs read
+  // as one body of steam rather than as a stack of circles.
+  const N = 128, img = x.createImageData(N, N), d = img.data;
+  const lat = (n, seed) => {
+    const a = new Float32Array(n * n);
+    for (let i = 0; i < n * n; i++) a[i] = hash1(i * 7919 + seed);
+    return a;
+  };
+  const oct = [[4, lat(4, 11), 1.0], [8, lat(8, 23), 0.5], [16, lat(16, 37), 0.25]];
+  const smooth = (t) => t * t * (3 - 2 * t);
+  const sample = (n, a, u, v) => {
+    const x0 = Math.floor(u * n) % n, y0 = Math.floor(v * n) % n;
+    const x1 = (x0 + 1) % n, y1 = (y0 + 1) % n;
+    const fx = smooth(u * n - Math.floor(u * n)), fy = smooth(v * n - Math.floor(v * n));
+    const top = a[y0 * n + x0] * (1 - fx) + a[y0 * n + x1] * fx;
+    const bot = a[y1 * n + x0] * (1 - fx) + a[y1 * n + x1] * fx;
+    return top * (1 - fy) + bot * fy;
+  };
+  for (let py = 0; py < N; py++) {
+    for (let px = 0; px < N; px++) {
+      const u = px / N, v = py / N;
+      let nz = 0, wsum = 0;
+      for (const [n, a, w] of oct) { nz += sample(n, a, u, v) * w; wsum += w; }
+      nz /= wsum;
+      const dx = u - 0.5, dy = v - 0.5;
+      const r = Math.sqrt(dx * dx + dy * dy) * 2;
+      // the edge is where the noise decides it is
+      const edge = Math.max(0, 1 - r / (0.72 + 0.28 * nz));
+      const alpha = Math.pow(edge, 1.6) * (0.55 + 0.45 * nz);
+      const o = (py * N + px) * 4;
+      d[o] = d[o + 1] = d[o + 2] = 255;
+      d[o + 3] = Math.round(255 * Math.min(1, alpha));
+    }
+  }
+  x.putImageData(img, 0, 0);
   sprite = new THREE.CanvasTexture(c);
   return sprite;
 }

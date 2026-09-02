@@ -23,8 +23,9 @@ const URL = 'http://127.0.0.1:8099/index.html';
 // camera -> [outfile, crop box] (crop boxes are in the 1500x950 frame look.mjs makes)
 const CAMS = {
   head:    [['F1_tracers', [400, 250, 1150, 800]], ['F6_junction', [400, 250, 1150, 800]], ['G4_no_rings', [400, 250, 1150, 800]]],
-  turbine: [['F2_gradient', [380, 520, 1250, 800]], ['F10_outfall', [380, 520, 1250, 800]], ['F11_intake', [380, 520, 1250, 800]],
-            ['G6_G7_condenser', [330, 380, 1250, 830]], ['G15_G16_turbine', [330, 60, 1150, 620]]],
+  turbine: [['F2_gradient', [560, 380, 1220, 830]], ['F10_outfall', [560, 380, 1220, 830]], ['F11_intake', [560, 380, 1220, 830]],
+            ['G6_G7_condenser', [560, 380, 1220, 830]], ['G15_G16_turbine', [290, 60, 1220, 830]],
+            ['G18_exhaust_condenser', [290, 60, 1220, 830]]],
   sump:    [['F3_condensate', [300, 150, 1250, 720]]],
   rpv:     [['F4_reactor', [450, 150, 1050, 850]]],
   dome:    [['F5_speeds', [330, 60, 1210, 830]], ['F7_feed', [330, 60, 1210, 830]], ['F8_feed_tank', [330, 60, 1210, 830]], ['G8_boiler_inlet', [330, 60, 1210, 830]]],
@@ -44,7 +45,8 @@ const CAMS = {
   'outside tsunami 55':  [['S1_flood', [290, 380, 1000, 830]]],
   'breachsky chernobyl 12': [['S2_breach', [290, 60, 1220, 830]]]
 };
-CAMS.turbine.push(['F13_engine_turbine', [380, 520, 1250, 800]]);
+CAMS.turbine.push(['F13_engine_turbine', [560, 380, 1220, 830]]);
+CAMS.outside.push(['F14_primary_span', [290, 60, 1220, 830]]);
 
 function run(cmd, args, env) {
   const r = spawnSync(cmd, args, { stdio: 'inherit', env: Object.assign({}, process.env, env || {}) });
@@ -114,6 +116,30 @@ async function specials() {
   await p.evaluate(() => document.querySelector('#helpOk')?.click());
   await p.waitForTimeout(16000);
   await p.screenshot({ path: `${OUT}/U1_phone_inside.png` });
+  await p.close();
+  // D1: the help card as it first opens, with the link to this page on it
+  p = await page(browser);
+  await p.evaluate(() => document.querySelector('#startBtn').click());
+  await p.waitForTimeout(3000);
+  await p.evaluate(() => document.querySelector('[data-view=plant]').click());
+  await p.waitForTimeout(2500);
+  await p.screenshot({ path: `${OUT}/D1_help_link.png`, clip: { x: 430, y: 180, width: 640, height: 300 } });
+  // U12: every graphics option on, timed, on this build
+  await p.evaluate(() => document.querySelector('#helpOk')?.click());
+  await p.evaluate(() => { const s = window.__stage;
+    for (const k of Object.keys(s.q)) s.setQuality(k, true); });
+  await p.waitForTimeout(3000);
+  const timing = async (label) => {
+    const ms = await p.evaluate(async () => { const s = window.__stage; const N = 10; const t0 = performance.now();
+      for (let i = 0; i < N; i++) s.render(); await new Promise((r) => requestAnimationFrame(r));
+      return (performance.now() - t0) / N; });
+    return `${label}: ${ms.toFixed(1)} ms/frame`;
+  };
+  const allOn = await timing('every option on');
+  await p.evaluate(() => { const s = window.__stage; for (const k of ['refraction', 'bloom', 'shadows', 'hidpi']) s.setQuality(k, false); });
+  await p.waitForTimeout(1500);
+  const defaults = await timing('defaults');
+  writeFileSync(`${OUT}/U12_allon.txt`, `Software renderer (SwiftShader), 1500x950, this build.\n${allOn}\n${defaults}\n`);
   await browser.close();
 }
 
