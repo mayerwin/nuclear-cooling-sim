@@ -1,0 +1,15 @@
+Probe on the laptop GPU, this build, 2026-09-02. Unit A, read 400 ms after
+each setQuality() so the frame loop has had its say.
+
+defaults      tracers 9 shown / 3 hidden, steam cores 2 of 3, fuel true,
+              riseCore true, riseSg true, turbSteam true, sgVapour true,
+              condFog true, sgSteam false, sgNeck true, 510 draws
+particles off tracers 0 shown / 12 hidden, fuel TRUE, riseCore false,
+              riseSg false, 366 draws
+steam off     steam cores 0 of 3, turbSteam false, sgVapour false,
+              condFog false, sgNeck false, sgSteam false, 470 draws
+steam back on as defaults; sgSteam still false
+
+Before: the units rewrote the visibility every frame, so both toggles lasted
+one frame; "particles" also hid the fuel rods (an InstancedMesh) for that
+frame, and "steam" back on revealed the never-drawn drum in the boiler.

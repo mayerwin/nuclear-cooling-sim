@@ -9,8 +9,8 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { L } from './unit.js?v=4b489aa4e2';
-import { state } from './state.js?v=4b489aa4e2';
+import { L } from './unit.js?v=8a2f5a9489';
+import { state } from './state.js?v=8a2f5a9489';
 
 function tag(cls) {
   const el = document.createElement('div');
@@ -33,6 +33,13 @@ export class Labels {
     this.units = units;
     this.items = [];
     this.focus = 'both';
+    // Set by a resize: every box is measured again and the free rectangle is
+    // recomputed. Between resizes a caption is only measured when its text
+    // changed, because reading a box's size right after writing its
+    // transform forces the browser to lay the page out again, and doing that
+    // twenty times a frame was the caption layer's whole cost.
+    this.remeasure = true;
+    this.frameNo = 0;
     for (const u of units) {
       const set = {};
       const add = (key, cls, x, y, z, side) => {
@@ -64,6 +71,7 @@ export class Labels {
   }
 
   setFocus(f) { this.focus = f; }
+  invalidate() { this.remeasure = true; }
 
   // The rectangle of the window that is not under a panel or the log.
   // In the LABEL LAYER'S own coordinates, not the page's. On a phone the layer
@@ -107,7 +115,9 @@ export class Labels {
         // two sets of captions land on each other.
         t.o.visible = on && ((detail && !narrow) || KEY.includes(k));
         if (!t.o.visible) return;
-        if (t.box.innerHTML !== html) t.box.innerHTML = html;
+        // Compared against the string last written, not the box's own
+        // innerHTML: reading that serialises the node every time.
+        if (t.html !== html) { t.box.innerHTML = html; t.html = html; t.dirty = true; }
       };
       const MW = (p.qDecay || 0) / 1e6;
       set('title', `<b class="${u.passive ? 'bPass' : 'bAct'}">${u.passive ? 'PASSIVE' : 'ACTIVE'}</b>`
@@ -198,9 +208,16 @@ export class Labels {
     // is a permanent offset between a caption and the leader pointing at it.
     cam.updateMatrixWorld();
     cam.matrixWorldInverse.copy(cam.matrixWorld).invert();
-    const rc = this.stage.renderer.domElement.getBoundingClientRect();
+    this.frameNo++;
+    // The free rectangle moves only when the page does; every thirtieth frame
+    // is a safety net for a panel that changed without a resize.
+    if (this.remeasure || !this.rect || this.frameNo % 30 === 0) {
+      this.rc = this.stage.renderer.domElement.getBoundingClientRect();
+      this.rect = this.freeRect();
+    }
+    const rc = this.rc;
     const w = rc.width, h = rc.height;
-    const R = this.freeRect();
+    const R = this.rect;
     const narrow = R.x1 - R.x0 < 620;
     const cols = { L: [], R: [], C: [] };
     for (const it of this.items) {
@@ -213,11 +230,16 @@ export class Labels {
       if (_v.z < -1 || _v.z > 1) { it.box.style.opacity = '0'; it.lead.style.opacity = '0'; continue; }
       it.sx = (_v.x * 0.5 + 0.5) * w;
       it.sy = (-_v.y * 0.5 + 0.5) * h;
-      const r = it.box.getBoundingClientRect();
-      it.bw = r.width || it.bw || 120;
-      it.bh = r.height || it.bh || 34;
+      if (it.dirty || this.remeasure || !it.bw) {
+        const r = it.box.getBoundingClientRect();
+        it.bw = r.width || it.bw || 120;
+        it.bh = r.height || it.bh || 34;
+        // A box the renderer has not drawn yet measures zero: try again.
+        it.dirty = !r.width;
+      }
       cols[narrow && it.side === 'R' ? 'L' : it.side].push(it);
     }
+    this.remeasure = false;
     const place = (it, px, py) => {
       const dx = px - it.sx, dy = py - it.sy;
       it.box.style.opacity = '1';

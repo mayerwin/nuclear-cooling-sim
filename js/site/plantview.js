@@ -8,8 +8,8 @@
 import {
   project, box, prism, cylinder, revolve, coolingTower, dome, cone, pylon,
   shadow, shade, rgba, mix, hash2, poly, polyLine, TW, TH, TZ, EDGE
-} from './iso.js?v=4b489aa4e2';
-import { MODE } from '../plant.js?v=4b489aa4e2';
+} from './iso.js?v=8a2f5a9489';
+import { MODE } from '../plant.js?v=8a2f5a9489';
 
 const CONCRETE = '#cfccc2';
 const CONCRETE_D = '#a9a69c';
@@ -84,7 +84,9 @@ export class PlantView {
     put(-1e6, (c) => this.drawApron(c));
 
     const it = pt.intake;
-    put(S.x + it.x + S.y + it.y + (it.w + it.h) / 2, (c) => this.drawIntake(c));
+    // `d`, not `h`: the intake has no height field, and a NaN key put the
+    // pumphouse nowhere and made the depth sort's comparator return NaN.
+    put(S.x + it.x + S.y + it.y + (it.w + it.d) / 2, (c) => this.drawIntake(c));
 
     const e = pt.edg;
     put(S.x + e.x + S.y + e.y + (e.w + e.d) / 2, (c) => this.drawEDG(c));
@@ -186,7 +188,7 @@ export class PlantView {
     ctx.strokeStyle = 'rgba(60,54,46,0.5)'; ctx.lineWidth = 1;
     polyLine(ctx, [A0, A1, B1, B0], true);
     box(ctx, {
-      x, y, z: -0.3, w: o.w, d: o.h, h: 1.9,
+      x, y, z: -0.3, w: o.w, d: o.d, h: 1.9,
       color: drowned ? mix(CONCRETE_D, '#3f6a80', 0.5) : CONCRETE_D, top: ROOF_G
     });
     for (let i = 0; i < 3; i++) {

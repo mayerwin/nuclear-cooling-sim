@@ -164,7 +164,7 @@ export const SCENARIOS = [
     timeline: [
       { t: 0, msg: 'Ground motion 2.5× design basis: scram, offsite power lost', fn: (s, p) => { p.scram('seismic'); p.grid = false; p.quakeDamage = 0.35; } },
       { t: 20, msg: 'Main transformer fire; onsite fire brigade overwhelmed', fn: (s, p) => { p.fire = 0.5; } },
-      { t: 60, msg: 'Diesel day-tank line ruptured, taking two of three diesels lost', fn: (s, p) => { p.diesels = 1; } },
+      { t: 60, msg: 'Diesel day-tank line ruptured, taking out two of three diesels', fn: (s, p) => { p.diesels = 1; } },
       { t: 400, msg: 'Service-water piping displaced at a building joint', fn: (s, p) => { if (p.mode === 'active') { p.uhs = false; p.pumpsOk = false; } } },
       { t: 900, msg: 'Last diesel starved of cooling water', fn: (s, p) => { if (p.mode === 'active') p.dieselsOk = false; } }
     ]

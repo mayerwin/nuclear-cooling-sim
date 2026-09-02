@@ -694,7 +694,7 @@
   "verified": "2026-09-02",
   "status": "DONE",
   "req": "With every graphics option on, the frame rate must not collapse (17 fps on a laptop is not acceptable).",
-  "check": "Measured on the laptop's own GPU (Intel Arc, Chrome, vsync off), as the gap between animation frames. Proof file, 1500x950: every option on 24 ms/frame (42 fps), desktop defaults 17 ms (60 fps). Session bench on the full 2194x1234 window at 1.5x pixel density: defaults 19 ms (53 fps), every option on 40 ms (25 fps). Before this build every option on was 76 ms (13 fps) at 1500x950 and 186 ms (5 fps) on the full window, and the whole of it was bloom: the composer's multisampled half-float target resolved its depth and stencil attachments every frame, 60 ms through ANGLE on this GPU. Nothing after the scene pass reads them, so they are no longer resolved, and bloom costs about 5 ms. Chrome runs on the laptop's Intel GPU, not its RTX 4070; that is Windows' per-app graphics setting, not the page's. Numbers vary by a third between runs as the laptop warms.",
+  "check": "Measured on the laptop's own GPU (Intel Arc, Chrome, vsync off), as the gap between animation frames. Proof file, 1500x950, after the code review: every option on 14.6 ms/frame (69 fps), desktop defaults 7.8 ms (128 fps); before the review 24 and 17 ms. Session bench on the full 2194x1234 window at 1.5x pixel density: defaults 19 ms (53 fps), every option on 40 ms (25 fps). Before this build every option on was 76 ms (13 fps) at 1500x950 and 186 ms (5 fps) on the full window, and the whole of it was bloom: the composer's multisampled half-float target resolved its depth and stencil attachments every frame, 60 ms through ANGLE on this GPU. Nothing after the scene pass reads them, so they are no longer resolved, and bloom costs about 5 ms. Chrome runs on the laptop's Intel GPU, not its RTX 4070; that is Windows' per-app graphics setting, not the page's. Numbers vary by a third between runs as the laptop warms.",
   "proof": [
    {
     "text": "docs/proof/U12_allon.txt: GPU, 1500x950, every option on 24 ms/frame (42 fps); desktop defaults 17 ms (60 fps); phone defaults 12 ms. Was 76 ms (13 fps)."
@@ -745,6 +745,92 @@
   "proof": [
    {
     "text": "docs/proof/U14_pixel10.txt: what is measured, what is not, and why."
+   }
+  ]
+ },
+ {
+  "id": "R1",
+  "area": "Code review",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "The intake pumphouse on the site view must be drawn (it referenced a height field the part does not have, so its depth was NaN, it never drew, and its NaN sort key could scramble the depth sort of the whole site).",
+  "check": "plantview.js reads the part's depth. Probe: every sort key on the site is finite (20 of 20). The pumphouse stands on its pier at the seaward corner of each site.",
+  "proof": [
+   {
+    "img": "proof/R1_intake.png",
+    "caption": "The pumphouse at the water, on its pier"
+   }
+  ]
+ },
+ {
+  "id": "R2",
+  "area": "Code review",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "Reset must heal a pipe broken by hand: the plant kept its break flag, so the wound stayed on screen and the same pipe could never be broken again.",
+  "check": "Plant.reset clears the break flags; Unit.reset removes the torn lip, the jet and the spray and disposes their geometry, material and texture; sim.onReset calls it.",
+  "proof": [
+   {
+    "text": "docs/proof/R2_reset.txt: after reset broken=false, fx=0, leak=0; the pipe can be broken again."
+   }
+  ]
+ },
+ {
+  "id": "R3",
+  "area": "Code review",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "The Bubbles and Steam toggles in the settings panel must stick. Both were overwritten by the units on the next frame, Bubbles also hid the fuel rods for a frame, and Steam switched back on revealed a drum in the boiler that is never meant to be drawn.",
+  "check": "The units read stage.q every frame and decide the visibility of their own tracers, risers, drips, vapour and steam cores from it; the stage no longer traverses InstancedMeshes; the hidden drum is untagged. Hidden tracers are no longer advanced.",
+  "proof": [
+   {
+    "text": "docs/proof/R3_toggles.txt: particles off leaves 0 tracers shown and the fuel visible; steam off leaves 0 steam cores; both restore."
+   }
+  ]
+ },
+ {
+  "id": "R4",
+  "area": "Code review",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "Keys typed into a control must not be commands: Space in the focused resolution slider paused the plant and R reset it.",
+  "check": "The key handler ignores events whose target is an input, textarea or select.",
+  "proof": [
+   {
+    "text": "ui.js keydown: target INPUT/TEXTAREA/SELECT returns before any key is read."
+   }
+  ]
+ },
+ {
+  "id": "R5",
+  "area": "Code review",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "The inside view must not spend its frame on work nobody can see: caption layout forced the page to lay out twenty times a frame, hidden tracers were advanced, finished plumes uploaded buffers, the shadow map was redrawn every frame, and a dozen colours were allocated a frame.",
+  "check": "Captions are measured only when their text or the page changes; tracers advance only when shown and moving; idle plumes hide themselves; the shadow map redraws on alternate frames; scratch colours and a fixed circuit list. Measured on the laptop GPU at 1500x950: defaults 17.0 to 7.8 ms a frame, every option on 23.7 to 14.6 ms.",
+  "proof": [
+   {
+    "text": "docs/proof/R5_frametime.txt: before and after, six configurations."
+   }
+  ]
+ },
+ {
+  "id": "R6",
+  "area": "Code review",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "The flood sheet is the sea come over the wall, so it must ripple at the sea's tile; it set the shared tile and then overrode it with its own.",
+  "check": "The override is gone; the sheet uses 1400 / SEA_TILE like the open water, the forebay and the channel.",
+  "proof": [
+   {
+    "img": "proof/S1_flood.png",
+    "caption": "The flood over the yard, rippling at the sea's scale"
    }
   ]
  }

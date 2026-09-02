@@ -5,17 +5,17 @@
 // inside of the buildings in 3-D. Only one is on screen at a time.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { Sim } from './sim.js?v=4b489aa4e2';
-import { Renderer } from './site/renderer.js?v=4b489aa4e2';
-import { unproject } from './site/iso.js?v=4b489aa4e2';
-import { Stage } from './view/stage.js?v=4b489aa4e2';
-import { Unit, CUT_AZ } from './view/unit.js?v=4b489aa4e2';
-import { Labels } from './view/labels.js?v=4b489aa4e2';
-import { UI } from './ui.js?v=4b489aa4e2';
-import { initPhysics } from './machines.js?v=4b489aa4e2';
-import { state } from './view/state.js?v=4b489aa4e2';
-import { AutoQ } from './view/autoq.js?v=4b489aa4e2';
-import { clamp } from './util.js?v=4b489aa4e2';
+import { Sim } from './sim.js?v=8a2f5a9489';
+import { Renderer } from './site/renderer.js?v=8a2f5a9489';
+import { unproject } from './site/iso.js?v=8a2f5a9489';
+import { Stage } from './view/stage.js?v=8a2f5a9489';
+import { Unit, CUT_AZ } from './view/unit.js?v=8a2f5a9489';
+import { Labels } from './view/labels.js?v=8a2f5a9489';
+import { UI } from './ui.js?v=8a2f5a9489';
+import { initPhysics } from './machines.js?v=8a2f5a9489';
+import { state } from './view/state.js?v=8a2f5a9489';
+import { AutoQ } from './view/autoq.js?v=8a2f5a9489';
+import { clamp } from './util.js?v=8a2f5a9489';
 
 const SPAN = 29;
 const siteCanvas = document.getElementById('site');
@@ -63,6 +63,8 @@ function boot() {
     units = sim.plants.map((p, i) => new Unit(p, stage,
       (i === 0 ? -SPAN : SPAN) * RIGHT.x, (i === 0 ? -SPAN : SPAN) * RIGHT.z));
     for (const u of units) stage.scene.add(u.root);
+    // A reset puts the plant back as built, wounds included.
+    sim.onReset = () => { for (const u of units) u.reset(); };
     labels = new Labels(stage, units);
     stage.buildFlood(units.map((u) => [u.worldX, u.worldZ]));
     stage.buildSea(CUT_AZ);
@@ -130,6 +132,7 @@ function resize() {
   renderer.topInset = narrow ? barH : 0;
   if (sim.view === 'site') sim.overview();
   if (stage) stage.resize(w, sceneH);
+  if (labels) labels.invalidate();
   // Snapped, not eased. A resize is not something the viewer is watching
   // happen, and turning a phone from landscape back to portrait left the
   // camera drifting towards a framing it had not reached by the time anyone

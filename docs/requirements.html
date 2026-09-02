@@ -40,11 +40,11 @@
 <header>
   <h1>Requirements register</h1>
   <div class="sub">Every piece of review feedback on the visualisation, with the check that closes it and a screenshot as proof. Built 2026-09-02 from <code>docs/requirements.json</code>.</div>
-  <div class="tally"><span class="DONE">45 DONE</span><span class="WATCH">4 WATCH</span><span class="OPEN">0 OPEN</span></div>
+  <div class="tally"><span class="DONE">51 DONE</span><span class="WATCH">4 WATCH</span><span class="OPEN">0 OPEN</span></div>
 </header>
 <div class="bar">
   <input id="q" placeholder="Filter text (requirement, check, id)">
-  <select id="area"><option value="">All areas</option><option>Fluids and colour</option><option>Geometry and clutter</option><option>Interface and platform</option><option>Scenarios</option></select>
+  <select id="area"><option value="">All areas</option><option>Fluids and colour</option><option>Geometry and clutter</option><option>Interface and platform</option><option>Scenarios</option><option>Code review</option></select>
   <select id="status"><option value="">All statuses</option><option>DONE</option><option>WATCH</option><option>OPEN</option></select>
 </div>
 <table id="t">
@@ -461,10 +461,10 @@ after:  512 draw calls,  11 ms/frame,  0 transmissive materials</div></div></td>
   <td class="date">2026-09-02</td>
   <td><div class="proof"><a href="proof/G18_exhaust_condenser.png" target="_blank"><img src="proof/G18_exhaust_condenser.png" alt="" loading="lazy"><small>Turbine end, exhaust duct, condenser with its one cold pipe</small></a></div></td>
 </tr>
-<tr data-id="U12" data-area="Interface and platform" data-req="With every graphics option on, the frame rate must not collapse (17 fps on a laptop is not acceptable)." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="u12 interface and platform with every graphics option on, the frame rate must not collapse (17 fps on a laptop is not acceptable). measured on the laptop's own gpu (intel arc, chrome, vsync off), as the gap between animation frames. proof file, 1500x950: every option on 24 ms/frame (42 fps), desktop defaults 17 ms (60 fps). session bench on the full 2194x1234 window at 1.5x pixel density: defaults 19 ms (53 fps), every option on 40 ms (25 fps). before this build every option on was 76 ms (13 fps) at 1500x950 and 186 ms (5 fps) on the full window, and the whole of it was bloom: the composer's multisampled half-float target resolved its depth and stencil attachments every frame, 60 ms through angle on this gpu. nothing after the scene pass reads them, so they are no longer resolved, and bloom costs about 5 ms. chrome runs on the laptop's intel gpu, not its rtx 4070; that is windows' per-app graphics setting, not the page's. numbers vary by a third between runs as the laptop warms.">
+<tr data-id="U12" data-area="Interface and platform" data-req="With every graphics option on, the frame rate must not collapse (17 fps on a laptop is not acceptable)." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="u12 interface and platform with every graphics option on, the frame rate must not collapse (17 fps on a laptop is not acceptable). measured on the laptop's own gpu (intel arc, chrome, vsync off), as the gap between animation frames. proof file, 1500x950, after the code review: every option on 14.6 ms/frame (69 fps), desktop defaults 7.8 ms (128 fps); before the review 24 and 17 ms. session bench on the full 2194x1234 window at 1.5x pixel density: defaults 19 ms (53 fps), every option on 40 ms (25 fps). before this build every option on was 76 ms (13 fps) at 1500x950 and 186 ms (5 fps) on the full window, and the whole of it was bloom: the composer's multisampled half-float target resolved its depth and stencil attachments every frame, 60 ms through angle on this gpu. nothing after the scene pass reads them, so they are no longer resolved, and bloom costs about 5 ms. chrome runs on the laptop's intel gpu, not its rtx 4070; that is windows' per-app graphics setting, not the page's. numbers vary by a third between runs as the laptop warms.">
   <td class="id">U12</td>
   <td>Interface and platform</td>
-  <td><div class="req">With every graphics option on, the frame rate must not collapse (17 fps on a laptop is not acceptable).</div><div class="check">Measured on the laptop's own GPU (Intel Arc, Chrome, vsync off), as the gap between animation frames. Proof file, 1500x950: every option on 24 ms/frame (42 fps), desktop defaults 17 ms (60 fps). Session bench on the full 2194x1234 window at 1.5x pixel density: defaults 19 ms (53 fps), every option on 40 ms (25 fps). Before this build every option on was 76 ms (13 fps) at 1500x950 and 186 ms (5 fps) on the full window, and the whole of it was bloom: the composer's multisampled half-float target resolved its depth and stencil attachments every frame, 60 ms through ANGLE on this GPU. Nothing after the scene pass reads them, so they are no longer resolved, and bloom costs about 5 ms. Chrome runs on the laptop's Intel GPU, not its RTX 4070; that is Windows' per-app graphics setting, not the page's. Numbers vary by a third between runs as the laptop warms.</div></td>
+  <td><div class="req">With every graphics option on, the frame rate must not collapse (17 fps on a laptop is not acceptable).</div><div class="check">Measured on the laptop's own GPU (Intel Arc, Chrome, vsync off), as the gap between animation frames. Proof file, 1500x950, after the code review: every option on 14.6 ms/frame (69 fps), desktop defaults 7.8 ms (128 fps); before the review 24 and 17 ms. Session bench on the full 2194x1234 window at 1.5x pixel density: defaults 19 ms (53 fps), every option on 40 ms (25 fps). Before this build every option on was 76 ms (13 fps) at 1500x950 and 186 ms (5 fps) on the full window, and the whole of it was bloom: the composer's multisampled half-float target resolved its depth and stencil attachments every frame, 60 ms through ANGLE on this GPU. Nothing after the scene pass reads them, so they are no longer resolved, and bloom costs about 5 ms. Chrome runs on the laptop's Intel GPU, not its RTX 4070; that is Windows' per-app graphics setting, not the page's. Numbers vary by a third between runs as the laptop warms.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
   <td class="date">2026-09-02</td>
@@ -496,6 +496,60 @@ after:  512 draw calls,  11 ms/frame,  0 transmissive materials</div></div></td>
   <td class="date">2026-09-02</td>
   <td class="date">2026-09-02</td>
   <td><div class="proof"><div class="txt">docs/proof/U14_pixel10.txt: what is measured, what is not, and why.</div></div></td>
+</tr>
+<tr data-id="R1" data-area="Code review" data-req="The intake pumphouse on the site view must be drawn (it referenced a height field the part does not have, so its depth was NaN, it never drew, and its NaN sort key could scramble the depth sort of the whole site)." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="r1 code review the intake pumphouse on the site view must be drawn (it referenced a height field the part does not have, so its depth was nan, it never drew, and its nan sort key could scramble the depth sort of the whole site). plantview.js reads the part's depth. probe: every sort key on the site is finite (20 of 20). the pumphouse stands on its pier at the seaward corner of each site.">
+  <td class="id">R1</td>
+  <td>Code review</td>
+  <td><div class="req">The intake pumphouse on the site view must be drawn (it referenced a height field the part does not have, so its depth was NaN, it never drew, and its NaN sort key could scramble the depth sort of the whole site).</div><div class="check">plantview.js reads the part's depth. Probe: every sort key on the site is finite (20 of 20). The pumphouse stands on its pier at the seaward corner of each site.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/R1_intake.png" target="_blank"><img src="proof/R1_intake.png" alt="" loading="lazy"><small>The pumphouse at the water, on its pier</small></a></div></td>
+</tr>
+<tr data-id="R2" data-area="Code review" data-req="Reset must heal a pipe broken by hand: the plant kept its break flag, so the wound stayed on screen and the same pipe could never be broken again." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="r2 code review reset must heal a pipe broken by hand: the plant kept its break flag, so the wound stayed on screen and the same pipe could never be broken again. plant.reset clears the break flags; unit.reset removes the torn lip, the jet and the spray and disposes their geometry, material and texture; sim.onreset calls it.">
+  <td class="id">R2</td>
+  <td>Code review</td>
+  <td><div class="req">Reset must heal a pipe broken by hand: the plant kept its break flag, so the wound stayed on screen and the same pipe could never be broken again.</div><div class="check">Plant.reset clears the break flags; Unit.reset removes the torn lip, the jet and the spray and disposes their geometry, material and texture; sim.onReset calls it.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><div class="txt">docs/proof/R2_reset.txt: after reset broken=false, fx=0, leak=0; the pipe can be broken again.</div></div></td>
+</tr>
+<tr data-id="R3" data-area="Code review" data-req="The Bubbles and Steam toggles in the settings panel must stick. Both were overwritten by the units on the next frame, Bubbles also hid the fuel rods for a frame, and Steam switched back on revealed a drum in the boiler that is never meant to be drawn." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="r3 code review the bubbles and steam toggles in the settings panel must stick. both were overwritten by the units on the next frame, bubbles also hid the fuel rods for a frame, and steam switched back on revealed a drum in the boiler that is never meant to be drawn. the units read stage.q every frame and decide the visibility of their own tracers, risers, drips, vapour and steam cores from it; the stage no longer traverses instancedmeshes; the hidden drum is untagged. hidden tracers are no longer advanced.">
+  <td class="id">R3</td>
+  <td>Code review</td>
+  <td><div class="req">The Bubbles and Steam toggles in the settings panel must stick. Both were overwritten by the units on the next frame, Bubbles also hid the fuel rods for a frame, and Steam switched back on revealed a drum in the boiler that is never meant to be drawn.</div><div class="check">The units read stage.q every frame and decide the visibility of their own tracers, risers, drips, vapour and steam cores from it; the stage no longer traverses InstancedMeshes; the hidden drum is untagged. Hidden tracers are no longer advanced.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><div class="txt">docs/proof/R3_toggles.txt: particles off leaves 0 tracers shown and the fuel visible; steam off leaves 0 steam cores; both restore.</div></div></td>
+</tr>
+<tr data-id="R4" data-area="Code review" data-req="Keys typed into a control must not be commands: Space in the focused resolution slider paused the plant and R reset it." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="r4 code review keys typed into a control must not be commands: space in the focused resolution slider paused the plant and r reset it. the key handler ignores events whose target is an input, textarea or select.">
+  <td class="id">R4</td>
+  <td>Code review</td>
+  <td><div class="req">Keys typed into a control must not be commands: Space in the focused resolution slider paused the plant and R reset it.</div><div class="check">The key handler ignores events whose target is an input, textarea or select.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><div class="txt">ui.js keydown: target INPUT/TEXTAREA/SELECT returns before any key is read.</div></div></td>
+</tr>
+<tr data-id="R5" data-area="Code review" data-req="The inside view must not spend its frame on work nobody can see: caption layout forced the page to lay out twenty times a frame, hidden tracers were advanced, finished plumes uploaded buffers, the shadow map was redrawn every frame, and a dozen colours were allocated a frame." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="r5 code review the inside view must not spend its frame on work nobody can see: caption layout forced the page to lay out twenty times a frame, hidden tracers were advanced, finished plumes uploaded buffers, the shadow map was redrawn every frame, and a dozen colours were allocated a frame. captions are measured only when their text or the page changes; tracers advance only when shown and moving; idle plumes hide themselves; the shadow map redraws on alternate frames; scratch colours and a fixed circuit list. measured on the laptop gpu at 1500x950: defaults 17.0 to 7.8 ms a frame, every option on 23.7 to 14.6 ms.">
+  <td class="id">R5</td>
+  <td>Code review</td>
+  <td><div class="req">The inside view must not spend its frame on work nobody can see: caption layout forced the page to lay out twenty times a frame, hidden tracers were advanced, finished plumes uploaded buffers, the shadow map was redrawn every frame, and a dozen colours were allocated a frame.</div><div class="check">Captions are measured only when their text or the page changes; tracers advance only when shown and moving; idle plumes hide themselves; the shadow map redraws on alternate frames; scratch colours and a fixed circuit list. Measured on the laptop GPU at 1500x950: defaults 17.0 to 7.8 ms a frame, every option on 23.7 to 14.6 ms.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><div class="txt">docs/proof/R5_frametime.txt: before and after, six configurations.</div></div></td>
+</tr>
+<tr data-id="R6" data-area="Code review" data-req="The flood sheet is the sea come over the wall, so it must ripple at the sea's tile; it set the shared tile and then overrode it with its own." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="r6 code review the flood sheet is the sea come over the wall, so it must ripple at the sea's tile; it set the shared tile and then overrode it with its own. the override is gone; the sheet uses 1400 / sea_tile like the open water, the forebay and the channel.">
+  <td class="id">R6</td>
+  <td>Code review</td>
+  <td><div class="req">The flood sheet is the sea come over the wall, so it must ripple at the sea's tile; it set the shared tile and then overrode it with its own.</div><div class="check">The override is gone; the sheet uses 1400 / SEA_TILE like the open water, the forebay and the channel.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/S1_flood.png" target="_blank"><img src="proof/S1_flood.png" alt="" loading="lazy"><small>The flood over the yard, rippling at the sea's scale</small></a></div></td>
 </tr>
 </tbody>
 </table>

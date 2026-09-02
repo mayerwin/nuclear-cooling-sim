@@ -154,7 +154,6 @@ body:not(.viewplant) #focusSeg{display:none}
    wasted the one thing on the page that makes anyone want to press the button,
    so the scrim is thin enough to see the place you are about to go into. */
 .modalWrap{position:fixed;inset:0;background:rgba(4,8,13,.66);z-index:60;display:none;
-  backdrop-filter:blur(3px);
   align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
 .modalWrap.open{display:flex}
 .modal{max-width:620px;max-height:90vh;overflow:auto;

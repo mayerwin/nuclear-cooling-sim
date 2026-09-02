@@ -2,7 +2,7 @@
 // parts.js - the reusable pieces of plant, as real geometry.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { liquidMaterial, steamMaterial, Bubbles, frameOf } from './fluid.js?v=4b489aa4e2';
+import { liquidMaterial, steamMaterial, Bubbles, frameOf } from './fluid.js?v=8a2f5a9489';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -62,6 +62,7 @@ export function pipe(pts, dia, mats, opts = {}) {
   // alpha map on a double-sided open end, seen down the bore, is a starburst of
   // white spikes: that is what the main steam line looked like where it enters
   // the turbine casing.
+  const caps = [];
   if (steam) {
     for (const e of [0, 1]) {
       const cap = new THREE.Mesh(new THREE.CircleGeometry(bore, 16), mat);
@@ -69,6 +70,7 @@ export function pipe(pts, dia, mats, opts = {}) {
       cap.lookAt(cap.position.clone().addScaledVector(path.getTangentAt(e), e ? 1 : -1));
       cap.renderOrder = 3;
       group.add(cap);
+      caps.push(cap);
     }
   }
 
@@ -82,7 +84,7 @@ export function pipe(pts, dia, mats, opts = {}) {
   const bub = new Bubbles(frame, bore * (steam ? 0.22 : 0.44), count, mats.fleck);
   group.add(bub.mesh);
 
-  return { group, casing, core, bub, len, path, mat, dia, bore, steam, tint: mat };
+  return { group, casing, core, caps, bub, len, path, mat, dia, bore, steam, tint: mat };
 }
 
 // A vessel of revolution from a profile, with a cut so the near half comes off.

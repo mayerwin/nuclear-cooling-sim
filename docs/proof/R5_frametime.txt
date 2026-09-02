@@ -1,0 +1,14 @@
+Laptop GPU (Intel Arc, Chrome, vsync off), 1500x950, both units, mean of 3 s.
+
+                              before     after
+defaults                     16.98 ms    7.79 ms
+every option on              76.34 ms   14.56 ms   (U12 fix + this)
+every option on, U12 fixed   23.7 ms    14.56 ms
+every option off             11.51 ms    5.23 ms
+refraction on                25.32 ms   12.83 ms
+bloom on                     76.42 ms   12.11 ms
+
+What changed: captions no longer read their own size every frame after
+writing their transform (a forced layout, twenty times a frame); tracers
+are advanced only when shown and moving; finished plumes upload nothing;
+the shadow map is redrawn on alternate frames; per-frame allocations gone.

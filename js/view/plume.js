@@ -2,7 +2,7 @@
 // plume.js - steam and smoke, as points that rise, spread and thin out.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { hash1 } from '../flow.js?v=4b489aa4e2';
+import { hash1 } from '../flow.js?v=8a2f5a9489';
 
 let sprite = null;
 function puffTexture() {
@@ -117,6 +117,8 @@ export class PuffCloud {
     this.points = new THREE.Points(geo, this.mat);
     this.points.frustumCulled = false;
     this.points.renderOrder = 4;
+    // Hidden until stepped: unstepped, it is sixty sprites at the origin.
+    this.points.visible = false;
   }
 
   // dir is -1 for vapour settling down a throat and +1 for vapour rising off
@@ -154,6 +156,7 @@ export class Plume {
     this.life = new Float32Array(max);
     this.seed = new Float32Array(max);
     this.n = 0; this.cursor = 0; this.acc = 0;
+    this.alive = 0;
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3));
     this.aScale = new Float32Array(max);
@@ -164,6 +167,7 @@ export class Plume {
     this.mat = puffMaterial(color, size);
     this.points = new THREE.Points(geo, this.mat);
     this.points.frustumCulled = false;
+    this.points.visible = false;
   }
   emit(x, y, z, o) {
     const i = this.cursor;
@@ -191,6 +195,11 @@ export class Plume {
       for (let k = 0; k < 20; k++) this.advance(L / 20, rate, x, y, z, o);
     }
     if (rate <= 0) this.running = false;
+    // Idle: nothing alive and nothing arriving. Uploading three attribute
+    // buffers every frame for a plume that finished a minute ago, five plumes
+    // on each unit, was thirty uploads a frame for nothing.
+    if (rate <= 0 && this.alive === 0) { this.points.visible = false; return; }
+    this.points.visible = true;
     this.advance(dt, rate, x, y, z, o);
     this.geo.attributes.position.needsUpdate = true;
     this.geo.attributes.aScale.needsUpdate = true;
@@ -200,8 +209,10 @@ export class Plume {
 
   advance(dt, rate, x, y, z, o = {}) {
     if (dt > 0) {
+      let alive = 0;
       for (let i = 0; i < this.n; i++) {
         if (this.age[i] >= this.life[i]) { this.aAlpha[i] = 0; continue; }
+        alive++;
         this.age[i] += dt;
         this.vel[i * 3 + 1] += (o.buoy == null ? 2.2 : o.buoy) * dt;
         this.vel[i * 3] *= Math.pow(0.6, dt);
@@ -219,8 +230,10 @@ export class Plume {
         while (this.acc >= 1 && guard++ < 12) {
           this.acc -= 1;
           this.emit(x, y, z, { ...o, k: this.cursor + this.n });
+          alive++;
         }
       }
+      this.alive = alive;
     }
   }
 }

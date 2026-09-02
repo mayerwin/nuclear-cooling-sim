@@ -15,7 +15,7 @@
 // and a source term anchored to measured releases (Fukushima ~15 PBq Cs-137
 // across three units, Chernobyl ~85 PBq).
 // ---------------------------------------------------------------------------
-import { clamp, smoothstep } from './util.js?v=4b489aa4e2';
+import { clamp, smoothstep } from './util.js?v=8a2f5a9489';
 
 export const P0 = 3.4e9;             // 3400 MW thermal (~1100 MWe)
 const CORE_ZR = 24000;               // kg zircaloy cladding
@@ -70,6 +70,10 @@ export class Plant {
     this.mcci = 0;
     this.oxidising = 0;
     this.oxWarned = false;
+    // Which pipes have been broken by hand. Left out of the reset, a break
+    // made in one run stayed broken in the next: the same pipe could not be
+    // broken again, and the view kept its wound.
+    this.broken = {};
 
     // --- containment ---
     this.h2 = 0;
@@ -105,7 +109,7 @@ export class Plant {
     this.prhr = P;
     this.prhrOk = true;
     this.irwstCracked = false;
-    this.ctmtSump = P ? 0 : 0;        // kg of water on the containment floor
+    this.ctmtSump = 0;                // kg of water on the containment floor
     this.prhrRunning = false;
     this.cmtLevel = P ? 1 : 0;
     this.accumLevel = 1;

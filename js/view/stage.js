@@ -13,9 +13,9 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { build as buildMaterials } from './materials.js?v=4b489aa4e2';
+import { build as buildMaterials } from './materials.js?v=8a2f5a9489';
 import { surfaceMaterial, setGradient, rippleNormal, LOWFX, FLUID_TIME,
-  twoOctaveFlow, SEA_TILE } from './fluid.js?v=4b489aa4e2';
+  twoOctaveFlow, SEA_TILE } from './fluid.js?v=8a2f5a9489';
 
 // A vertical sky gradient, baked once into an equirectangular strip.
 function skyTexture() {
@@ -68,6 +68,12 @@ export class Stage {
     // budget better on the machinery itself.
     this.renderer.shadowMap.enabled = !mobile;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    // Redrawn on alternate frames, by render(). The map is a second pass over
+    // every caster, and nothing in this scene moves fast enough for a shadow
+    // one frame behind to be seen.
+    this.renderer.shadowMap.autoUpdate = false;
+    this.renderer.shadowMap.needsUpdate = true;
+    this.frameNo = 0;
     this.renderer.localClippingEnabled = true;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 0.96;
@@ -194,16 +200,13 @@ export class Stage {
     // a sheet of pale milk; the sea's own opaque, two-octave material reads
     // as water at this scale, so the flood uses it too.
     const fm = twoOctaveFlow(new THREE.MeshStandardMaterial({
-      color: 0x1d5f86, roughness: 0.24, metalness: 0.1,
+      color: 0x1d5f86, roughness: 0.3, metalness: 0.1,
       normalMap: rippleNormal().clone(), normalScale: new THREE.Vector2(0.42, 0.42)
     }));
     fm.normalMap.needsUpdate = true;
     fm.normalMap.repeat.set(1400 / SEA_TILE, 1400 / SEA_TILE);
     this.flood = new THREE.Mesh(
       new THREE.ShapeGeometry(floodShape, 48).rotateX(-Math.PI / 2), fm);
-
-    this.flood.material.roughness = 0.3;
-    this.flood.material.normalMap.repeat.set(60, 60);
     this.flood.visible = false;
     this.scene.add(this.flood);
   }
@@ -461,6 +464,8 @@ export class Stage {
     // what the whole frame cost, post included.
     this.renderer.info.autoReset = false;
     this.renderer.info.reset();
+    this.frameNo++;
+    if (this.q.shadows && (this.frameNo & 1) === 0) this.renderer.shadowMap.needsUpdate = true;
     // The bloom pass is two more full-screen passes plus a chain of blurs.
     if (this.q.bloom) this.composer.render();
     else this.renderer.render(this.scene, this.camera);
@@ -509,9 +514,11 @@ export class Stage {
       case 'hidpi':
         this.applyPixelRatio();
         break;
-      case 'particles':
-        this.scene.traverse((n) => { if (n.isInstancedMesh) n.visible = on; });
-        break;
+      // Read by the units each frame: the tracers, risers and drips decide
+      // their own visibility from it. Hiding every InstancedMesh from here
+      // took the fuel rods with it, and the units put it all back a frame
+      // later anyway.
+      case 'particles': break;
       case 'steam':
         this.scene.traverse((n) => {
           if (n.isMesh && n.material && n.material.userData.steam) n.visible = on;

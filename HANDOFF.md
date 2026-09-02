@@ -117,10 +117,36 @@ materials, layout or the section: the pictures must be from the build shipped.
 Layout constants (`L` in unit.js) put every machine in one vertical plane;
 `CUT_AZ` is the heading the section faces. Local +z is the removed half.
 
-## Current state (2026-09-02, later)
+## Current state (2026-09-02, code review)
 
-49 requirements: 45 DONE, 4 WATCH, 0 OPEN. The WATCH lines are the honest
-frontier:
+55 requirements: 51 DONE, 4 WATCH, 0 OPEN. The last thing done was a full
+code review (register lines R1 to R6): the site's intake pumphouse had never
+drawn (a NaN sort key), Reset did not heal a broken pipe, the Bubbles and
+Steam toggles were overwritten every frame (and Bubbles hid the fuel rods),
+keys typed into the resolution slider paused or reset the plant, the flood
+sheet overrode the sea's ripple tile, and the frame was spending most of its
+CPU on caption layout thrash, hidden tracers and finished plumes. Desktop
+defaults went from 17 ms to 7.8 ms a frame at 1500x950; every option on from
+24 ms to 14.6 ms. The condenser's steam cloud, built and never stepped, now
+drifts down onto the cold pipe (faint, opacity 0.1).
+
+Conventions that came out of the review:
+
+- The units decide the visibility of their own tracers, risers, drips and
+  vapour every frame from `stage.q.particles` / `stage.q.steam`. Do not set
+  visibility for those from `setQuality`; it lasts one frame.
+- `Unit.reset()` is called from `sim.onReset`; anything a break adds to the
+  scene goes in `breakFx` so reset can take it out again.
+- Captions (`labels.js`) measure their boxes only when their text changed or
+  `invalidate()` was called (main.js calls it on resize). Never read a
+  bounding rect every frame in the frame loop.
+- The shadow map redraws on alternate frames (`shadowMap.autoUpdate` is
+  false; `render()` sets `needsUpdate`). Toggling shadows sets it too.
+- `Plume` hides itself when nothing is alive; `PuffCloud` starts hidden.
+- Scratch `THREE.Color`s at the top of unit.js; do not allocate colours in
+  `update()`.
+
+The WATCH lines are the honest frontier:
 
 - **F9** water quality: a defensible real-time model, not a shipped-game one.
 - **F12** the forebay still reads flatter than the open sea at the bay camera.
@@ -133,7 +159,8 @@ frontier:
   meantime; a measured Pixel 10 frame time is what closes the line.
 
 U12 closed on the laptop's GPU: every option on went from 76 ms a frame to
-21 ms at 1500x950 (186 ms to 40 ms on the full window at 1.5x). The whole of
+21 ms at 1500x950 (186 ms to 40 ms on the full window at 1.5x), and the code
+review then took it to 14.6 ms. The whole of
 the collapse was bloom's composer target resolving depth and stencil (below).
 Chrome runs on the laptop's Intel Arc, not its RTX 4070; that is Windows' per-
 app graphics preference and not something the page can choose.

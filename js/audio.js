@@ -372,6 +372,8 @@ export class Sound {
   frame(sim) {
     if (!this.ready) return;
     const t = this.ctx.currentTime, ramp = 0.12;
+    if (t - (this.mixedAt || -1) < 0.1) return;
+    this.mixedAt = t;
     let pump = 0, flow = 0, boil = 0, bad = false, hottest = 300;
     for (const p of sim.plants) {
       const s = p.sys || {};

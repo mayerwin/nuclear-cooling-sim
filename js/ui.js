@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
 // ui.js - the panels round the picture.
 // ---------------------------------------------------------------------------
-import { SCENARIOS } from './scenarios.js?v=4b489aa4e2';
-import { SPEEDS, SPEED_LABELS, AUTO_IDX } from './sim.js?v=4b489aa4e2';
-import { MODE } from './plant.js?v=4b489aa4e2';
+import { SCENARIOS } from './scenarios.js?v=8a2f5a9489';
+import { SPEEDS, SPEED_LABELS, AUTO_IDX } from './sim.js?v=8a2f5a9489';
+import { MODE } from './plant.js?v=8a2f5a9489';
 
 const $ = (s) => document.querySelector(s);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -98,12 +98,12 @@ export class UI {
           if (autoq) autoq.userSet();
         };
       }
-      scale.oninput = () => {
+      scale.oninput = () => { scaleV.textContent = scale.value + '%'; };
+      scale.onchange = () => {
         if (!stage) return;
         stage.setScale(scale.value / 100);
-        scaleV.textContent = scale.value + '%';
+        if (autoq) autoq.userSet();
       };
-      scale.onchange = () => { if (autoq) autoq.userSet(); };
       $('#cfgRetest').onclick = () => { if (autoq) autoq.restart(); };
       this.syncCfg();
     };
@@ -153,6 +153,9 @@ export class UI {
     $('#ledger').innerHTML = LEDGER;
 
     addEventListener('keydown', (e) => {
+      // Space in a focused slider is the slider's, not pause's; R in a text
+      // field is a letter, not a reset.
+      if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
       const k = e.key.toLowerCase();
       if (k === ' ') { e.preventDefault(); sim.speedIdx = sim.speedIdx === 0 ? AUTO_IDX : 0; this.syncSpeed(); }
       if (k === 'r') sim.reset();
