@@ -40,7 +40,7 @@
 <header>
   <h1>Requirements register</h1>
   <div class="sub">Every piece of review feedback on the visualisation, with the check that closes it and a screenshot as proof. Built 2026-09-02 from <code>docs/requirements.json</code>.</div>
-  <div class="tally"><span class="DONE">40 DONE</span><span class="WATCH">3 WATCH</span><span class="OPEN">0 OPEN</span></div>
+  <div class="tally"><span class="DONE">43 DONE</span><span class="WATCH">4 WATCH</span><span class="OPEN">0 OPEN</span></div>
 </header>
 <div class="bar">
   <input id="q" placeholder="Filter text (requirement, check, id)">
@@ -71,10 +71,10 @@
   <td class="date">2026-09-02</td>
   <td><div class="proof"><a href="proof/F2_gradient.png" target="_blank"><img src="proof/F2_gradient.png" alt="" loading="lazy"><small>Sea water warming across the tube bank</small></a></div></td>
 </tr>
-<tr data-id="F3" data-area="Fluids and colour" data-req="The condensate is the same temperature as the water going back to the boiler, so it must be the same colour, and the tank below the turbine must look full of water, not painted walls." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f3 fluids and colour the condensate is the same temperature as the water going back to the boiler, so it must be the same colour, and the tank below the turbine must look full of water, not painted walls. look sump: pool and suction line painted from one call. measured on the current build: pool body (76,96,139), suction line (74,90,133), within 3% per channel.">
+<tr data-id="F3" data-area="Fluids and colour" data-req="The condensate is the same temperature as the water going back to the boiler, so it must be the same colour, and the tank below the turbine must look full of water, not painted walls." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f3 fluids and colour the condensate is the same temperature as the water going back to the boiler, so it must be the same colour, and the tank below the turbine must look full of water, not painted walls. look sump: pool and suction line painted from the secondary's own span at the condensate temperature; the pool is a body with a rippling top in the bottom of the box.">
   <td class="id">F3</td>
   <td>Fluids and colour</td>
-  <td><div class="req">The condensate is the same temperature as the water going back to the boiler, so it must be the same colour, and the tank below the turbine must look full of water, not painted walls.</div><div class="check">look sump: pool and suction line painted from one call. Measured on the current build: pool body (76,96,139), suction line (74,90,133), within 3% per channel.</div></td>
+  <td><div class="req">The condensate is the same temperature as the water going back to the boiler, so it must be the same colour, and the tank below the turbine must look full of water, not painted walls.</div><div class="check">look sump: pool and suction line painted from the secondary's own span at the condensate temperature; the pool is a body with a rippling top in the bottom of the box.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
   <td class="date">2026-09-02</td>
@@ -134,19 +134,19 @@
   <td class="date">2026-09-02</td>
   <td><div class="proof"><a href="proof/F9_fluid_pump.png" target="_blank"><img src="proof/F9_fluid_pump.png" alt="" loading="lazy"><small>Pump body</small></a><a href="proof/F9_fluid_unit.png" target="_blank"><img src="proof/F9_fluid_unit.png" alt="" loading="lazy"><small>Whole unit</small></a></div></td>
 </tr>
-<tr data-id="F10" data-area="Fluids and colour" data-req="If sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f10 fluids and colour if sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor. leg 'sea water' picks up 10 c across the condenser (dt), drawn with a display gain of 10 so the change is visible: outfall at 115 c on the map, against 317 c for water off the fuel. measured: outfall line (141,93,65), warm; intake (66,94,150), blue.">
+<tr data-id="F10" data-area="Fluids and colour" data-req="If sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f10 fluids and colour if sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor. the sea leg picks up 10 c across the condenser's one cold pipe (dt, display gain 10): cold at the top where it enters, warm at the bottom where it leaves, and the return line outside the box carries the outlet temperature back to the sea.">
   <td class="id">F10</td>
   <td>Fluids and colour</td>
-  <td><div class="req">If sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor.</div><div class="check">Leg 'sea water' picks up 10 C across the condenser (dT), drawn with a display gain of 10 so the change is visible: outfall at 115 C on the map, against 317 C for water off the fuel. Measured: outfall line (141,93,65), warm; intake (66,94,150), blue.</div></td>
+  <td><div class="req">If sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor.</div><div class="check">The sea leg picks up 10 C across the condenser's one cold pipe (dT, display gain 10): cold at the top where it enters, warm at the bottom where it leaves, and the return line outside the box carries the outlet temperature back to the sea.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
   <td class="date">2026-09-02</td>
   <td><div class="proof"><a href="proof/F10_outfall.png" target="_blank"><img src="proof/F10_outfall.png" alt="" loading="lazy"><small>Outfall amber, intake blue</small></a></div></td>
 </tr>
-<tr data-id="F11" data-area="Fluids and colour" data-req="The INCOMING sea water is colder than the outgoing water and must be blue, not orange." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="f11 fluids and colour the incoming sea water is colder than the outgoing water and must be blue, not orange. the sea leg's inlet temperature is the sea's, 15 c, and the intake pipe carries the leg's inlet end (tempat 'in'); the first tube pass flows against its geometry and says so with flowdir. measured: intake tube (66,94,150), blue.">
+<tr data-id="F11" data-area="Fluids and colour" data-req="The INCOMING sea water is colder than the outgoing water and must be blue, not orange." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="f11 fluids and colour the incoming sea water is colder than the outgoing water and must be blue, not orange. the intake carries the sea leg's inlet end (tempat 'in'), arrives over the box's lid and drops onto the top of the cold pipe. both sea runs are built in the direction their water goes.">
   <td class="id">F11</td>
   <td>Fluids and colour</td>
-  <td><div class="req">The INCOMING sea water is colder than the outgoing water and must be blue, not orange.</div><div class="check">The sea leg's inlet temperature is the sea's, 15 C, and the intake pipe carries the leg's inlet end (tempAt 'in'); the first tube pass flows against its geometry and says so with flowDir. Measured: intake tube (66,94,150), blue.</div></td>
+  <td><div class="req">The INCOMING sea water is colder than the outgoing water and must be blue, not orange.</div><div class="check">The intake carries the sea leg's inlet end (tempAt 'in'), arrives over the box's lid and drops onto the top of the cold pipe. Both sea runs are built in the direction their water goes.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
   <td class="date">2026-09-02</td>
@@ -206,19 +206,19 @@
   <td class="date">2026-09-02</td>
   <td><div class="proof"><a href="proof/G5_pump.png" target="_blank"><img src="proof/G5_pump.png" alt="" loading="lazy"><small>Pump without rims</small></a></div></td>
 </tr>
-<tr data-id="G6" data-area="Geometry and clutter" data-req="No ugly grey structure hiding the sea water pipes below the turbine." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g6 geometry and clutter no ugly grey structure hiding the sea water pipes below the turbine. condenser lid removed, floor reduced to 0.12 m, water boxes are glass.">
+<tr data-id="G6" data-area="Geometry and clutter" data-req="No ugly grey structure hiding the sea water pipes below the turbine." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g6 geometry and clutter no ugly grey structure hiding the sea water pipes below the turbine. the condenser stands at the turbine's exhaust end under the generator as a glass box with a thin steel floor; the sea lines come over its lid and leave under its floor in the open.">
   <td class="id">G6</td>
   <td>Geometry and clutter</td>
-  <td><div class="req">No ugly grey structure hiding the sea water pipes below the turbine.</div><div class="check">Condenser lid removed, floor reduced to 0.12 m, water boxes are glass.</div></td>
+  <td><div class="req">No ugly grey structure hiding the sea water pipes below the turbine.</div><div class="check">The condenser stands at the turbine's exhaust end under the generator as a glass box with a thin steel floor; the sea lines come over its lid and leave under its floor in the open.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
   <td class="date">2026-09-02</td>
   <td><div class="proof"><a href="proof/G6_G7_condenser.png" target="_blank"><img src="proof/G6_G7_condenser.png" alt="" loading="lazy"><small>Condenser and sea lines</small></a></div></td>
 </tr>
-<tr data-id="G7" data-area="Geometry and clutter" data-req="No weird grey stuff at the bottom of the condenser." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g7 geometry and clutter no weird grey stuff at the bottom of the condenser. two causes removed: a plinth torus passing through the machine, and vapour drawn as clipped spheres.">
+<tr data-id="G7" data-area="Geometry and clutter" data-req="No weird grey stuff at the bottom of the condenser." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g7 geometry and clutter no weird grey stuff at the bottom of the condenser. nothing in the box but the one cold pipe, the drops off it, the vapour and the pool.">
   <td class="id">G7</td>
   <td>Geometry and clutter</td>
-  <td><div class="req">No weird grey stuff at the bottom of the condenser.</div><div class="check">Two causes removed: a plinth torus passing through the machine, and vapour drawn as clipped spheres.</div></td>
+  <td><div class="req">No weird grey stuff at the bottom of the condenser.</div><div class="check">Nothing in the box but the one cold pipe, the drops off it, the vapour and the pool.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
   <td class="date">2026-09-02</td>
@@ -287,19 +287,19 @@
   <td class="date">2026-09-02</td>
   <td><div class="proof"><a href="proof/G14_bubbles.png" target="_blank"><img src="proof/G14_bubbles.png" alt="" loading="lazy"><small>Side view: nothing outside the shell</small></a></div></td>
 </tr>
-<tr data-id="G15" data-area="Geometry and clutter" data-req="Steam enters the turbine at the SIDE, and the turbine looks like a real machine cut half open: walls, no floating rings." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g15 geometry and clutter steam enters the turbine at the side, and the turbine looks like a real machine cut half open: walls, no floating rings. closed casing with an end wall at each end, dark inside; floating hoops removed; steam in along the axis at shaft height.">
+<tr data-id="G15" data-area="Geometry and clutter" data-req="Steam enters the turbine at the SIDE, and the turbine looks like a real machine cut half open: walls, no floating rings." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g15 geometry and clutter steam enters the turbine at the side, and the turbine looks like a real machine cut half open: walls, no floating rings. look turbine: closed casing with end walls, no floating hoops; steam in along the axis at the left end, out through a real duct in the right-hand end wall.">
   <td class="id">G15</td>
   <td>Geometry and clutter</td>
-  <td><div class="req">Steam enters the turbine at the SIDE, and the turbine looks like a real machine cut half open: walls, no floating rings.</div><div class="check">Closed casing with an end wall at each end, dark inside; floating hoops removed; steam in along the axis at shaft height.</div></td>
+  <td><div class="req">Steam enters the turbine at the SIDE, and the turbine looks like a real machine cut half open: walls, no floating rings.</div><div class="check">look turbine: closed casing with end walls, no floating hoops; steam in along the axis at the left end, out through a real duct in the right-hand end wall.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
   <td class="date">2026-09-02</td>
   <td><div class="proof"><a href="proof/G15_G16_turbine.png" target="_blank"><img src="proof/G15_G16_turbine.png" alt="" loading="lazy"><small>Turbine cut open</small></a></div></td>
 </tr>
-<tr data-id="G16" data-area="Geometry and clutter" data-req="It must be clear how steam goes from the turbine to the condenser." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g16 geometry and clutter it must be clear how steam goes from the turbine to the condenser. glass throat with vapour falling through it, one stream from the inlet past the wheel into the shell.">
+<tr data-id="G16" data-area="Geometry and clutter" data-req="It must be clear how steam goes from the turbine to the condenser." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g16 geometry and clutter it must be clear how steam goes from the turbine to the condenser. the exhaust is a steam run out of the casing's right-hand end wall, across, and down through the condenser's lid; you follow it as a pipe, not as vapour crossing a wall.">
   <td class="id">G16</td>
   <td>Geometry and clutter</td>
-  <td><div class="req">It must be clear how steam goes from the turbine to the condenser.</div><div class="check">Glass throat with vapour falling through it, one stream from the inlet past the wheel into the shell.</div></td>
+  <td><div class="req">It must be clear how steam goes from the turbine to the condenser.</div><div class="check">The exhaust is a steam run out of the casing's right-hand end wall, across, and down through the condenser's lid; you follow it as a pipe, not as vapour crossing a wall.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
   <td class="date">2026-09-02</td>
@@ -398,10 +398,10 @@ after:  512 draw calls,  11 ms/frame,  0 transmissive materials</div></div></td>
   <td class="date">2026-09-02</td>
   <td><div class="proof"><div class="txt">grep -rn '\u2014' index.html js/ui.js js/view/labels.js js/scenarios.js -&gt; no matches</div></div></td>
 </tr>
-<tr data-id="F13" data-area="Fluids and colour" data-req="Use a proper engine for the fluids: design the 3-D structures, put water in them, set the sea's temperature and say where heat goes in, and let the engine derive the colours. No hand-assigned colours per pipe." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="f13 fluids and colour use a proper engine for the fluids: design the 3-d structures, put water in them, set the sea's temperature and say where heat goes in, and let the engine derive the colours. no hand-assigned colours per pipe. temperature travels with the water: every leg in js/flow.js carries t0/t1/dt and circuit.settemps walks the chain in flow order. unit.js solvetemps() sets one inlet temperature per circuit and the dt of the legs that exchange heat (core, boiler tubes, condenser bank, pool coil). colouroft() is the only place a temperature becomes a colour. grep 'fluidcolour(' in unit.js: only colouroft calls it. measured on this build: intake tube (66,94,150), outfall line (141,93,65): the sea leg enters at 15 c and leaves at 15 + 10 x gain 10 = 115 c, and nothing was told a colour.">
+<tr data-id="F13" data-area="Fluids and colour" data-req="Use a proper engine for the fluids: design the 3-D structures, put water in them, set the sea's temperature and say where heat goes in, and let the engine derive the colours. No hand-assigned colours per pipe." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="f13 fluids and colour use a proper engine for the fluids: design the 3-d structures, put water in them, set the sea's temperature and say where heat goes in, and let the engine derive the colours. no hand-assigned colours per pipe. temperature travels with the water (leg.t0/t1/dt, circuit.settemps in flow order); solvetemps() sets one inlet temperature per circuit and the dt of the exchanging legs; colourin() maps a temperature within its circuit's own span. nothing is told a colour.">
   <td class="id">F13</td>
   <td>Fluids and colour</td>
-  <td><div class="req">Use a proper engine for the fluids: design the 3-D structures, put water in them, set the sea's temperature and say where heat goes in, and let the engine derive the colours. No hand-assigned colours per pipe.</div><div class="check">Temperature travels with the water: every Leg in js/flow.js carries T0/T1/dT and Circuit.setTemps walks the chain in flow order. unit.js solveTemps() sets ONE inlet temperature per circuit and the dT of the legs that exchange heat (core, boiler tubes, condenser bank, pool coil). colourOfT() is the only place a temperature becomes a colour. grep 'fluidColour(' in unit.js: only colourOfT calls it. Measured on this build: intake tube (66,94,150), outfall line (141,93,65): the sea leg enters at 15 C and leaves at 15 + 10 x gain 10 = 115 C, and nothing was told a colour.</div></td>
+  <td><div class="req">Use a proper engine for the fluids: design the 3-D structures, put water in them, set the sea's temperature and say where heat goes in, and let the engine derive the colours. No hand-assigned colours per pipe.</div><div class="check">Temperature travels with the water (Leg.T0/T1/dT, Circuit.setTemps in flow order); solveTemps() sets one inlet temperature per circuit and the dT of the exchanging legs; colourIn() maps a temperature within its circuit's own span. Nothing is told a colour.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
   <td class="date">2026-09-02</td>
@@ -442,6 +442,42 @@ after:  512 draw calls,  11 ms/frame,  0 transmissive materials</div></div></td>
   <td class="date">2026-09-02</td>
   <td class="date">2026-09-02</td>
   <td><div class="proof"><a href="proof/S2_breach.png" target="_blank"><img src="proof/S2_breach.png" alt="" loading="lazy"><small>Breached containment from behind</small></a></div></td>
+</tr>
+<tr data-id="F14" data-area="Fluids and colour" data-req="In the primary circuit the difference between the cold leg and the hot leg must be visible. Scale colour between the coldest and warmest water of each circuit; the same orange need not mean the same degrees in two circuits." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="f14 fluids and colour in the primary circuit the difference between the cold leg and the hot leg must be visible. scale colour between the coldest and warmest water of each circuit; the same orange need not mean the same degrees in two circuits. circuit.range() in js/flow.js gives each circuit its own coldest and hottest water every frame; colourin(range, t) in unit.js maps that span onto the ramp. a 290 c cold leg is drawn blue and a 325 c hot leg orange in the same picture as a 15 c sea and a 115 c outfall.">
+  <td class="id">F14</td>
+  <td>Fluids and colour</td>
+  <td><div class="req">In the primary circuit the difference between the cold leg and the hot leg must be visible. Scale colour between the coldest and warmest water of each circuit; the same orange need not mean the same degrees in two circuits.</div><div class="check">Circuit.range() in js/flow.js gives each circuit its own coldest and hottest water every frame; colourIn(range, T) in unit.js maps that span onto the ramp. A 290 C cold leg is drawn blue and a 325 C hot leg orange in the same picture as a 15 C sea and a 115 C outfall.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/F14_primary_span.png" target="_blank"><img src="proof/F14_primary_span.png" alt="" loading="lazy"><small>Primary loop: cold leg blue, hot leg orange, from a 35 degree span</small></a></div></td>
+</tr>
+<tr data-id="G18" data-area="Geometry and clutter" data-req="Steam must leave the turbine at its end through a real opening, not cross the casing wall; the condenser holds one vertical cold sea-water pipe the steam condenses on, and the warm return runs outside the enclosure." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g18 geometry and clutter steam must leave the turbine at its end through a real opening, not cross the casing wall; the condenser holds one vertical cold sea-water pipe the steam condenses on, and the warm return runs outside the enclosure. the exhaust is a steam run out of the casing's right-hand end wall, across and down through the condenser's lid. in the box stands one vertical sea-water pipe, cold at the top and warm at the bottom, with drops forming on it; the intake arrives over the lid, the return leaves under the floor and runs along the ground to the sea, outside the box.">
+  <td class="id">G18</td>
+  <td>Geometry and clutter</td>
+  <td><div class="req">Steam must leave the turbine at its end through a real opening, not cross the casing wall; the condenser holds one vertical cold sea-water pipe the steam condenses on, and the warm return runs outside the enclosure.</div><div class="check">The exhaust is a steam run out of the casing's right-hand end wall, across and down through the condenser's lid. In the box stands one vertical sea-water pipe, cold at the top and warm at the bottom, with drops forming on it; the intake arrives over the lid, the return leaves under the floor and runs along the ground to the sea, outside the box.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G18_exhaust_condenser.png" target="_blank"><img src="proof/G18_exhaust_condenser.png" alt="" loading="lazy"><small>Turbine end, exhaust duct, condenser with its one cold pipe</small></a></div></td>
+</tr>
+<tr data-id="U12" data-area="Interface and platform" data-req="With every graphics option on, the frame rate must not collapse (17 fps on a laptop is not acceptable)." data-status="WATCH" data-raised="2026-09-02" data-verified="2026-09-02" data-text="u12 interface and platform with every graphics option on, the frame rate must not collapse (17 fps on a laptop is not acceptable). refraction's scene re-render samples a target half the frame on each axis (a quarter of the pixels); full pixel density is capped at 1.5x; bloom runs at a ninth of the frame. measured on the software renderer at 1500x950: defaults 10.4 ms/frame, every option on 772 ms/frame. that ratio is the cpu renderer's, not a gpu's; the number that matters is the laptop's, which only the laptop can give. watch until it is measured there.">
+  <td class="id">U12</td>
+  <td>Interface and platform</td>
+  <td><div class="req">With every graphics option on, the frame rate must not collapse (17 fps on a laptop is not acceptable).</div><div class="check">Refraction's scene re-render samples a target half the frame on each axis (a quarter of the pixels); full pixel density is capped at 1.5x; bloom runs at a ninth of the frame. Measured on the software renderer at 1500x950: defaults 10.4 ms/frame, every option on 772 ms/frame. That ratio is the CPU renderer's, not a GPU's; the number that matters is the laptop's, which only the laptop can give. WATCH until it is measured there.</div></td>
+  <td><span class="st WATCH">WATCH</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><div class="txt">docs/proof/U12_allon.txt: defaults 10.4 ms/frame; every option on 772 ms/frame (software renderer). GPU figure pending.</div></div></td>
+</tr>
+<tr data-id="D1" data-area="Interface and platform" data-req="The requirements page must be reachable without cloning the repository: part of the app, hosted with it." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="d1 interface and platform the requirements page must be reachable without cloning the repository: part of the app, hosted with it. docs/requirements.html is linked from the app's help card and ships with the site, so on github pages it is at &lt;site&gt;/docs/requirements.html. the branch is merged to main so pages serves it.">
+  <td class="id">D1</td>
+  <td>Interface and platform</td>
+  <td><div class="req">The requirements page must be reachable without cloning the repository: part of the app, hosted with it.</div><div class="check">docs/requirements.html is linked from the app's help card and ships with the site, so on GitHub Pages it is at &lt;site&gt;/docs/requirements.html. The branch is merged to main so Pages serves it.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/D1_help_link.png" target="_blank"><img src="proof/D1_help_link.png" alt="" loading="lazy"><small>Help card with the link to the page</small></a></div></td>
 </tr>
 </tbody>
 </table>

@@ -1,0 +1,3 @@
+Software renderer (SwiftShader), 1500x950, this build.
+every option on: 772.0 ms/frame
+defaults: 10.4 ms/frame

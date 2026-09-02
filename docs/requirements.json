@@ -33,8 +33,8 @@
   "id": "F3",
   "area": "Fluids and colour",
   "raised": "2026-09-01",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "DONE",
   "req": "The condensate is the same temperature as the water going back to the boiler, so it must be the same colour, and the tank below the turbine must look full of water, not painted walls.",
   "check": "look sump: pool and suction line painted from the secondary's own span at the condensate temperature; the pool is a body with a rippling top in the bottom of the box.",
   "proof": [
@@ -145,8 +145,8 @@
   "id": "F10",
   "area": "Fluids and colour",
   "raised": "2026-09-01",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "DONE",
   "req": "If sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor.",
   "check": "The sea leg picks up 10 C across the condenser's one cold pipe (dT, display gain 10): cold at the top where it enters, warm at the bottom where it leaves, and the return line outside the box carries the outlet temperature back to the sea.",
   "proof": [
@@ -160,8 +160,8 @@
   "id": "F11",
   "area": "Fluids and colour",
   "raised": "2026-09-02",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "DONE",
   "req": "The INCOMING sea water is colder than the outgoing water and must be blue, not orange.",
   "check": "The intake carries the sea leg's inlet end (tempAt 'in'), arrives over the box's lid and drops onto the top of the cold pipe. Both sea runs are built in the direction their water goes.",
   "proof": [
@@ -265,8 +265,8 @@
   "id": "G6",
   "area": "Geometry and clutter",
   "raised": "2026-09-02",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "DONE",
   "req": "No ugly grey structure hiding the sea water pipes below the turbine.",
   "check": "The condenser stands at the turbine's exhaust end under the generator as a glass box with a thin steel floor; the sea lines come over its lid and leave under its floor in the open.",
   "proof": [
@@ -280,8 +280,8 @@
   "id": "G7",
   "area": "Geometry and clutter",
   "raised": "2026-09-01",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "DONE",
   "req": "No weird grey stuff at the bottom of the condenser.",
   "check": "Nothing in the box but the one cold pipe, the drops off it, the vapour and the pool.",
   "proof": [
@@ -400,8 +400,8 @@
   "id": "G15",
   "area": "Geometry and clutter",
   "raised": "2026-09-02",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "DONE",
   "req": "Steam enters the turbine at the SIDE, and the turbine looks like a real machine cut half open: walls, no floating rings.",
   "check": "look turbine: closed casing with end walls, no floating hoops; steam in along the axis at the left end, out through a real duct in the right-hand end wall.",
   "proof": [
@@ -415,8 +415,8 @@
   "id": "G16",
   "area": "Geometry and clutter",
   "raised": "2026-09-01",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "DONE",
   "req": "It must be clear how steam goes from the turbine to the condenser.",
   "check": "The exhaust is a steam run out of the casing's right-hand end wall, across, and down through the condenser's lid; you follow it as a pipe, not as vapour crossing a wall.",
   "proof": [
@@ -579,8 +579,8 @@
   "id": "F13",
   "area": "Fluids and colour",
   "raised": "2026-09-02",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "DONE",
   "req": "Use a proper engine for the fluids: design the 3-D structures, put water in them, set the sea's temperature and say where heat goes in, and let the engine derive the colours. No hand-assigned colours per pipe.",
   "check": "Temperature travels with the water (Leg.T0/T1/dT, Circuit.setTemps in flow order); solveTemps() sets one inlet temperature per circuit and the dT of the exchanging legs; colourIn() maps a temperature within its circuit's own span. Nothing is told a colour.",
   "proof": [
@@ -661,8 +661,8 @@
   "id": "F14",
   "area": "Fluids and colour",
   "raised": "2026-09-02",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "DONE",
   "req": "In the primary circuit the difference between the cold leg and the hot leg must be visible. Scale colour between the coldest and warmest water of each circuit; the same orange need not mean the same degrees in two circuits.",
   "check": "Circuit.range() in js/flow.js gives each circuit its own coldest and hottest water every frame; colourIn(range, T) in unit.js maps that span onto the ramp. A 290 C cold leg is drawn blue and a 325 C hot leg orange in the same picture as a 15 C sea and a 115 C outfall.",
   "proof": [
@@ -676,8 +676,8 @@
   "id": "G18",
   "area": "Geometry and clutter",
   "raised": "2026-09-02",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "DONE",
   "req": "Steam must leave the turbine at its end through a real opening, not cross the casing wall; the condenser holds one vertical cold sea-water pipe the steam condenses on, and the warm return runs outside the enclosure.",
   "check": "The exhaust is a steam run out of the casing's right-hand end wall, across and down through the condenser's lid. In the box stands one vertical sea-water pipe, cold at the top and warm at the bottom, with drops forming on it; the intake arrives over the lid, the return leaves under the floor and runs along the ground to the sea, outside the box.",
   "proof": [
@@ -691,13 +691,13 @@
   "id": "U12",
   "area": "Interface and platform",
   "raised": "2026-09-02",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "WATCH",
   "req": "With every graphics option on, the frame rate must not collapse (17 fps on a laptop is not acceptable).",
-  "check": "Refraction's scene re-render now samples a target half the frame on each axis (renderer.transmissionResolutionScale 0.5: a quarter of the pixels); full pixel density is capped at 1.5x (a 2x panel is four times the fill); bloom runs at a ninth of the frame. Measured on this build with every option on, at 1200x800 on the software renderer, in the proof text.",
+  "check": "Refraction's scene re-render samples a target half the frame on each axis (a quarter of the pixels); full pixel density is capped at 1.5x; bloom runs at a ninth of the frame. Measured on the software renderer at 1500x950: defaults 10.4 ms/frame, every option on 772 ms/frame. That ratio is the CPU renderer's, not a GPU's; the number that matters is the laptop's, which only the laptop can give. WATCH until it is measured there.",
   "proof": [
    {
-    "text": "filled in by the benchmark below"
+    "text": "docs/proof/U12_allon.txt: defaults 10.4 ms/frame; every option on 772 ms/frame (software renderer). GPU figure pending."
    }
   ]
  },
@@ -705,8 +705,8 @@
   "id": "D1",
   "area": "Interface and platform",
   "raised": "2026-09-02",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "DONE",
   "req": "The requirements page must be reachable without cloning the repository: part of the app, hosted with it.",
   "check": "docs/requirements.html is linked from the app's help card and ships with the site, so on GitHub Pages it is at <site>/docs/requirements.html. The branch is merged to main so Pages serves it.",
   "proof": [
