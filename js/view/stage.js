@@ -13,9 +13,9 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { build as buildMaterials } from './materials.js?v=26b57b2691';
+import { build as buildMaterials } from './materials.js?v=29b6a124b2';
 import { surfaceMaterial, setGradient, rippleNormal, LOWFX, FLUID_TIME,
-  twoOctaveFlow, SEA_TILE } from './fluid.js?v=26b57b2691';
+  twoOctaveFlow, SEA_TILE } from './fluid.js?v=29b6a124b2';
 
 // A vertical sky gradient, baked once into an equirectangular strip.
 function skyTexture() {
@@ -178,15 +178,19 @@ export class Stage {
     // the wave is that equipment going under. So the water comes in and
     // covers them. `centres` is kept for the callers.
     void centres;
+    // The same water as the sea, drawn the same way: it IS the sea, come
+    // over the wall. As a lit fluid surface under the key light it came out
+    // a sheet of pale milk; the sea's own opaque, two-octave material reads
+    // as water at this scale, so the flood uses it too.
+    const fm = twoOctaveFlow(new THREE.MeshStandardMaterial({
+      color: 0x1d5f86, roughness: 0.24, metalness: 0.1,
+      normalMap: rippleNormal().clone(), normalScale: new THREE.Vector2(0.42, 0.42)
+    }));
+    fm.normalMap.needsUpdate = true;
+    fm.normalMap.repeat.set(1400 / SEA_TILE, 1400 / SEA_TILE);
     this.flood = new THREE.Mesh(
-      new THREE.ShapeGeometry(floodShape, 48).rotateX(-Math.PI / 2), surfaceMaterial(4));
-    this.flood.material.attenuationDistance = 4;
-    this.flood.material.clearcoat = 0;
-    // It is sea water, so it is the sea's colour. Nothing else ever painted
-    // this sheet, and a fluid material nobody has painted is white: the
-    // tsunami came in as a sheet of milk.
-    setGradient(this.flood.material, new THREE.Color(0x1d5f86));
-    this.flood.material.emissiveIntensity = 0.04;
+      new THREE.ShapeGeometry(floodShape, 48).rotateX(-Math.PI / 2), fm);
+
     this.flood.material.roughness = 0.3;
     this.flood.material.normalMap.repeat.set(60, 60);
     this.flood.visible = false;

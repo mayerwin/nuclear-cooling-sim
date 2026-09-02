@@ -70,7 +70,7 @@ const CAMS = {
   passive:{ u: 1, t: [2, 15, 0], d: 84 },
   breach: { u: 0, t: [2, 14, 0], d: 54 },
   // the breached wall from outside, with sky above it for the smoke
-  breachsky: { u: 0, t: [-9, 30, -3], d: 96, e: 0.14, az: Math.PI * 0.86 }
+  breachsky: { u: 0, t: [-9, 26, -3], d: 130, e: 0.14, az: Math.PI * 0.86 }
 };
 
 // The three shots the app itself frames: no camera override, just the button.

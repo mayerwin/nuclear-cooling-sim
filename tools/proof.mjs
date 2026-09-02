@@ -39,7 +39,9 @@ const CAMS = {
   focusB:  [['U1_desktop_passive', [0, 0, 1500, 950]]],
   // A key may carry a scenario and a time in plant minutes, as look.mjs takes
   // them; the screenshot is then named camera-scenario.
-  'tank tsunami 55':  [['S1_flood', [290, 330, 1210, 790]]],
+  // from outside and above: the tank camera stands under the flood at this
+  // hour and sees nothing but water
+  'outside tsunami 55':  [['S1_flood', [290, 380, 1000, 830]]],
   'breachsky chernobyl 12': [['S2_breach', [290, 60, 1220, 830]]]
 };
 CAMS.turbine.push(['F13_engine_turbine', [380, 520, 1250, 800]]);

@@ -40,11 +40,11 @@
 <header>
   <h1>Requirements register</h1>
   <div class="sub">Every piece of review feedback on the visualisation, with the check that closes it and a screenshot as proof. Built 2026-09-02 from <code>docs/requirements.json</code>.</div>
-  <div class="tally"><span class="DONE">35 DONE</span><span class="WATCH">3 WATCH</span><span class="OPEN">0 OPEN</span></div>
+  <div class="tally"><span class="DONE">40 DONE</span><span class="WATCH">3 WATCH</span><span class="OPEN">0 OPEN</span></div>
 </header>
 <div class="bar">
   <input id="q" placeholder="Filter text (requirement, check, id)">
-  <select id="area"><option value="">All areas</option><option>Fluids and colour</option><option>Geometry and clutter</option><option>Interface and platform</option></select>
+  <select id="area"><option value="">All areas</option><option>Fluids and colour</option><option>Geometry and clutter</option><option>Interface and platform</option><option>Scenarios</option></select>
   <select id="status"><option value="">All statuses</option><option>DONE</option><option>WATCH</option><option>OPEN</option></select>
 </div>
 <table id="t">
@@ -62,10 +62,10 @@
   <td class="date">2026-09-02</td>
   <td><div class="proof"><a href="proof/F1_tracers.png" target="_blank"><img src="proof/F1_tracers.png" alt="" loading="lazy"><small>Channel head: streaks, not beads</small></a></div></td>
 </tr>
-<tr data-id="F2" data-area="Fluids and colour" data-req="Colours must NEVER change suddenly; every change is a gradient." data-status="WATCH" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f2 fluids and colour colours must never change suddenly; every change is a gradient. one recipe everywhere: fluidcolour(u) + paintfluid(mat, c0, c1). any new call site that mixes its own colour breaks this, hence watch.">
+<tr data-id="F2" data-area="Fluids and colour" data-req="Colours must NEVER change suddenly; every change is a gradient." data-status="WATCH" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f2 fluids and colour colours must never change suddenly; every change is a gradient. one recipe everywhere, and since f13 the recipe's input is a temperature: colouroft(t) is the only place a colour is made, and every paint call reads a leg's t0/t1. any new call site that mixes its own colour breaks this, hence watch.">
   <td class="id">F2</td>
   <td>Fluids and colour</td>
-  <td><div class="req">Colours must NEVER change suddenly; every change is a gradient.</div><div class="check">One recipe everywhere: fluidColour(u) + paintFluid(mat, c0, c1). Any new call site that mixes its own colour breaks this, hence WATCH.</div></td>
+  <td><div class="req">Colours must NEVER change suddenly; every change is a gradient.</div><div class="check">One recipe everywhere, and since F13 the recipe's input is a temperature: colourOfT(T) is the only place a colour is made, and every paint call reads a leg's T0/T1. Any new call site that mixes its own colour breaks this, hence WATCH.</div></td>
   <td><span class="st WATCH">WATCH</span></td>
   <td class="date">2026-09-01</td>
   <td class="date">2026-09-02</td>
@@ -107,10 +107,10 @@
   <td class="date">2026-09-02</td>
   <td><div class="proof"><a href="proof/F6_junction.png" target="_blank"><img src="proof/F6_junction.png" alt="" loading="lazy"><small>Hot and cold legs entering the channel head</small></a></div></td>
 </tr>
-<tr data-id="F7" data-area="Fluids and colour" data-req="The incoming water pipe must be seamless and properly connected to the rest." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f7 fluids and colour the incoming water pipe must be seamless and properly connected to the rest. look dome: the feed line runs to a ring at the head of the downcomer and the water runs down the sheet from there.">
+<tr data-id="F7" data-area="Fluids and colour" data-req="The incoming water pipe must be seamless and properly connected to the rest." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f7 fluids and colour the incoming water pipe must be seamless and properly connected to the rest. look dome: the feed line runs through the shell and ends inside the vessel at the head of the downcomer; the downcomer sheet now starts exactly where the pipe stops and runs to the tube sheet whatever the water level, so the arriving water is seen to run down it. there is no ring.">
   <td class="id">F7</td>
   <td>Fluids and colour</td>
-  <td><div class="req">The incoming water pipe must be seamless and properly connected to the rest.</div><div class="check">look dome: the feed line runs to a ring at the head of the downcomer and the water runs down the sheet from there.</div></td>
+  <td><div class="req">The incoming water pipe must be seamless and properly connected to the rest.</div><div class="check">look dome: the feed line runs through the shell and ends inside the vessel at the head of the downcomer; the downcomer sheet now starts exactly where the pipe stops and runs to the tube sheet whatever the water level, so the arriving water is seen to run down it. There is no ring.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
   <td class="date">2026-09-02</td>
@@ -134,19 +134,19 @@
   <td class="date">2026-09-02</td>
   <td><div class="proof"><a href="proof/F9_fluid_pump.png" target="_blank"><img src="proof/F9_fluid_pump.png" alt="" loading="lazy"><small>Pump body</small></a><a href="proof/F9_fluid_unit.png" target="_blank"><img src="proof/F9_fluid_unit.png" alt="" loading="lazy"><small>Whole unit</small></a></div></td>
 </tr>
-<tr data-id="F10" data-area="Fluids and colour" data-req="If sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f10 fluids and colour if sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor. look turbine: intake at 0.02 of the ramp, outfall at 0.64 to 0.70, reactor at 0.75.">
+<tr data-id="F10" data-area="Fluids and colour" data-req="If sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f10 fluids and colour if sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor. leg 'sea water' picks up 10 c across the condenser (dt), drawn with a display gain of 10 so the change is visible: outfall at 115 c on the map, against 317 c for water off the fuel. measured: outfall line (141,93,65), warm; intake (66,94,150), blue.">
   <td class="id">F10</td>
   <td>Fluids and colour</td>
-  <td><div class="req">If sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor.</div><div class="check">look turbine: intake at 0.02 of the ramp, outfall at 0.64 to 0.70, reactor at 0.75.</div></td>
+  <td><div class="req">If sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor.</div><div class="check">Leg 'sea water' picks up 10 C across the condenser (dT), drawn with a display gain of 10 so the change is visible: outfall at 115 C on the map, against 317 C for water off the fuel. Measured: outfall line (141,93,65), warm; intake (66,94,150), blue.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
   <td class="date">2026-09-02</td>
   <td><div class="proof"><a href="proof/F10_outfall.png" target="_blank"><img src="proof/F10_outfall.png" alt="" loading="lazy"><small>Outfall amber, intake blue</small></a></div></td>
 </tr>
-<tr data-id="F11" data-area="Fluids and colour" data-req="The INCOMING sea water is colder than the outgoing water and must be blue, not orange." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="f11 fluids and colour the incoming sea water is colder than the outgoing water and must be blue, not orange. the first tube pass flows right-to-left against its left-to-right geometry, so its gradient is reversed; the inlet box is blue below the divider and amber above.">
+<tr data-id="F11" data-area="Fluids and colour" data-req="The INCOMING sea water is colder than the outgoing water and must be blue, not orange." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="f11 fluids and colour the incoming sea water is colder than the outgoing water and must be blue, not orange. the sea leg's inlet temperature is the sea's, 15 c, and the intake pipe carries the leg's inlet end (tempat 'in'); the first tube pass flows against its geometry and says so with flowdir. measured: intake tube (66,94,150), blue.">
   <td class="id">F11</td>
   <td>Fluids and colour</td>
-  <td><div class="req">The INCOMING sea water is colder than the outgoing water and must be blue, not orange.</div><div class="check">The first tube pass flows right-to-left against its left-to-right geometry, so its gradient is reversed; the inlet box is blue below the divider and amber above.</div></td>
+  <td><div class="req">The INCOMING sea water is colder than the outgoing water and must be blue, not orange.</div><div class="check">The sea leg's inlet temperature is the sea's, 15 C, and the intake pipe carries the leg's inlet end (tempAt 'in'); the first tube pass flows against its geometry and says so with flowDir. Measured: intake tube (66,94,150), blue.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
   <td class="date">2026-09-02</td>
@@ -251,14 +251,14 @@
   <td class="date">2026-09-02</td>
   <td><div class="proof"><a href="proof/G9_G10_tank.png" target="_blank"><img src="proof/G9_G10_tank.png" alt="" loading="lazy"><small>Tank on the centreline</small></a></div></td>
 </tr>
-<tr data-id="G11" data-area="Geometry and clutter" data-req="The vent is a hole in the container: nothing protruding inside, no pillar under it, no round protrusion at the bottom." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g11 geometry and clutter the vent is a hole in the container: nothing protruding inside, no pillar under it, no round protrusion at the bottom. path starts flush at -r_in; stack base and funnel deleted; the line turns up and clears the roof.">
+<tr data-id="G11" data-area="Geometry and clutter" data-req="The vent is a hole in the containment wall with the line running away from it: a visible opening on the inside face, nothing protruding inside, no column under it, and the cover back on top." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g11 geometry and clutter the vent is a hole in the containment wall with the line running away from it: a visible opening on the inside face, nothing protruding inside, no column under it, and the cover back on top. a dark disc the bore of the pipe on the inside face of the wall at the penetration; the line leaves flush, rises outside the wall and ends in the cover. no column, no drum.">
   <td class="id">G11</td>
   <td>Geometry and clutter</td>
-  <td><div class="req">The vent is a hole in the container: nothing protruding inside, no pillar under it, no round protrusion at the bottom.</div><div class="check">Path starts flush at -R_IN; stack base and funnel deleted; the line turns up and clears the roof.</div></td>
+  <td><div class="req">The vent is a hole in the containment wall with the line running away from it: a visible opening on the inside face, nothing protruding inside, no column under it, and the cover back on top.</div><div class="check">A dark disc the bore of the pipe on the inside face of the wall at the penetration; the line leaves flush, rises outside the wall and ends in the cover. No column, no drum.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
   <td class="date">2026-09-02</td>
-  <td><div class="proof"><a href="proof/G11_vent.png" target="_blank"><img src="proof/G11_vent.png" alt="" loading="lazy"><small>Vent: hole, elbow, up</small></a></div></td>
+  <td><div class="proof"><a href="proof/G11_vent.png" target="_blank"><img src="proof/G11_vent.png" alt="" loading="lazy"><small>Vent: hole in the wall, line up to the cover</small></a></div></td>
 </tr>
 <tr data-id="G12" data-area="Geometry and clutter" data-req="The container concrete must not look hollow." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g12 geometry and clutter the container concrete must not look hollow. stencil section caps (js/view/section.js): the plane's cut through the wall and dome is capped exactly, the standard clipping_stencil technique. shell closed at the foot so the count is meaningful.">
   <td class="id">G12</td>
@@ -397,6 +397,51 @@ after:  512 draw calls,  11 ms/frame,  0 transmissive materials</div></div></td>
   <td class="date">2026-09-01</td>
   <td class="date">2026-09-02</td>
   <td><div class="proof"><div class="txt">grep -rn '\u2014' index.html js/ui.js js/view/labels.js js/scenarios.js -&gt; no matches</div></div></td>
+</tr>
+<tr data-id="F13" data-area="Fluids and colour" data-req="Use a proper engine for the fluids: design the 3-D structures, put water in them, set the sea's temperature and say where heat goes in, and let the engine derive the colours. No hand-assigned colours per pipe." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="f13 fluids and colour use a proper engine for the fluids: design the 3-d structures, put water in them, set the sea's temperature and say where heat goes in, and let the engine derive the colours. no hand-assigned colours per pipe. temperature travels with the water: every leg in js/flow.js carries t0/t1/dt and circuit.settemps walks the chain in flow order. unit.js solvetemps() sets one inlet temperature per circuit and the dt of the legs that exchange heat (core, boiler tubes, condenser bank, pool coil). colouroft() is the only place a temperature becomes a colour. grep 'fluidcolour(' in unit.js: only colouroft calls it. measured on this build: intake tube (66,94,150), outfall line (141,93,65): the sea leg enters at 15 c and leaves at 15 + 10 x gain 10 = 115 c, and nothing was told a colour.">
+  <td class="id">F13</td>
+  <td>Fluids and colour</td>
+  <td><div class="req">Use a proper engine for the fluids: design the 3-D structures, put water in them, set the sea's temperature and say where heat goes in, and let the engine derive the colours. No hand-assigned colours per pipe.</div><div class="check">Temperature travels with the water: every Leg in js/flow.js carries T0/T1/dT and Circuit.setTemps walks the chain in flow order. unit.js solveTemps() sets ONE inlet temperature per circuit and the dT of the legs that exchange heat (core, boiler tubes, condenser bank, pool coil). colourOfT() is the only place a temperature becomes a colour. grep 'fluidColour(' in unit.js: only colourOfT calls it. Measured on this build: intake tube (66,94,150), outfall line (141,93,65): the sea leg enters at 15 C and leaves at 15 + 10 x gain 10 = 115 C, and nothing was told a colour.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/F13_engine_turbine.png" target="_blank"><img src="proof/F13_engine_turbine.png" alt="" loading="lazy"><small>Sea leg: in at 15 C, out warmer, colours derived</small></a><a href="proof/F13_engine_loop.png" target="_blank"><img src="proof/F13_engine_loop.png" alt="" loading="lazy"><small>Primary loop: cold leg to hot leg from the core's rise</small></a></div></td>
+</tr>
+<tr data-id="U10" data-area="Interface and platform" data-req="With Refraction switched on the liquids must not go near black." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="u10 interface and platform with refraction switched on the liquids must not go near black. stage.setquality('refraction'): the fluid shader's absorption density steps back to a quarter while transmission is on, and is restored when it is off.">
+  <td class="id">U10</td>
+  <td>Interface and platform</td>
+  <td><div class="req">With Refraction switched on the liquids must not go near black.</div><div class="check">stage.setQuality('refraction'): the fluid shader's absorption density steps back to a quarter while transmission is on, and is restored when it is off.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/U10_refraction.png" target="_blank"><img src="proof/U10_refraction.png" alt="" loading="lazy"><small>Refraction on: water still blue</small></a></div></td>
+</tr>
+<tr data-id="U11" data-area="Interface and platform" data-req="Bloom must not cost most of the frame rate." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="u11 interface and platform bloom must not cost most of the frame rate. bloom is off by default on every device and, on, runs on a buffer 0.34 of the frame on each axis (a ninth of the pixels) instead of 0.6. measured at 1200x800 on this build: bloom off 10.6 ms a frame, bloom on 10.2 ms; the difference is inside the noise.">
+  <td class="id">U11</td>
+  <td>Interface and platform</td>
+  <td><div class="req">Bloom must not cost most of the frame rate.</div><div class="check">Bloom is off by default on every device and, on, runs on a buffer 0.34 of the frame on each axis (a ninth of the pixels) instead of 0.6. Measured at 1200x800 on this build: bloom off 10.6 ms a frame, bloom on 10.2 ms; the difference is inside the noise.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/U3_settings.png" target="_blank"><img src="proof/U3_settings.png" alt="" loading="lazy"><small>Bloom unticked by default</small></a><div class="txt">js/view/stage.js: bloom default false; setSize(w*0.34, h*0.34). Measured: 10.6 ms off, 10.2 ms on.</div></div></td>
+</tr>
+<tr data-id="S1" data-area="Scenarios" data-req="In the tsunami the flood must cover the emergency water tank and the pump beside it; when the text says the sea has receded, the water must be gone." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="s1 scenarios in the tsunami the flood must cover the emergency water tank and the pump beside it; when the text says the sea has receded, the water must be gone. the flood sheet reaches into the section (its hole round the containment is gone: this model keeps the equipment a tsunami drowns inside the cutaway), rises at 2.5 m/s, is painted as sea water, and a 14 m wave puts about five metres on the deck (clamp((flooded-5.7)*0.9, 0, 7.6)). the recede event sets flooded back to 0.8 and the sheet drops.">
+  <td class="id">S1</td>
+  <td>Scenarios</td>
+  <td><div class="req">In the tsunami the flood must cover the emergency water tank and the pump beside it; when the text says the sea has receded, the water must be gone.</div><div class="check">The flood sheet reaches into the section (its hole round the containment is gone: this model keeps the equipment a tsunami drowns inside the cutaway), rises at 2.5 m/s, is painted as sea water, and a 14 m wave puts about five metres on the deck (clamp((flooded-5.7)*0.9, 0, 7.6)). The recede event sets flooded back to 0.8 and the sheet drops.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/S1_flood.png" target="_blank"><img src="proof/S1_flood.png" alt="" loading="lazy"><small>Tsunami at 55 min, from outside: the emergency tank and its pump are under the water</small></a></div></td>
+</tr>
+<tr data-id="S2" data-area="Scenarios" data-req="When the containment is breached the smoke must leave through the breach only, not cross the building, and the breach must not be a row of cones." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="s2 scenarios when the containment is breached the smoke must leave through the breach only, not cross the building, and the breach must not be a row of cones. the breach plume is released 4.5 m outside the wall with a 2.2 m spread and rises; the tear is a ragged rim of flat concrete shards set into the wall round the opening.">
+  <td class="id">S2</td>
+  <td>Scenarios</td>
+  <td><div class="req">When the containment is breached the smoke must leave through the breach only, not cross the building, and the breach must not be a row of cones.</div><div class="check">The breach plume is released 4.5 m outside the wall with a 2.2 m spread and rises; the tear is a ragged rim of flat concrete shards set into the wall round the opening.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/S2_breach.png" target="_blank"><img src="proof/S2_breach.png" alt="" loading="lazy"><small>Breached containment from behind</small></a></div></td>
 </tr>
 </tbody>
 </table>

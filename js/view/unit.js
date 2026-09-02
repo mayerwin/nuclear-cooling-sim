@@ -7,13 +7,13 @@
 // in at the water.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=26b57b2691';
+import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=29b6a124b2';
 import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles,
-  frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=26b57b2691';
-import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=26b57b2691';
-import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=26b57b2691';
-import { Machines } from '../machines.js?v=26b57b2691';
-import { SectionCap } from './section.js?v=26b57b2691';
+  frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=29b6a124b2';
+import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=29b6a124b2';
+import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=29b6a124b2';
+import { Machines } from '../machines.js?v=29b6a124b2';
+import { SectionCap } from './section.js?v=29b6a124b2';
 
 const R_IN = 15.4, WALL = 1.0, SHELL_H = 31, DOME_R = R_IN + WALL;
 
@@ -1757,8 +1757,8 @@ export class Unit {
 // ---------------------------------------------------------------------------
 // per frame: solve the flows, step the machines, and let the geometry follow
 // ---------------------------------------------------------------------------
-import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=26b57b2691';
-import { Plume, PuffCloud } from './plume.js?v=26b57b2691';
+import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=29b6a124b2';
+import { Plume, PuffCloud } from './plume.js?v=29b6a124b2';
 
 Object.assign(Unit.prototype, {
 

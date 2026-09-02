@@ -18,10 +18,10 @@
   "id": "F2",
   "area": "Fluids and colour",
   "raised": "2026-09-01",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "WATCH",
   "req": "Colours must NEVER change suddenly; every change is a gradient.",
-  "check": "One recipe everywhere: fluidColour(u) + paintFluid(mat, c0, c1). Any new call site that mixes its own colour breaks this, hence WATCH. Since F13, these colours come from leg temperatures rather than constants.",
+  "check": "One recipe everywhere, and since F13 the recipe's input is a temperature: colourOfT(T) is the only place a colour is made, and every paint call reads a leg's T0/T1. Any new call site that mixes its own colour breaks this, hence WATCH.",
   "proof": [
    {
     "img": "proof/F2_gradient.png",
@@ -96,8 +96,8 @@
   "id": "F7",
   "area": "Fluids and colour",
   "raised": "2026-09-01",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "DONE",
   "req": "The incoming water pipe must be seamless and properly connected to the rest.",
   "check": "look dome: the feed line runs through the shell and ends inside the vessel at the head of the downcomer; the downcomer sheet now starts exactly where the pipe stops and runs to the tube sheet whatever the water level, so the arriving water is seen to run down it. There is no ring.",
   "proof": [
@@ -145,8 +145,8 @@
   "id": "F10",
   "area": "Fluids and colour",
   "raised": "2026-09-01",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "DONE",
   "req": "If sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor.",
   "check": "Leg 'sea water' picks up 10 C across the condenser (dT), drawn with a display gain of 10 so the change is visible: outfall at 115 C on the map, against 317 C for water off the fuel. Measured: outfall line (141,93,65), warm; intake (66,94,150), blue.",
   "proof": [
@@ -160,8 +160,8 @@
   "id": "F11",
   "area": "Fluids and colour",
   "raised": "2026-09-02",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "DONE",
   "req": "The INCOMING sea water is colder than the outgoing water and must be blue, not orange.",
   "check": "The sea leg's inlet temperature is the sea's, 15 C, and the intake pipe carries the leg's inlet end (tempAt 'in'); the first tube pass flows against its geometry and says so with flowDir. Measured: intake tube (66,94,150), blue.",
   "proof": [
@@ -340,8 +340,8 @@
   "id": "G11",
   "area": "Geometry and clutter",
   "raised": "2026-09-02",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "DONE",
   "req": "The vent is a hole in the containment wall with the line running away from it: a visible opening on the inside face, nothing protruding inside, no column under it, and the cover back on top.",
   "check": "A dark disc the bore of the pipe on the inside face of the wall at the penetration; the line leaves flush, rises outside the wall and ends in the cover. No column, no drum.",
   "proof": [
@@ -579,8 +579,8 @@
   "id": "F13",
   "area": "Fluids and colour",
   "raised": "2026-09-02",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "DONE",
   "req": "Use a proper engine for the fluids: design the 3-D structures, put water in them, set the sea's temperature and say where heat goes in, and let the engine derive the colours. No hand-assigned colours per pipe.",
   "check": "Temperature travels with the water: every Leg in js/flow.js carries T0/T1/dT and Circuit.setTemps walks the chain in flow order. unit.js solveTemps() sets ONE inlet temperature per circuit and the dT of the legs that exchange heat (core, boiler tubes, condenser bank, pool coil). colourOfT() is the only place a temperature becomes a colour. grep 'fluidColour(' in unit.js: only colourOfT calls it. Measured on this build: intake tube (66,94,150), outfall line (141,93,65): the sea leg enters at 15 C and leaves at 15 + 10 x gain 10 = 115 C, and nothing was told a colour.",
   "proof": [
@@ -598,8 +598,8 @@
   "id": "U10",
   "area": "Interface and platform",
   "raised": "2026-09-02",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "DONE",
   "req": "With Refraction switched on the liquids must not go near black.",
   "check": "stage.setQuality('refraction'): the fluid shader's absorption density steps back to a quarter while transmission is on, and is restored when it is off.",
   "proof": [
@@ -613,8 +613,8 @@
   "id": "U11",
   "area": "Interface and platform",
   "raised": "2026-09-02",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "DONE",
   "req": "Bloom must not cost most of the frame rate.",
   "check": "Bloom is off by default on every device and, on, runs on a buffer 0.34 of the frame on each axis (a ninth of the pixels) instead of 0.6. Measured at 1200x800 on this build: bloom off 10.6 ms a frame, bloom on 10.2 ms; the difference is inside the noise.",
   "proof": [
@@ -631,14 +631,14 @@
   "id": "S1",
   "area": "Scenarios",
   "raised": "2026-09-02",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "DONE",
   "req": "In the tsunami the flood must cover the emergency water tank and the pump beside it; when the text says the sea has receded, the water must be gone.",
   "check": "The flood sheet reaches into the section (its hole round the containment is gone: this model keeps the equipment a tsunami drowns inside the cutaway), rises at 2.5 m/s, is painted as sea water, and a 14 m wave puts about five metres on the deck (clamp((flooded-5.7)*0.9, 0, 7.6)). The recede event sets flooded back to 0.8 and the sheet drops.",
   "proof": [
    {
     "img": "proof/S1_flood.png",
-    "caption": "Tsunami at 55 min: tank and pump under water"
+    "caption": "Tsunami at 55 min, from outside: the emergency tank and its pump are under the water"
    }
   ]
  },
@@ -646,8 +646,8 @@
   "id": "S2",
   "area": "Scenarios",
   "raised": "2026-09-02",
-  "verified": "",
-  "status": "OPEN",
+  "verified": "2026-09-02",
+  "status": "DONE",
   "req": "When the containment is breached the smoke must leave through the breach only, not cross the building, and the breach must not be a row of cones.",
   "check": "The breach plume is released 4.5 m outside the wall with a 2.2 m spread and rises; the tear is a ragged rim of flat concrete shards set into the wall round the opening.",
   "proof": [
