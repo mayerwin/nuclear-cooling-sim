@@ -66,12 +66,19 @@ export class UI {
     };
     $('#btnCfg').onclick = () => showCfg(!cfg.classList.contains('show'));
     $('#cfgOk').onclick = () => showCfg(false);
-    const stage = this.hooks.stage;
-    for (const box of cfg.querySelectorAll('input[data-q]')) {
-      box.checked = stage ? !!stage.q[box.dataset.q] : false;
-      box.disabled = !stage;
-      box.onchange = () => stage.setQuality(box.dataset.q, box.checked);
-    }
+    // The stage does not exist yet when this runs: nothing heavy is built until
+    // the welcome card is dismissed. So the panel is wired to whatever stage it
+    // is GIVEN, and boot() hands it the real one the moment there is one.
+    // Wired once at construction it was seven disabled, unticked boxes.
+    this.bindStage = (stage) => {
+      this.hooks.stage = stage;
+      for (const box of cfg.querySelectorAll('input[data-q]')) {
+        box.checked = stage ? !!stage.q[box.dataset.q] : false;
+        box.disabled = !stage;
+        box.onchange = () => { if (stage) stage.setQuality(box.dataset.q, box.checked); };
+      }
+    };
+    this.bindStage(this.hooks.stage);
 
     const help = $('#help');
     this.showHelp = (on) => {

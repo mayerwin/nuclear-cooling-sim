@@ -68,6 +68,7 @@ function boot() {
     window.__units = units;
     window.__stage = stage;
     window.__labels = labels;
+    ui.bindStage(stage);
   }
   resize();
   sim.overview();
