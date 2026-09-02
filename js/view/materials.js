@@ -2,7 +2,7 @@
 // materials.js - one place where every surface in the plant is defined.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { surfaceMaterial, bubbleMaterial, fleckMaterial, LOWFX } from './fluid.js?v=dca3e57c37';
+import { surfaceMaterial, bubbleMaterial, fleckMaterial, LOWFX } from './fluid.js?v=4b489aa4e2';
 
 export const CUT = [
   new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0),

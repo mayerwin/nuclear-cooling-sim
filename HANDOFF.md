@@ -31,7 +31,10 @@ asked for), `OPEN` (not met). Never mark DONE from code alone.
 ## How to work
 
 ```
-python3 -m http.server 8099                # static server (tools expect 8099)
+node tools/serve.mjs . 8099                # static server (tools expect 8099). NOT python's
+                                           # http.server on Windows: it serves .mjs as
+                                           # text/plain, the physics module fails to load
+                                           # and the machines silently run on the fallback
 node tools/stamp.mjs                       # after ANY edit to js/ or css/: content-hashes
                                            # every module URL; --check fails if stale
 node tools/check.mjs                       # THE GATE: nine scenarios + a phone viewport,
@@ -43,9 +46,24 @@ node tools/proof.mjs [all|specials|cameras]# re-capture every proof image from T
 node tools/reqpage.mjs                     # rebuild docs/requirements.html from the json
 ```
 
-Renders run on SwiftShader here (1-3 min each), so drive the plant clock rather
-than waiting on frames; `look.mjs` already does. Read the rendered PNG yourself
-before claiming anything. Sample pixels for colour claims (PIL is available).
+Renders run on SwiftShader on the Linux box (1-3 min each), so drive the plant
+clock rather than waiting on frames; `look.mjs` already does. Read the rendered
+PNG yourself before claiming anything. Sample pixels for colour claims (PIL is
+available; on Windows it is under `py -3`).
+
+The tools find the browser through `tools/pw.mjs`. On the Linux box nothing
+needs setting. Anywhere else (the owner's Windows laptop, say):
+
+```
+PW_MODULE=<path to playwright/index.mjs>   # any npm install of playwright
+PW_CHROME=chrome                           # the installed Chrome, or a path to a binary
+PW_GPU=1 PW_HEADED=1                       # the real GPU, vsync off, in a visible window
+PW_URL=http://<lan ip>:8099/index.html     # when 127.0.0.1 is not reachable (see traps)
+```
+
+Frame-rate numbers only mean anything with `PW_GPU=1`: SwiftShader's ratios
+are not a GPU's. Time the gap between animation frames, never a loop of
+`render()` calls, which on a GPU measures how fast the calls are submitted.
 
 A probe that only opens the welcome card misses every error in the plant view;
 `check.mjs` enters the plant view, and any quick probe must too.
@@ -83,28 +101,45 @@ materials, layout or the section: the pictures must be from the build shipped.
 - `view/plume.js` `Plume` (rising smoke/steam) and `PuffCloud` (a body of
   vapour in a space); the sprite is noise, not a radial blur.
 - `view/stage.js` renderer, lights, section (stencil caps in
-  `view/section.js`), quality toggles (`setQuality`), flood sheet, sea.
+  `view/section.js`), quality toggles (`setQuality`), the render scale
+  (`setScale`, a multiplier under the hidpi toggle), flood sheet, sea.
+- `view/autoq.js` the first-run tuner: measures the wall-clock frame gap the
+  first time the inside view is drawn and takes options off, cheapest loss
+  first (`LADDER`), until the median is under 37 ms or the ladder is used up.
+  Stores the result in `localStorage` (`ncs.gfx`) and re-applies it next visit;
+  a hand-set box is stored as the visitor's own and ends tuning; the panel's
+  Measure again re-runs it. Stands down under `navigator.webdriver` unless
+  `?tune=1`, so the tools measure the shipped settings; `?tune=0` stands it
+  down anywhere.
 - `view/labels.js` captions, measured in the label layer's own coordinates.
 - `site/*` the isometric island.
 
 Layout constants (`L` in unit.js) put every machine in one vertical plane;
 `CUT_AZ` is the heading the section faces. Local +z is the removed half.
 
-## Current state (2026-09-02)
+## Current state (2026-09-02, later)
 
-47 requirements: 43 DONE, 4 WATCH, 0 OPEN. The WATCH lines are the honest
+49 requirements: 45 DONE, 4 WATCH, 0 OPEN. The WATCH lines are the honest
 frontier:
 
 - **F9** water quality: a defensible real-time model, not a shipped-game one.
 - **F12** the forebay still reads flatter than the open sea at the bay camera.
 - **F2** one colour recipe: any new call site that mixes its own colour breaks
   it. Grep `fluidColour(` in unit.js; only `colourIn`/`colourOfT` may call it.
-- **U12** every-option-on frame rate: mechanisms in place (refraction target at
-  a quarter of the pixels, pixel density capped at 1.5x, bloom at a ninth);
-  only measured on the software renderer (772 ms vs 10.4 ms defaults). The
-  owner's laptop number is what closes it.
+- **U14** a Pixel 10 number. Nothing has been measured on a real phone. The
+  laptop's Android emulator was reachable through Playwright's `_android`
+  (see `android-tune.mjs` in the session notes below) until the VPN cut
+  loopback. The tuner (U13) is what makes a slow phone acceptable in the
+  meantime; a measured Pixel 10 frame time is what closes the line.
 
-The condenser was rebuilt last: steam leaves the casing through its right-hand
+U12 closed on the laptop's GPU: every option on went from 76 ms a frame to
+21 ms at 1500x950 (186 ms to 40 ms on the full window at 1.5x). The whole of
+the collapse was bloom's composer target resolving depth and stencil (below).
+Chrome runs on the laptop's Intel Arc, not its RTX 4070; that is Windows' per-
+app graphics preference and not something the page can choose.
+
+The last thing built was the first-run tuner (U13) and the register lines
+U12 to U14. Before that, the condenser was rebuilt: steam leaves the casing through its right-hand
 end wall into a glass box under the generator holding ONE vertical cold
 sea-water pipe; the warm return runs outside the box. Colour is scaled within
 each circuit's own temperature span (`Circuit.range`), so a 290-325 C primary
@@ -135,6 +170,29 @@ loop shows its cold leg blue and its hot leg red.
   batches.
 - The vent, the emergency tank and the wall caps have each regressed at least
   once; check G11, G10, G12/G13 first after touching the containment.
+- A multisampled render target that RESOLVES its depth and stencil costs
+  60 ms a frame on an Intel GPU through ANGLE; that was the whole price of
+  bloom. The composer target says `resolveDepthBuffer: false,
+  resolveStencilBuffer: false`: nothing after the scene pass reads them.
+- Timing `render()` in a loop measures CPU submit time. On SwiftShader that
+  is the frame; on a GPU it is nothing like it. Time the animation-frame gap.
+- The tuner used to throw away a two-second window with fewer than twelve
+  frames as a stall, so on a device at five frames a second it never decided
+  anything. A window is two seconds AND at least four frames.
+- The tuner must stand down under automation, or every proof taken on
+  SwiftShader has all its options stripped first. `navigator.webdriver` is
+  the guard; `?tune=1` lifts it for testing the tuner itself.
+- On the Windows checkout `core.autocrlf` gives every file CRLF endings.
+  `stamp.mjs` hashes over LF so the stamp is the same on both machines; any
+  patching script has to match against LF and write back CRLF.
+- Python's `http.server` on Windows serves `.mjs` as text/plain (registry
+  MIME map); the physics module fails to load and everything still looks
+  fine. `tools/serve.mjs` instead.
+- A VPN client on the laptop (hide.me, with Tailscale also up) blocked TCP
+  over 127.0.0.1 mid-session: `connect` fails with "address not available"
+  while ping works. adb and anything on localhost dies with it. `PW_URL` with
+  the LAN address keeps the tools going; the emulator does not come back until
+  loopback does.
 
 ## Owner's standing rules (from review)
 

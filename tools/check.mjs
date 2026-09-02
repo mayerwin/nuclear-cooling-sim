@@ -3,11 +3,11 @@
  * Boots the app, drives every scenario, and fails on any console or page
  * error. Writes a screenshot set for review.
  */
-import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import { launch, TMP, URL } from './pw.mjs';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
-const url = process.argv[2] || 'http://127.0.0.1:8099/index.html';
-const out = process.argv[3] || '/tmp/check';
+const url = process.argv[2] || URL;
+const out = process.argv[3] || `${TMP}/check`;
 mkdirSync(out, { recursive: true });
 const errs = [];
 const notes = [];
@@ -16,10 +16,7 @@ const notes = [];
   const { execFileSync } = await import('node:child_process');
   execFileSync(process.execPath, ['tools/stamp.mjs', '--check'], { stdio: 'inherit' });
 }
-const browser = await chromium.launch({
-  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
-  args: ['--no-sandbox', '--enable-unsafe-swiftshader', '--use-gl=swiftshader']
-});
+const browser = await launch();
 
 async function open(w, h, mobile) {
   const page = await browser.newPage({

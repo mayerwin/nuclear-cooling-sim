@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
 // ui.js - the panels round the picture.
 // ---------------------------------------------------------------------------
-import { SCENARIOS } from './scenarios.js?v=dca3e57c37';
-import { SPEEDS, SPEED_LABELS, AUTO_IDX } from './sim.js?v=dca3e57c37';
-import { MODE } from './plant.js?v=dca3e57c37';
+import { SCENARIOS } from './scenarios.js?v=4b489aa4e2';
+import { SPEEDS, SPEED_LABELS, AUTO_IDX } from './sim.js?v=4b489aa4e2';
+import { MODE } from './plant.js?v=4b489aa4e2';
 
 const $ = (s) => document.querySelector(s);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -70,15 +70,44 @@ export class UI {
     // the welcome card is dismissed. So the panel is wired to whatever stage it
     // is GIVEN, and boot() hands it the real one the moment there is one.
     // Wired once at construction it was seven disabled, unticked boxes.
-    this.bindStage = (stage) => {
-      this.hooks.stage = stage;
+    // The tuner (autoq.js) may change any of these on its own during the
+    // first seconds of the inside view, so the boxes are re-read from the
+    // stage whenever it says something changed, and a box ticked by hand is
+    // recorded as the visitor's own choice, which the tuner then leaves alone.
+    const scale = $('#cfgScale'), scaleV = $('#cfgScaleV'), note = $('#cfgNote');
+    this.syncCfg = () => {
+      const stage = this.hooks.stage, autoq = this.hooks.autoq;
       for (const box of cfg.querySelectorAll('input[data-q]')) {
         box.checked = stage ? !!stage.q[box.dataset.q] : false;
         box.disabled = !stage;
-        box.onchange = () => { if (stage) stage.setQuality(box.dataset.q, box.checked); };
       }
+      const pc = stage ? Math.round(stage.scale * 100) : 100;
+      scale.value = pc; scaleV.textContent = pc + '%';
+      scale.disabled = !stage;
+      note.textContent = autoq ? autoq.note() : '';
+      $('#cfgRetest').disabled = !autoq;
     };
-    this.bindStage(this.hooks.stage);
+    this.bindStage = (stage, autoq) => {
+      this.hooks.stage = stage;
+      this.hooks.autoq = autoq || null;
+      if (autoq) autoq.onChange = () => this.syncCfg();
+      for (const box of cfg.querySelectorAll('input[data-q]')) {
+        box.onchange = () => {
+          if (!stage) return;
+          stage.setQuality(box.dataset.q, box.checked);
+          if (autoq) autoq.userSet();
+        };
+      }
+      scale.oninput = () => {
+        if (!stage) return;
+        stage.setScale(scale.value / 100);
+        scaleV.textContent = scale.value + '%';
+      };
+      scale.onchange = () => { if (autoq) autoq.userSet(); };
+      $('#cfgRetest').onclick = () => { if (autoq) autoq.restart(); };
+      this.syncCfg();
+    };
+    this.bindStage(this.hooks.stage, null);
 
     const help = $('#help');
     this.showHelp = (on) => {
@@ -251,8 +280,10 @@ export class UI {
     if (!el || !$('#cfg').classList.contains('show')) return;
     const st = this.hooks.stage ? this.hooks.stage.stats() : null;
     el.textContent = st
-      ? `${fps.toFixed(0)} fps · ${st.calls} draws · ${(st.tris / 1000).toFixed(0)}k triangles`
+      ? `${fps.toFixed(0)} fps · ${st.calls} draws · ${(st.tris / 1000).toFixed(0)}k triangles · ${st.px.toFixed(2)}x pixels`
       : `${fps.toFixed(0)} fps`;
+    // The tuner's sentence changes while it is measuring.
+    if (this.hooks.autoq && !this.hooks.autoq.done) $('#cfgNote').textContent = this.hooks.autoq.note();
   }
 
   renderFeed() {

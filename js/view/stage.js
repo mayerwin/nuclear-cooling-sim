@@ -13,9 +13,9 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { build as buildMaterials } from './materials.js?v=dca3e57c37';
+import { build as buildMaterials } from './materials.js?v=4b489aa4e2';
 import { surfaceMaterial, setGradient, rippleNormal, LOWFX, FLUID_TIME,
-  twoOctaveFlow, SEA_TILE } from './fluid.js?v=dca3e57c37';
+  twoOctaveFlow, SEA_TILE } from './fluid.js?v=4b489aa4e2';
 
 // A vertical sky gradient, baked once into an equirectangular strip.
 function skyTexture() {
@@ -72,13 +72,13 @@ export class Stage {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 0.96;
     // Real refraction, when it is switched on, draws the scene again into a
-    // target for the transmissive materials to sample. That target is half
-    // the frame on each axis now: a quarter of the pixels, and nothing lost in
-    // a refracted image that is blurred by roughness anyway.
-    this.renderer.transmissionResolutionScale = 0.5;
-    // The refraction pass is a second render of the whole scene. Half
-    // resolution costs nothing visible, because refraction blurs anyway.
+    // target for the transmissive materials to sample. That target is well
+    // under half the frame on each axis: a fraction of the pixels, and
+    // nothing lost in a refracted image that is blurred by roughness anyway.
     this.renderer.transmissionResolutionScale = mobile ? 0.2 : 0.4;
+    // A multiplier on the pixel ratio, under the hidpi toggle: what the
+    // first-run tuner turns down when a device cannot fill its own screen.
+    this.scale = 1;
     host.appendChild(this.renderer.domElement);
 
     this.labels = new CSS2DRenderer();
@@ -139,9 +139,15 @@ export class Stage {
       reflections: true, hidpi: !mobile, particles: true, steam: true
     };
 
+    // Half float, because bloom thresholds on light brighter than white, and
+    // multisampled, so the edges are as clean as the plain path's canvas.
+    // The depth and stencil attachments are NOT resolved. Nothing after the
+    // scene pass reads them, and resolving them is what made this target cost
+    // sixty milliseconds a frame on an Intel GPU through ANGLE, which was the
+    // whole of bloom's price. Colour only, and bloom costs five.
     const target = new THREE.WebGLRenderTarget(1, 1, {
       type: THREE.HalfFloatType, stencilBuffer: true, depthBuffer: true,
-      samples: mobile ? 0 : 4 });
+      samples: mobile ? 0 : 4, resolveDepthBuffer: false, resolveStencilBuffer: false });
     this.composer = new EffectComposer(this.renderer, target);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.16, 0.5, 2.1);
@@ -501,10 +507,7 @@ export class Stage {
         this.scene.environment = on ? this.envTex : null;
         break;
       case 'hidpi':
-        // Capped at 1.5: a 2x panel is four times the fill of a 1x one, and
-        // between 1.5 and 2 there is nothing a person can see in this picture.
-        r.setPixelRatio(on ? Math.min(1.5, window.devicePixelRatio || 1) : 1);
-        this.resize(this.lastW, this.lastH);
+        this.applyPixelRatio();
         break;
       case 'particles':
         this.scene.traverse((n) => { if (n.isInstancedMesh) n.visible = on; });
@@ -516,6 +519,23 @@ export class Stage {
         break;
       default: break;
     }
+  }
+
+  // The pixel ratio, from the hidpi toggle and the scale together. Hidpi is
+  // capped at 1.5: a 2x panel is four times the fill of a 1x one, and between
+  // 1.5 and 2 there is nothing a person can see in this picture.
+  applyPixelRatio() {
+    const base = this.q.hidpi ? Math.min(1.5, window.devicePixelRatio || 1) : 1;
+    this.renderer.setPixelRatio(base * this.scale);
+    this.resize(this.lastW, this.lastH);
+  }
+
+  // Draw the frame smaller and let the browser stretch it. Between 0.5 and 1.
+  // This scene is fill-bound, so on a phone it is the one control that moves
+  // the frame rate by more than a few percent.
+  setScale(f) {
+    this.scale = Math.max(0.5, Math.min(1, f));
+    this.applyPixelRatio();
   }
 
   eachMaterial(fn) {
@@ -534,6 +554,7 @@ export class Stage {
   stats() {
     const i = this.renderer.info;
     return { calls: i.render.calls, tris: i.render.triangles,
-      programs: i.programs ? i.programs.length : 0, textures: i.memory.textures };
+      programs: i.programs ? i.programs.length : 0, textures: i.memory.textures,
+      px: this.renderer.getPixelRatio() };
   }
 }

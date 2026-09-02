@@ -692,12 +692,12 @@
   "area": "Interface and platform",
   "raised": "2026-09-02",
   "verified": "2026-09-02",
-  "status": "WATCH",
+  "status": "DONE",
   "req": "With every graphics option on, the frame rate must not collapse (17 fps on a laptop is not acceptable).",
-  "check": "Refraction's scene re-render samples a target half the frame on each axis (a quarter of the pixels); full pixel density is capped at 1.5x; bloom runs at a ninth of the frame. Measured on the software renderer at 1500x950: defaults 10.4 ms/frame, every option on 772 ms/frame. That ratio is the CPU renderer's, not a GPU's; the number that matters is the laptop's, which only the laptop can give. WATCH until it is measured there.",
+  "check": "Measured on the laptop's own GPU (Intel Arc, Chrome, vsync off), as the gap between animation frames. Proof file, 1500x950: every option on 24 ms/frame (42 fps), desktop defaults 17 ms (60 fps). Session bench on the full 2194x1234 window at 1.5x pixel density: defaults 19 ms (53 fps), every option on 40 ms (25 fps). Before this build every option on was 76 ms (13 fps) at 1500x950 and 186 ms (5 fps) on the full window, and the whole of it was bloom: the composer's multisampled half-float target resolved its depth and stencil attachments every frame, 60 ms through ANGLE on this GPU. Nothing after the scene pass reads them, so they are no longer resolved, and bloom costs about 5 ms. Chrome runs on the laptop's Intel GPU, not its RTX 4070; that is Windows' per-app graphics setting, not the page's. Numbers vary by a third between runs as the laptop warms.",
   "proof": [
    {
-    "text": "docs/proof/U12_allon.txt: defaults 10.4 ms/frame; every option on 772 ms/frame (software renderer). GPU figure pending."
+    "text": "docs/proof/U12_allon.txt: GPU, 1500x950, every option on 24 ms/frame (42 fps); desktop defaults 17 ms (60 fps); phone defaults 12 ms. Was 76 ms (13 fps)."
    }
   ]
  },
@@ -713,6 +713,38 @@
    {
     "img": "proof/D1_help_link.png",
     "caption": "Help card with the link to the page"
+   }
+  ]
+ },
+ {
+  "id": "U13",
+  "area": "Interface and platform",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "On a less capable phone the graphics settings must adjust themselves the first time, so the frame rate is good enough.",
+  "check": "view/autoq.js. The first time the inside view is drawn, the tuner measures the wall-clock gap between frames over two-second windows (after a warm-up for shader compiles, ignoring hitches) and while the median is over 37 ms (30 fps with a tenth of slack) takes one thing off, cheapest loss first: bloom, refraction, full pixel density, shadows, resolution 80%, steam, resolution 65%, bubbles, resolution 50%. What it settled on is stored and put back on the next visit without measuring again. A box or the resolution slider set by hand is stored as the visitor’s own choice and ends tuning; Measure again re-runs it. Under automation (the gate and proof tools, on a software renderer) the tuner stands down unless ?tune=1 asks for it, so the proofs show the shipped settings. Verified in Chrome’s Pixel-class phone emulation throttled 8x: five rungs in 37 s, stored, restored on reload, overridden by hand, re-measured on request.",
+  "proof": [
+   {
+    "img": "proof/U13_tuned_panel.png",
+    "caption": "Phone, after tuning: what came off, and the rate before and after"
+   },
+   {
+    "text": "docs/proof/U13_tune.txt: the step log, the stored record, the reload, the hand override and the re-measure."
+   }
+  ]
+ },
+ {
+  "id": "U14",
+  "area": "Interface and platform",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "WATCH",
+  "req": "The simulation must run smoothly on a Pixel 10.",
+  "check": "Not yet measured on a Pixel 10: none is attached, and the Android emulator on the laptop became unreachable when a VPN cut loopback. The phone path draws one device pixel per CSS pixel with shadows, bloom and refraction off (418 draws, 387k triangles), which is 5 ms a frame on the laptop GPU under Pixel-class emulation; that is a floor, not a prediction. On the phone itself U13 measures the real frame gap and steps down until the median is under 37 ms. WATCH until a Pixel 10 number exists.",
+  "proof": [
+   {
+    "text": "docs/proof/U14_pixel10.txt: what is measured, what is not, and why."
    }
   ]
  }

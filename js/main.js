@@ -5,16 +5,17 @@
 // inside of the buildings in 3-D. Only one is on screen at a time.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { Sim } from './sim.js?v=dca3e57c37';
-import { Renderer } from './site/renderer.js?v=dca3e57c37';
-import { unproject } from './site/iso.js?v=dca3e57c37';
-import { Stage } from './view/stage.js?v=dca3e57c37';
-import { Unit, CUT_AZ } from './view/unit.js?v=dca3e57c37';
-import { Labels } from './view/labels.js?v=dca3e57c37';
-import { UI } from './ui.js?v=dca3e57c37';
-import { initPhysics } from './machines.js?v=dca3e57c37';
-import { state } from './view/state.js?v=dca3e57c37';
-import { clamp } from './util.js?v=dca3e57c37';
+import { Sim } from './sim.js?v=4b489aa4e2';
+import { Renderer } from './site/renderer.js?v=4b489aa4e2';
+import { unproject } from './site/iso.js?v=4b489aa4e2';
+import { Stage } from './view/stage.js?v=4b489aa4e2';
+import { Unit, CUT_AZ } from './view/unit.js?v=4b489aa4e2';
+import { Labels } from './view/labels.js?v=4b489aa4e2';
+import { UI } from './ui.js?v=4b489aa4e2';
+import { initPhysics } from './machines.js?v=4b489aa4e2';
+import { state } from './view/state.js?v=4b489aa4e2';
+import { AutoQ } from './view/autoq.js?v=4b489aa4e2';
+import { clamp } from './util.js?v=4b489aa4e2';
 
 const SPAN = 29;
 const siteCanvas = document.getElementById('site');
@@ -32,7 +33,7 @@ const GL_OK = (() => {
   try { return !!document.createElement('canvas').getContext('webgl2'); }
   catch (e) { return false; }
 })();
-let stage = null, units = [], labels = null;
+let stage = null, units = [], labels = null, autoq = null;
 if (!GL_OK) {
   const btn = document.querySelector('[data-view=plant]');
   btn.disabled = true;
@@ -68,7 +69,18 @@ function boot() {
     window.__units = units;
     window.__stage = stage;
     window.__labels = labels;
-    ui.bindStage(stage);
+    // The first-run tuner: measures the real frame rate the first time the
+    // inside view is drawn and takes options off until it is good enough.
+    // A driven browser (the proof and gate tools, on a software renderer)
+    // would have everything stripped off it, so the tuner stands down under
+    // automation unless ?tune=1 asks for it, and ?tune=0 stands it down
+    // anywhere.
+    autoq = new AutoQ(stage, { target: 30 });
+    const tune = new URLSearchParams(location.search).get('tune');
+    autoq.enabled = tune === '1' || (tune !== '0' && !navigator.webdriver);
+    if (tune !== '1') autoq.applySaved();
+    window.__autoq = autoq;
+    ui.bindStage(stage, autoq);
   }
   resize();
   sim.overview();
@@ -382,6 +394,7 @@ function frame(now) {
     stage.update(dt);
     labels.update();
     stage.render();
+    autoq.tick();
   } else {
     nudgeSite(dt);
     renderer.draw(sim);

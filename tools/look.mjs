@@ -3,23 +3,20 @@
  * Parks the camera on a named target and screenshots it big, so the fluids can
  * actually be judged rather than guessed at.
  */
-import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import { launch, TMP, URL } from './pw.mjs';
 import { mkdirSync } from 'node:fs';
 
 const shot = process.argv[2] || 'loop';
 const scen = process.argv[3] || '';
 const secs = Number(process.argv[4] || 6);
-const out = '/tmp/look';
+const out = `${TMP}/look`;
 mkdirSync(out, { recursive: true });
-const browser = await chromium.launch({
-  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
-  args: ['--no-sandbox', '--enable-unsafe-swiftshader', '--use-gl=swiftshader']
-});
+const browser = await launch();
 const page = await browser.newPage({ viewport: { width: 1500, height: 950 }, deviceScaleFactor: 1 });
 const errs = [];
 page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
 page.on('pageerror', (e) => errs.push(e.message));
-await page.goto('http://127.0.0.1:8099/index.html', { waitUntil: 'load' });
+await page.goto(URL, { waitUntil: 'load' });
 await page.waitForTimeout(5000);
 await page.evaluate(() => document.querySelector('#startBtn')?.click());
 await page.evaluate(() => document.querySelector('[data-view=plant]').click());

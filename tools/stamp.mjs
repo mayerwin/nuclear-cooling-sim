@@ -13,8 +13,9 @@
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const check = process.argv.includes('--check');
 
 function walk(dir, out = []) {
@@ -27,8 +28,11 @@ function walk(dir, out = []) {
 }
 const sources = walk('js').concat(['css/app.css']);
 
-// The hash is over the UNSTAMPED text, so re-running is idempotent.
-const strip = (t) => t.replace(/(\.(?:js|mjs|css))\?v=[0-9a-f]+/g, '$1');
+// The hash is over the UNSTAMPED text, so re-running is idempotent, and over
+// LF line endings, so a checkout with autocrlf on Windows stamps the same
+// value as the Linux box.
+const strip = (t) => t.replace(/\r\n/g, '\n').replace(/(\.(?:js|mjs|css))\?v=[0-9a-f]+/g, '$1');
+const eol = (t) => (t.includes('\r\n') ? '\r\n' : '\n');
 const h = createHash('sha256');
 for (const f of sources.slice().sort()) h.update(strip(readFileSync(join(ROOT, f), 'utf8')));
 const V = h.digest('hex').slice(0, 10);
@@ -36,6 +40,8 @@ const V = h.digest('hex').slice(0, 10);
 let changed = [];
 const put = (rel, text) => {
   const cur = readFileSync(join(ROOT, rel), 'utf8');
+  // Written back with the line endings the file had.
+  text = text.replace(/\n/g, eol(cur));
   if (cur === text) return;
   changed.push(rel);
   if (!check) writeFileSync(join(ROOT, rel), text);

@@ -10,15 +10,12 @@
  */
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, copyFileSync, existsSync, writeFileSync } from 'node:fs';
-import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import { launch, TMP, GPU, PYTHON, URL } from './pw.mjs';
 
 const what = process.argv[2] || 'all';
 const OUT = 'docs/proof';
 mkdirSync(OUT, { recursive: true });
 
-const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
-const ARGS = ['--no-sandbox', '--enable-unsafe-swiftshader', '--use-gl=swiftshader'];
-const URL = 'http://127.0.0.1:8099/index.html';
 
 // camera -> [outfile, crop box] (crop boxes are in the 1500x950 frame look.mjs makes)
 const CAMS = {
@@ -55,7 +52,7 @@ function run(cmd, args, env) {
 // '/tmp/look/<camera>.png', or '<camera>-<scenario>.png' for a scenario shot
 const shotOf = (spec) => {
   const [cam, scen] = spec.split(' ');
-  return `/tmp/look/${cam}${scen ? '-' + scen : ''}.png`;
+  return `${TMP}/look/${cam}${scen ? '-' + scen : ''}.png`;
 };
 
 async function page(browser, vp = { width: 1500, height: 950 }, opts = {}) {
@@ -66,7 +63,7 @@ async function page(browser, vp = { width: 1500, height: 950 }, opts = {}) {
 }
 
 async function specials() {
-  const browser = await chromium.launch({ executablePath: CHROME, args: ARGS });
+  const browser = await launch();
   // U2: the welcome card, exactly as a visitor sees it
   let p = await page(browser);
   await p.screenshot({ path: `${OUT}/U2_welcome.png` });
@@ -129,17 +126,34 @@ async function specials() {
   await p.evaluate(() => { const s = window.__stage;
     for (const k of Object.keys(s.q)) s.setQuality(k, true); });
   await p.waitForTimeout(3000);
-  const timing = async (label) => {
-    const ms = await p.evaluate(async () => { const s = window.__stage; const N = 10; const t0 = performance.now();
-      for (let i = 0; i < N; i++) s.render(); await new Promise((r) => requestAnimationFrame(r));
-      return (performance.now() - t0) / N; });
-    return `${label}: ${ms.toFixed(1)} ms/frame`;
+  // Timed by the gaps between animation frames, which is what a person sees.
+  // Calling render() in a loop and timing it measures how fast the calls are
+  // submitted, and on a GPU that is not the frame at all.
+  const timing = async (label, secs) => {
+    const r = await p.evaluate(async (secs) => {
+      await new Promise((r) => requestAnimationFrame(r));
+      const dts = []; let last = performance.now(); const t0 = last;
+      await new Promise((res) => { const f = (t) => { dts.push(t - last); last = t;
+        if (t - t0 < secs * 1000) requestAnimationFrame(f); else res(); }; requestAnimationFrame(f); });
+      const mean = dts.reduce((a, b) => a + b, 0) / dts.length;
+      const st = window.__stage.stats();
+      return { ms: mean, calls: st.calls, px: st.px };
+    }, secs);
+    return `${label}: ${r.ms.toFixed(1)} ms/frame (${(1000 / r.ms).toFixed(0)} fps, ${r.calls} draws, ${r.px.toFixed(2)}x pixels)`;
   };
-  const allOn = await timing('every option on');
+  const gpu = await p.evaluate(() => { const gl = window.__stage.renderer.getContext();
+    const d = gl.getExtension('WEBGL_debug_renderer_info');
+    return d ? gl.getParameter(d.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); });
+  const secs = GPU ? 3 : 1;
+  const allOn = await timing('every option on', secs);
   await p.evaluate(() => { const s = window.__stage; for (const k of ['refraction', 'bloom', 'shadows', 'hidpi']) s.setQuality(k, false); });
   await p.waitForTimeout(1500);
-  const defaults = await timing('defaults');
-  writeFileSync(`${OUT}/U12_allon.txt`, `Software renderer (SwiftShader), 1500x950, this build.\n${allOn}\n${defaults}\n`);
+  const defaults = await timing('defaults', secs);
+  await p.evaluate(() => { const s = window.__stage; for (const k of ['shadows', 'hidpi']) s.setQuality(k, true); });
+  await p.waitForTimeout(1500);
+  const desk = await timing('desktop defaults', secs);
+  writeFileSync(`${OUT}/U12_allon.txt`,
+    `${GPU ? 'GPU' : 'Software renderer (SwiftShader)'}: ${gpu}\n1500x950, vsync off, this build, ${new Date().toISOString().slice(0, 10)}.\n${allOn}\n${desk}\n${defaults}\n`);
   await browser.close();
 }
 
@@ -147,22 +161,22 @@ function cameras() {
   for (const spec of Object.keys(CAMS)) run('node', ['tools/look.mjs', ...spec.split(' ')]);
   // The plain pump shot is kept aside: the refraction shot below reuses its
   // camera and would otherwise overwrite it before the crops are cut.
-  copyFileSync('/tmp/look/pump.png', '/tmp/look/pump-plain.png');
+  copyFileSync(`${TMP}/look/pump.png`, `${TMP}/look/pump-plain.png`);
   const plan = [];
   for (const [spec, outs] of Object.entries(CAMS)) {
-    const src = spec === 'pump' ? '/tmp/look/pump-plain.png' : shotOf(spec);
+    const src = spec === 'pump' ? `${TMP}/look/pump-plain.png` : shotOf(spec);
     for (const [name, box] of outs) plan.push({ src, out: `${OUT}/${name}.png`, box });
   }
   plan.push({ src: `${OUT}/G17_break_full.png`, out: `${OUT}/G17_break.png`, box: [440, 420, 860, 800] });
   // U10: the same pump with real refraction switched on. Taken last, because
   // it overwrites the plain pump shot the F9 and G5 crops were cut from.
   run('node', ['tools/look.mjs', 'pump'], { REFRACT: '1' });
-  plan.push({ src: '/tmp/look/pump.png', out: `${OUT}/U10_refraction.png`, box: [450, 300, 1100, 780] });
-  writeFileSync('/tmp/proof-plan.json', JSON.stringify(plan));
-  run('python3', ['-c', `
+  plan.push({ src: `${TMP}/look/pump.png`, out: `${OUT}/U10_refraction.png`, box: [450, 300, 1100, 780] });
+  writeFileSync(`${TMP}/proof-plan.json`, JSON.stringify(plan));
+  run(PYTHON[0], [...PYTHON.slice(1), '-c', `
 import json
 from PIL import Image
-for j in json.load(open('/tmp/proof-plan.json')):
+for j in json.load(open(r'${TMP}/proof-plan.json')):
     try:
         Image.open(j['src']).crop(tuple(j['box'])).save(j['out'])
     except Exception as e:
@@ -172,5 +186,5 @@ for j in json.load(open('/tmp/proof-plan.json')):
 
 if (what === 'all' || what === 'specials') await specials();
 if (what === 'all' || what === 'cameras') cameras();
-if (existsSync('/tmp/check/phone-inside.png')) copyFileSync('/tmp/check/phone-inside.png', `${OUT}/U1_phone_inside_gate.png`);
+if (existsSync(`${TMP}/check/phone-inside.png`)) copyFileSync(`${TMP}/check/phone-inside.png`, `${OUT}/U1_phone_inside_gate.png`);
 console.log('proof written to', OUT);
