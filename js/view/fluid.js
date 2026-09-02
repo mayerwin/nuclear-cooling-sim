@@ -12,18 +12,38 @@
 import * as THREE from 'three';
 
 // --- tiling normal maps -----------------------------------------------------
-// Sum of sines on integer frequencies, so the pattern wraps exactly. Central
-// differences turn the height field into a normal map.
-function normalMap(N, waves, strength) {
+// Fractional Brownian motion on a wrapping lattice, so the pattern tiles
+// exactly and repeats nowhere. It USED to be a sum of sines on integer
+// frequencies, and a sum of sines is a set of regular ridges: on a pipe that is
+// corrugated hose, on a vessel it is corduroy. Water has no ridges. Five
+// octaves of value noise with quintic interpolation gives the aperiodic, soft,
+// multi-scale relief that real-time water shaders are built on; ax and ay
+// stretch the lattice so flow can have long features along the bore and short
+// ones across it. Central differences turn the height field into normals.
+function fbm(N, seed, { octaves = 5, ax = 4, ay = 4, gain = 0.5 } = {}) {
+  const r = rnd(seed);
   const h = new Float32Array(N * N);
-  for (const w of waves) {
-    const [fx, fy, amp, ph] = w;
+  const q = (t) => t * t * t * (t * (t * 6 - 15) + 10);
+  let amp = 1, fx = ax, fy = ay;
+  for (let o = 0; o < octaves; o++) {
+    const Lx = Math.max(1, Math.round(fx)), Ly = Math.max(1, Math.round(fy));
+    const lat = new Float32Array(Lx * Ly);
+    for (let i = 0; i < lat.length; i++) lat[i] = r() * 2 - 1;
+    const at = (i, j) => lat[((j % Ly) + Ly) % Ly * Lx + ((i % Lx) + Lx) % Lx];
     for (let y = 0; y < N; y++) {
+      const gy = y / N * Ly, jy = Math.floor(gy), ty = q(gy - jy);
       for (let x = 0; x < N; x++) {
-        h[y * N + x] += amp * Math.sin(2 * Math.PI * (fx * x / N + fy * y / N) + ph);
+        const gx = x / N * Lx, ix = Math.floor(gx), tx = q(gx - ix);
+        const a = at(ix, jy), b = at(ix + 1, jy), c = at(ix, jy + 1), d = at(ix + 1, jy + 1);
+        h[y * N + x] += amp * ((a + (b - a) * tx) * (1 - ty) + (c + (d - c) * tx) * ty);
       }
     }
+    amp *= gain; fx *= 2; fy *= 2;
   }
+  return h;
+}
+
+function normalMap(N, h, strength) {
   const data = new Uint8Array(N * N * 4);
   const at = (x, y) => h[((y + N) % N) * N + ((x + N) % N)];
   for (let y = 0; y < N; y++) {
@@ -60,12 +80,8 @@ let FLOW = null, RIPPLE = null;
 // moving down a bore actually looks.
 export function flowNormal() {
   if (!FLOW) {
-    const r = rnd(20110311), waves = [];
-    for (let i = 0; i < 9; i++) {
-      waves.push([1 + ((r() * 3) | 0), 2 + ((r() * 7) | 0),
-        (0.5 + r() * 0.5) / (1 + i * 0.55), r() * 6.283]);
-    }
-    FLOW = normalMap(256, waves, 5.5);
+    // Long along the bore, short across it: a two-to-nine lattice.
+    FLOW = normalMap(256, fbm(256, 20110311, { ax: 2, ay: 9 }), 2.6);
   }
   return FLOW;
 }
@@ -73,12 +89,7 @@ export function flowNormal() {
 // Isotropic: a free surface with wind on it.
 export function rippleNormal() {
   if (!RIPPLE) {
-    const r = rnd(19790328), waves = [];
-    for (let i = 0; i < 10; i++) {
-      waves.push([1 + ((r() * 6) | 0), 1 + ((r() * 6) | 0),
-        (0.5 + r() * 0.5) / (1 + i * 0.5), r() * 6.283]);
-    }
-    RIPPLE = normalMap(256, waves, 4.5);
+    RIPPLE = normalMap(256, fbm(256, 19790328, { ax: 4, ay: 4 }), 2.4);
   }
   return RIPPLE;
 }
@@ -117,7 +128,11 @@ export function liquidMaterial(dia) {
     // small, very bright streak, and where a pipe met a vessel that streak sat
     // across the joint as a white dart with bloom on top of it. Water is
     // slightly rough, and a slightly rough highlight is a sheen instead.
-    roughness: 0.28,
+    // Water under flow is SMOOTH. Rough, with a strong normal map, the pipes
+    // came out as corrugated rubber tubing: chunky ribs marching down the bore.
+    // Glossy, with the ripple turned well down, what moves is glints on a
+    // smooth body, which is what a pipe of water looks like.
+    roughness: 0.1,
     metalness: 0,
     // NO SCREEN-SPACE REFRACTION. See the note on REFRACTION below: this model
     // carried seventy-three transmissive materials, and what a body of water
@@ -129,12 +144,12 @@ export function liquidMaterial(dia) {
     attenuationColor: new THREE.Color(LIQUID.COLD),
     attenuationDistance: dia * 2.4,
     normalMap: n,
-    normalScale: new THREE.Vector2(0.42, 0.42),
+    normalScale: new THREE.Vector2(0.14, 0.14),
     // A mirror-smooth clearcoat turns every pipe into one blown-out highlight
     // under the key light, and the bloom pass then eats the machine behind it.
-    clearcoat: LOWFX ? 0 : 0.22,
-    clearcoatRoughness: 0.42,
-    envMapIntensity: 0.42,
+    clearcoat: LOWFX ? 0 : 0.3,
+    clearcoatRoughness: 0.18,
+    envMapIntensity: 0.55,
     emissive: new THREE.Color(0x081d33),
     emissiveIntensity: 0.3,
     transparent: false,
@@ -350,7 +365,7 @@ export function surfaceMaterial(depth = 4) {
     opacity: 1,
     ior: 1.333, thickness: depth * 0.22,
     attenuationColor: new THREE.Color(LIQUID.COLD), attenuationDistance: depth * 2.6,
-    normalMap: n, normalScale: new THREE.Vector2(0.16, 0.16),
+    normalMap: n, normalScale: new THREE.Vector2(0.09, 0.09),
     clearcoat: LOWFX ? 0 : 0.25, clearcoatRoughness: 0.22,
     envMapIntensity: 0.6,
     emissive: new THREE.Color(0x08243d), emissiveIntensity: 0.12,

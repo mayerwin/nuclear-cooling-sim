@@ -13,9 +13,9 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { build as buildMaterials } from './materials.js?v=18a1a85940';
+import { build as buildMaterials } from './materials.js?v=a4a7aae0b1';
 import { surfaceMaterial, setGradient, rippleNormal, LOWFX, FLUID_TIME,
-  twoOctaveFlow, SEA_TILE } from './fluid.js?v=18a1a85940';
+  twoOctaveFlow, SEA_TILE } from './fluid.js?v=a4a7aae0b1';
 
 // A vertical sky gradient, baked once into an equirectangular strip.
 function skyTexture() {
@@ -42,8 +42,10 @@ export class Stage {
     // context and the view goes black. Everything scales down on mobile.
     const mobile = LOWFX;
     this.mobile = mobile;
+    // A stencil buffer, because the cut faces of the containment are drawn by
+    // stencil (see section.js), and since r163 nothing has one unless it asks.
     this.renderer = new THREE.WebGLRenderer({
-      antialias: !mobile, powerPreference: 'high-performance' });
+      antialias: !mobile, powerPreference: 'high-performance', stencil: true });
     // One device pixel per pixel on a handset. At 3x the same frame costs nine
     // times the fill, and this scene is fill-bound.
     this.renderer.setPixelRatio(Math.min(mobile ? 1 : 2, window.devicePixelRatio || 1));
@@ -132,7 +134,10 @@ export class Stage {
       reflections: true, hidpi: !mobile, particles: true, steam: true
     };
 
-    this.composer = new EffectComposer(this.renderer);
+    const target = new THREE.WebGLRenderTarget(1, 1, {
+      type: THREE.HalfFloatType, stencilBuffer: true, depthBuffer: true,
+      samples: mobile ? 0 : 4 });
+    this.composer = new EffectComposer(this.renderer, target);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.16, 0.5, 2.1);
     this.composer.addPass(this.bloom);

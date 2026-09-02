@@ -7,12 +7,13 @@
 // in at the water.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=18a1a85940';
+import { pipe, vessel, tube, slab, railing, V, roundedPath } from './parts.js?v=a4a7aae0b1';
 import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles,
-  frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=18a1a85940';
-import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=18a1a85940';
-import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=18a1a85940';
-import { Machines } from '../machines.js?v=18a1a85940';
+  frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=a4a7aae0b1';
+import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=a4a7aae0b1';
+import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=a4a7aae0b1';
+import { Machines } from '../machines.js?v=a4a7aae0b1';
+import { SectionCap } from './section.js?v=a4a7aae0b1';
 
 const R_IN = 15.4, WALL = 1.0, SHELL_H = 31, DOME_R = R_IN + WALL;
 
@@ -438,40 +439,26 @@ export class Unit {
       return mesh;
     };
     const TAU = Math.PI * 2;
+    // Everything that bounds the concrete goes into the section pass as well,
+    // so the plane's cut through it can be capped. See section.js: this is
+    // what makes a metre of wall read as a metre of wall rather than as two
+    // skins with a gap between them.
+    this.section = new SectionCap(this.cut[0]);
+    const shell = [];
     for (const [r, mat] of [[R_IN + WALL, m.concrete], [R_IN, m.liner]]) {
-      band(r, 0, 9, mat, 0, TAU);
-      band(r, 22, SHELL_H, mat, 0, TAU);
-      band(r, 9, 22, mat, bA + halfW, TAU - halfW * 2);
+      const inward = r === R_IN;
+      shell.push([band(r, 0, 9, mat, 0, TAU), inward]);
+      shell.push([band(r, 22, SHELL_H, mat, 0, TAU), inward]);
+      shell.push([band(r, 9, 22, mat, bA + halfW, TAU - halfW * 2), inward]);
     }
-    // The wall's thickness, filled in where the wedge is cut out of it. Two
-    // open cylinders a metre apart are what a wall is made of, but a clipped
-    // solid is not capped, so at the opening you were looking at two thin
-    // skins with a gap between them and the building read as hollow.
-    //
-    // The DOME's edge is deliberately left open. Capping it needs a quarter
-    // arch, and a quarter arch runs from the springline over the crown of the
-    // building - a concrete band straight down the middle of the picture, in
-    // front of the reactor. A wall that reads a little thin where it curves
-    // out of sight costs nothing; that band costs the whole view.
-    {
-      // The near cut face lands square in the middle of the frame - the two
-      // faces of a wedge meet on the building's own axis, so one of them
-      // always does. In the outer concrete's brown it was a stripe down the
-      // picture; in the liner's pale grey it reads as the edge of the wall,
-      // which is what it is.
-      const capMat = m.concrete.clone();
-      capMat.clippingPlanes = [];
-      capMat.color.setHex(0x9aa2a8);
-      capMat.side = THREE.DoubleSide;
-      for (const [px, pz, ry] of [[R_IN + WALL / 2, 0, 0],
-        [0, R_IN + WALL / 2, Math.PI / 2]]) {
-        const cap = new THREE.Mesh(new THREE.PlaneGeometry(WALL, SHELL_H), capMat);
-        cap.rotation.y = ry;
-        cap.position.set(px, SHELL_H / 2, pz);
-        cap.receiveShadow = true;
-        g.add(cap);
-      }
-    }
+    // The wall stands on the slab, and the shell has to be CLOSED for the
+    // stencil count to mean anything: an annulus across the bottom joins the
+    // outer skin to the inner one.
+    const foot = new THREE.Mesh(
+      new THREE.RingGeometry(R_IN, R_IN + WALL, 96, 1).rotateX(-Math.PI / 2), m.concrete);
+    foot.position.y = 0.01;
+    g.add(foot);
+    shell.push([foot, true]);
     this.plug = new THREE.Group();
     for (const [r, mat] of [[R_IN + WALL, m.concrete], [R_IN, m.liner]]) {
       const mesh = new THREE.Mesh(
@@ -479,8 +466,12 @@ export class Unit {
       mesh.position.y = 15.5;
       mesh.castShadow = true;
       this.plug.add(mesh);
+      // its stencil twins live in the same group, so a torn wall loses its cap
+      // along with its concrete
+      for (const t of this.section.mirror(mesh, r === R_IN)) this.plug.add(t);
     }
     g.add(this.plug);
+    for (const [mesh, inward] of shell) for (const t of this.section.mirror(mesh, inward)) g.add(t);
     this.breachAz = bA;
     this.tear = new THREE.Group();
     const tearMat = new THREE.MeshStandardMaterial({
@@ -530,6 +521,17 @@ export class Unit {
     domeIn.position.y = SHELL_H;
     g.add(domeIn);
     this.dome = dome; this.domeIn = domeIn;
+    for (const t of this.section.mirror(dome)) g.add(t);
+    for (const t of this.section.mirror(domeIn, true)) g.add(t);
+    // and the face itself. The cut plane is z = 0 in the unit's own frame (the
+    // whole station is turned so the plane faces the camera), so the quad
+    // lies in the xy plane, big enough to cover the building and its dome.
+    {
+      const capMat = new THREE.MeshStandardMaterial({
+        color: 0x8d9296, roughness: 0.95, metalness: 0.02 });
+      g.add(this.section.cap(2 * DOME_R + 4, SHELL_H + DOME_R + 4,
+        new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, (SHELL_H + DOME_R) / 2, 0), capMat));
+    }
 
     //
     // There were twenty-eight buttresses standing up the outside of the wall
@@ -860,12 +862,12 @@ export class Unit {
     // breadth inside the chamber wall, where it showed through the water as a
     // flat pale rectangle. They run on to the divider plate instead, so what
     // you see is one body of water changing shape, not a pipe stopping.
-    this.hot = pipe([V(r.x - 2.4, HOT_Y, r.z), V(s.x + 0.5, HOT_Y, s.z)],
+    this.hot = pipe([V(r.x - 2.4, HOT_Y, r.z), V(s.x + 0.1, HOT_Y, s.z)],
       1.1, m, { bend: 1.0 });
     g.add(this.hot.group);
 
     this.cold = pipe([
-      V(s.x - 0.5, XOVER_Y, s.z), V(s.x - 3.6, XOVER_Y, s.z),
+      V(s.x - 0.1, XOVER_Y, s.z), V(s.x - 3.6, XOVER_Y, s.z),
       V(s.x - 3.6, 5.4, s.z), V(p.x, 5.4, p.z), V(p.x, COLD_Y - 0.6, p.z)
     ], 1.0, m, { bend: 1.5 });
     g.add(this.cold.group);
@@ -1411,22 +1413,15 @@ export class Unit {
     // The stack is the vent line itself, standing up on a frame. A fat grey
     // column beside the building teaches nothing and takes the skyline; a pipe
     // going up says what it is, which is the one way out of the containment.
+    // No stack. A drum on the ground with a funnel hanging in the sky twenty
+    // metres above it was two objects and no connection, and a column between
+    // them was one object nobody wanted. The vent is a hole in the wall with a
+    // line out of it that turns up and clears the roof, and that is all a vent
+    // needs to be.
     const st = L.stack;
-    const stackBase = tube(1.5, 1.9, 1.4, this.stage.mat.deck, 20);
-    stackBase.position.set(st.x, 0.7, st.z);
-    g.add(stackBase);
-    const mouth = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 0.55, 1.6, 20, 1, true),
-      this.stage.mat.painted);
-    mouth.material.side = THREE.DoubleSide;
-    mouth.position.set(st.x, st.h + 0.4, st.z);
-    g.add(mouth);
-    // It stops FLUSH with the inside face of the wall: a hole in the
-    // containment and a line running away from it. Started a couple of metres
-    // further in it was a stub sticking out of the wall into the building,
-    // which is a spur joined to nothing.
     const VY = 26;
     this.vent = pipe([
-      V(-R_IN, VY, 0), V(st.x, VY, st.z), V(st.x, st.h, st.z)
+      V(-R_IN, VY, 0), V(-R_IN - 3.2, VY, 0), V(-R_IN - 3.2, st.h, 0)
     ], 0.8, m, { bend: 1.6, steam: true });
     this.legVent = new Leg('vent', 0.8, 1, { rho: FLUID.rhoSteam, kind: 'steam' });
     this.vent.kindBreak = 'vent';
@@ -1708,8 +1703,8 @@ export class Unit {
 // ---------------------------------------------------------------------------
 // per frame: solve the flows, step the machines, and let the geometry follow
 // ---------------------------------------------------------------------------
-import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=18a1a85940';
-import { Plume, PuffCloud } from './plume.js?v=18a1a85940';
+import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=a4a7aae0b1';
+import { Plume, PuffCloud } from './plume.js?v=a4a7aae0b1';
 
 Object.assign(Unit.prototype, {
 

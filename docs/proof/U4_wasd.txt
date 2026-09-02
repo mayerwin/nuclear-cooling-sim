@@ -1,0 +1,2 @@
+camera before: {"x":26,"y":26}
+camera after A then W: {"x":-4.2409268292686,"y":15.882097560975852}

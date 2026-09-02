@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Requirements register</title>
+<style>
+  :root { color-scheme: light dark; --bg:#0f1418; --card:#161d23; --line:#263038; --ink:#dfe7ee; --dim:#8fa0ad;
+          --done:#3ddc84; --open:#ff7a59; --watch:#ffc857; }
+  @media (prefers-color-scheme: light) { :root { --bg:#f4f6f8; --card:#fff; --line:#dbe2e8; --ink:#141a1f; --dim:#5b6b78; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  header { padding:22px 28px 10px; }
+  h1 { margin:0 0 4px; font-size:22px; letter-spacing:.2px; }
+  .sub { color:var(--dim); }
+  .tally span { display:inline-block; margin-right:14px; font-weight:600; }
+  .tally .DONE { color:var(--done); } .tally .OPEN { color:var(--open); } .tally .WATCH { color:var(--watch); }
+  .bar { display:flex; gap:10px; flex-wrap:wrap; padding:10px 28px 16px; position:sticky; top:0; background:var(--bg); z-index:2; border-bottom:1px solid var(--line); }
+  .bar input, .bar select { background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit; }
+  .bar input { min-width:260px; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; vertical-align:top; padding:12px 14px; border-bottom:1px solid var(--line); }
+  th { position:sticky; top:58px; background:var(--bg); cursor:pointer; user-select:none; color:var(--dim); font-weight:600; font-size:12px; letter-spacing:.06em; text-transform:uppercase; }
+  th.on::after { content:" \25BE"; } th.on.asc::after { content:" \25B4"; }
+  td.id { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; white-space:nowrap; color:var(--dim); }
+  .st { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700; letter-spacing:.04em; }
+  .st.DONE { background:rgba(61,220,132,.16); color:var(--done); } .st.OPEN { background:rgba(255,122,89,.16); color:var(--open); } .st.WATCH { background:rgba(255,200,87,.16); color:var(--watch); }
+  .req { font-weight:600; } .check { color:var(--dim); margin-top:4px; }
+  .proof { display:flex; gap:8px; flex-wrap:wrap; }
+  .proof a { display:block; }
+  .proof img { height:96px; border-radius:6px; border:1px solid var(--line); background:#000; display:block; }
+  .proof small { display:block; color:var(--dim); font-size:11px; max-width:170px; }
+  .none { color:var(--open); font-size:12px; }
+  .txt { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; color:var(--dim); white-space:pre-wrap; max-width:340px; background:var(--card); border:1px solid var(--line); border-radius:6px; padding:6px 8px; }
+  tr.hide { display:none; }
+  td.date { white-space:nowrap; color:var(--dim); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Requirements register</h1>
+  <div class="sub">Every piece of review feedback on the visualisation, with the check that closes it and a screenshot as proof. Built 2026-09-02 from <code>docs/requirements.json</code>.</div>
+  <div class="tally"><span class="DONE">36 DONE</span><span class="WATCH">2 WATCH</span><span class="OPEN">0 OPEN</span></div>
+</header>
+<div class="bar">
+  <input id="q" placeholder="Filter text (requirement, check, id)">
+  <select id="area"><option value="">All areas</option><option>Fluids and colour</option><option>Geometry and clutter</option><option>Interface and platform</option></select>
+  <select id="status"><option value="">All statuses</option><option>DONE</option><option>WATCH</option><option>OPEN</option></select>
+</div>
+<table id="t">
+<thead><tr>
+  <th data-k="id">Id</th><th data-k="area">Area</th><th data-k="req">Requirement</th>
+  <th data-k="status">Status</th><th data-k="raised">Raised</th><th data-k="verified">Verified</th><th>Proof</th>
+</tr></thead>
+<tbody>
+<tr data-id="F1" data-area="Fluids and colour" data-req="Particles in the water must read as flowing water, not as bubbles or white balls." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f1 fluids and colour particles in the water must read as flowing water, not as bubbles or white balls. look head: tracers are streaks along the bore. root cause was `mats.fleck` missing from the unit's material table, so three fell back to a white meshbasicmaterial.">
+  <td class="id">F1</td>
+  <td>Fluids and colour</td>
+  <td><div class="req">Particles in the water must read as flowing water, not as bubbles or white balls.</div><div class="check">look head: tracers are streaks along the bore. Root cause was `mats.fleck` missing from the unit's material table, so Three fell back to a white MeshBasicMaterial.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/F1_tracers.png" target="_blank"><img src="proof/F1_tracers.png" alt="" loading="lazy"><small>Channel head: streaks, not beads</small></a></div></td>
+</tr>
+<tr data-id="F2" data-area="Fluids and colour" data-req="Colours must NEVER change suddenly; every change is a gradient." data-status="WATCH" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f2 fluids and colour colours must never change suddenly; every change is a gradient. one recipe everywhere: fluidcolour(u) + paintfluid(mat, c0, c1). any new call site that mixes its own colour breaks this, hence watch.">
+  <td class="id">F2</td>
+  <td>Fluids and colour</td>
+  <td><div class="req">Colours must NEVER change suddenly; every change is a gradient.</div><div class="check">One recipe everywhere: fluidColour(u) + paintFluid(mat, c0, c1). Any new call site that mixes its own colour breaks this, hence WATCH.</div></td>
+  <td><span class="st WATCH">WATCH</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/F2_gradient.png" target="_blank"><img src="proof/F2_gradient.png" alt="" loading="lazy"><small>Sea water warming across the tube bank</small></a></div></td>
+</tr>
+<tr data-id="F3" data-area="Fluids and colour" data-req="The condensate is the same temperature as the water going back to the boiler, so it must be the same colour, and the tank below the turbine must look full of water, not painted walls." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f3 fluids and colour the condensate is the same temperature as the water going back to the boiler, so it must be the same colour, and the tank below the turbine must look full of water, not painted walls. look sump: pool and suction line painted from one call; measured within 7% per channel before the shading rework, same recipe since.">
+  <td class="id">F3</td>
+  <td>Fluids and colour</td>
+  <td><div class="req">The condensate is the same temperature as the water going back to the boiler, so it must be the same colour, and the tank below the turbine must look full of water, not painted walls.</div><div class="check">look sump: pool and suction line painted from one call; measured within 7% per channel before the shading rework, same recipe since.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/F3_condensate.png" target="_blank"><img src="proof/F3_condensate.png" alt="" loading="lazy"><small>Condensate pool and its suction line</small></a></div></td>
+</tr>
+<tr data-id="F4" data-area="Fluids and colour" data-req="Water must visibly become more orangish towards the top of the reactor, realistically, not paint in front." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f4 fluids and colour water must visibly become more orangish towards the top of the reactor, realistically, not paint in front. look rpv: vertical ramp on the body of the water, cold at the bottom of the vessel to amber at the surface.">
+  <td class="id">F4</td>
+  <td>Fluids and colour</td>
+  <td><div class="req">Water must visibly become more orangish towards the top of the reactor, realistically, not paint in front.</div><div class="check">look rpv: vertical ramp on the body of the water, cold at the bottom of the vessel to amber at the surface.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/F4_reactor.png" target="_blank"><img src="proof/F4_reactor.png" alt="" loading="lazy"><small>Reactor: blue at the bottom, amber at the top</small></a></div></td>
+</tr>
+<tr data-id="F5" data-area="Fluids and colour" data-req="Steam speed in the pipe must be consistent with the steam in the boiler; fluid speeds consistent overall." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f5 fluids and colour steam speed in the pipe must be consistent with the steam in the boiler; fluid speeds consistent overall. one compression law drawv(v) = 2.6 * |v|^0.55 drives every scroll, tracer, riser and vapour cloud.">
+  <td class="id">F5</td>
+  <td>Fluids and colour</td>
+  <td><div class="req">Steam speed in the pipe must be consistent with the steam in the boiler; fluid speeds consistent overall.</div><div class="check">One compression law drawV(v) = 2.6 * |v|^0.55 drives every scroll, tracer, riser and vapour cloud.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/F5_speeds.png" target="_blank"><img src="proof/F5_speeds.png" alt="" loading="lazy"><small>Boiler and its steam line</small></a><div class="txt">js/view/unit.js: drawV() is the only speed mapping; grep -n 'drawV(' shows every scroll and tracer uses it.</div></div></td>
+</tr>
+<tr data-id="F6" data-area="Fluids and colour" data-req="Junctions between pipe and vessel must be seamless: no colour step, no grey rod, no sleeve, no 'dark orange pipe and light orange tank'." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f6 fluids and colour junctions between pipe and vessel must be seamless: no colour step, no grey rod, no sleeve, no 'dark orange pipe and light orange tank'. look head: hot and cold legs run to the divider plate inside the head; all ten collars deleted; one colour call per junction.">
+  <td class="id">F6</td>
+  <td>Fluids and colour</td>
+  <td><div class="req">Junctions between pipe and vessel must be seamless: no colour step, no grey rod, no sleeve, no 'dark orange pipe and light orange tank'.</div><div class="check">look head: hot and cold legs run to the divider plate inside the head; all ten collars deleted; one colour call per junction.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/F6_junction.png" target="_blank"><img src="proof/F6_junction.png" alt="" loading="lazy"><small>Hot and cold legs entering the channel head</small></a></div></td>
+</tr>
+<tr data-id="F7" data-area="Fluids and colour" data-req="The incoming water pipe must be seamless and properly connected to the rest." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f7 fluids and colour the incoming water pipe must be seamless and properly connected to the rest. look dome: the feed line runs to a ring at the head of the downcomer and the water runs down the sheet from there.">
+  <td class="id">F7</td>
+  <td>Fluids and colour</td>
+  <td><div class="req">The incoming water pipe must be seamless and properly connected to the rest.</div><div class="check">look dome: the feed line runs to a ring at the head of the downcomer and the water runs down the sheet from there.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/F7_feed.png" target="_blank"><img src="proof/F7_feed.png" alt="" loading="lazy"><small>Feed line into the boiler</small></a></div></td>
+</tr>
+<tr data-id="F8" data-area="Fluids and colour" data-req="The blue pipe into the boiler must look like fluid going into a bigger tank." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f8 fluids and colour the blue pipe into the boiler must look like fluid going into a bigger tank. look dome.">
+  <td class="id">F8</td>
+  <td>Fluids and colour</td>
+  <td><div class="req">The blue pipe into the boiler must look like fluid going into a bigger tank.</div><div class="check">look dome.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/F8_feed_tank.png" target="_blank"><img src="proof/F8_feed_tank.png" alt="" loading="lazy"><small>Boiler feed</small></a></div></td>
+</tr>
+<tr data-id="F9" data-area="Fluids and colour" data-req="Water must be rendered the way games and physical simulations render fluids: a clean, standard model, not a hack. 'No game would ship such poor graphics.'" data-status="WATCH" data-raised="2026-09-02" data-verified="2026-09-02" data-text="f9 fluids and colour water must be rendered the way games and physical simulations render fluids: a clean, standard model, not a hack. 'no game would ship such poor graphics.' standard real-time water model: two-octave flow map (aperiodic fbm, anisotropic along the bore), beer-lambert absorption by path length, fresnel edge, glossy specular; refraction available as a toggle. marked watch because the bar is 'game quality' and reflections of surroundings are still off by default for frame rate.">
+  <td class="id">F9</td>
+  <td>Fluids and colour</td>
+  <td><div class="req">Water must be rendered the way games and physical simulations render fluids: a clean, standard model, not a hack. 'No game would ship such poor graphics.'</div><div class="check">Standard real-time water model: two-octave flow map (aperiodic FBM, anisotropic along the bore), Beer-Lambert absorption by path length, Fresnel edge, glossy specular; refraction available as a toggle. Marked WATCH because the bar is 'game quality' and reflections of surroundings are still off by default for frame rate.</div></td>
+  <td><span class="st WATCH">WATCH</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/F9_fluid_pump.png" target="_blank"><img src="proof/F9_fluid_pump.png" alt="" loading="lazy"><small>Pump body</small></a><a href="proof/F9_fluid_unit.png" target="_blank"><img src="proof/F9_fluid_unit.png" alt="" loading="lazy"><small>Whole unit</small></a></div></td>
+</tr>
+<tr data-id="F10" data-area="Fluids and colour" data-req="If sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f10 fluids and colour if sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor. look turbine: intake at 0.02 of the ramp, outfall at 0.64 to 0.70, reactor at 0.75.">
+  <td class="id">F10</td>
+  <td>Fluids and colour</td>
+  <td><div class="req">If sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor.</div><div class="check">look turbine: intake at 0.02 of the ramp, outfall at 0.64 to 0.70, reactor at 0.75.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/F10_outfall.png" target="_blank"><img src="proof/F10_outfall.png" alt="" loading="lazy"><small>Outfall amber, intake blue</small></a></div></td>
+</tr>
+<tr data-id="F11" data-area="Fluids and colour" data-req="The INCOMING sea water is colder than the outgoing water and must be blue, not orange." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="f11 fluids and colour the incoming sea water is colder than the outgoing water and must be blue, not orange. the first tube pass flows right-to-left against its left-to-right geometry, so its gradient is reversed; the inlet box is blue below the divider and amber above.">
+  <td class="id">F11</td>
+  <td>Fluids and colour</td>
+  <td><div class="req">The INCOMING sea water is colder than the outgoing water and must be blue, not orange.</div><div class="check">The first tube pass flows right-to-left against its left-to-right geometry, so its gradient is reversed; the inlet box is blue below the divider and amber above.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/F11_intake.png" target="_blank"><img src="proof/F11_intake.png" alt="" loading="lazy"><small>Intake blue where the sea arrives</small></a></div></td>
+</tr>
+<tr data-id="F12" data-area="Fluids and colour" data-req="The sea must look like one seamless surface, no patches with different textures." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="f12 fluids and colour the sea must look like one seamless surface, no patches with different textures. open sea, forebay and channel all set their ripple repeat from sea_tile and share the two-octave flow.">
+  <td class="id">F12</td>
+  <td>Fluids and colour</td>
+  <td><div class="req">The sea must look like one seamless surface, no patches with different textures.</div><div class="check">Open sea, forebay and channel all set their ripple repeat from SEA_TILE and share the two-octave flow.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/F12_sea.png" target="_blank"><img src="proof/F12_sea.png" alt="" loading="lazy"><small>Forebay and open sea</small></a></div></td>
+</tr>
+<tr data-id="G1" data-area="Geometry and clutter" data-req="Get rid of the network of pipes around the concrete container; they connect to nothing." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g1 geometry and clutter get rid of the network of pipes around the concrete container; they connect to nothing. 28 buttresses removed; steam and feed leave the containment in one corner.">
+  <td class="id">G1</td>
+  <td>Geometry and clutter</td>
+  <td><div class="req">Get rid of the network of pipes around the concrete container; they connect to nothing.</div><div class="check">28 buttresses removed; steam and feed leave the containment in one corner.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G1_G2_containment.png" target="_blank"><img src="proof/G1_G2_containment.png" alt="" loading="lazy"><small>Containment from behind</small></a></div></td>
+</tr>
+<tr data-id="G2" data-area="Geometry and clutter" data-req="No rings or pipes around the containment tank." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g2 geometry and clutter no rings or pipes around the containment tank. three tori deleted: springline, plinth, cut rim.">
+  <td class="id">G2</td>
+  <td>Geometry and clutter</td>
+  <td><div class="req">No rings or pipes around the containment tank.</div><div class="check">Three tori deleted: springline, plinth, cut rim.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G1_G2_containment.png" target="_blank"><img src="proof/G1_G2_containment.png" alt="" loading="lazy"><small>No rings</small></a></div></td>
+</tr>
+<tr data-id="G3" data-area="Geometry and clutter" data-req="Get rid of the middle white mini dome in the middle of the containment." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g3 geometry and clutter get rid of the middle white mini dome in the middle of the containment. it was 110 unstepped particle instances stacked at the origin. riser, drip and bubbles start hidden.">
+  <td class="id">G3</td>
+  <td>Geometry and clutter</td>
+  <td><div class="req">Get rid of the middle white mini dome in the middle of the containment.</div><div class="check">It was 110 unstepped particle instances stacked at the origin. Riser, Drip and Bubbles start hidden.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G3_floor.png" target="_blank"><img src="proof/G3_floor.png" alt="" loading="lazy"><small>Containment floor, nothing on it</small></a></div></td>
+</tr>
+<tr data-id="G4" data-area="Geometry and clutter" data-req="Remove the grey metal rings from all pipes." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g4 geometry and clutter remove the grey metal rings from all pipes. flanges removed from pipe(); all collars deleted.">
+  <td class="id">G4</td>
+  <td>Geometry and clutter</td>
+  <td><div class="req">Remove the grey metal rings from all pipes.</div><div class="check">Flanges removed from pipe(); all collars deleted.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G4_no_rings.png" target="_blank"><img src="proof/G4_no_rings.png" alt="" loading="lazy"><small>Bare pipes into the head</small></a></div></td>
+</tr>
+<tr data-id="G5" data-area="Geometry and clutter" data-req="No borders on the pumps interrupting the visible flow of water." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g5 geometry and clutter no borders on the pumps interrupting the visible flow of water. casing open-ended and shorter than the water in it.">
+  <td class="id">G5</td>
+  <td>Geometry and clutter</td>
+  <td><div class="req">No borders on the pumps interrupting the visible flow of water.</div><div class="check">Casing open-ended and shorter than the water in it.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G5_pump.png" target="_blank"><img src="proof/G5_pump.png" alt="" loading="lazy"><small>Pump without rims</small></a></div></td>
+</tr>
+<tr data-id="G6" data-area="Geometry and clutter" data-req="No ugly grey structure hiding the sea water pipes below the turbine." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g6 geometry and clutter no ugly grey structure hiding the sea water pipes below the turbine. condenser lid removed, floor reduced to 0.12 m, water boxes are glass.">
+  <td class="id">G6</td>
+  <td>Geometry and clutter</td>
+  <td><div class="req">No ugly grey structure hiding the sea water pipes below the turbine.</div><div class="check">Condenser lid removed, floor reduced to 0.12 m, water boxes are glass.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G6_G7_condenser.png" target="_blank"><img src="proof/G6_G7_condenser.png" alt="" loading="lazy"><small>Condenser and sea lines</small></a></div></td>
+</tr>
+<tr data-id="G7" data-area="Geometry and clutter" data-req="No weird grey stuff at the bottom of the condenser." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g7 geometry and clutter no weird grey stuff at the bottom of the condenser. two causes removed: a plinth torus passing through the machine, and vapour drawn as clipped spheres.">
+  <td class="id">G7</td>
+  <td>Geometry and clutter</td>
+  <td><div class="req">No weird grey stuff at the bottom of the condenser.</div><div class="check">Two causes removed: a plinth torus passing through the machine, and vapour drawn as clipped spheres.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G6_G7_condenser.png" target="_blank"><img src="proof/G6_G7_condenser.png" alt="" loading="lazy"><small>Condenser</small></a></div></td>
+</tr>
+<tr data-id="G8" data-area="Geometry and clutter" data-req="No weird grey cylinder coming out of the blue tube into the boiler." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g8 geometry and clutter no weird grey cylinder coming out of the blue tube into the boiler. look dome.">
+  <td class="id">G8</td>
+  <td>Geometry and clutter</td>
+  <td><div class="req">No weird grey cylinder coming out of the blue tube into the boiler.</div><div class="check">look dome.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G8_boiler_inlet.png" target="_blank"><img src="proof/G8_boiler_inlet.png" alt="" loading="lazy"><small>Boiler inlet</small></a></div></td>
+</tr>
+<tr data-id="G9" data-area="Geometry and clutter" data-req="The backup pump must be on the correct side of the tank and pump to something." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g9 geometry and clutter the backup pump must be on the correct side of the tank and pump to something. l.eccs.x = -2.3: suction from the tank, discharge to the cold leg.">
+  <td class="id">G9</td>
+  <td>Geometry and clutter</td>
+  <td><div class="req">The backup pump must be on the correct side of the tank and pump to something.</div><div class="check">L.eccs.x = -2.3: suction from the tank, discharge to the cold leg.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G9_G10_tank.png" target="_blank"><img src="proof/G9_G10_tank.png" alt="" loading="lazy"><small>Tank, pump, discharge</small></a></div></td>
+</tr>
+<tr data-id="G10" data-area="Geometry and clutter" data-req="The backup water tank stays in front of the pillars where the circuit can be seen." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g10 geometry and clutter the backup water tank stays in front of the pillars where the circuit can be seen. l.tank.z = 0.">
+  <td class="id">G10</td>
+  <td>Geometry and clutter</td>
+  <td><div class="req">The backup water tank stays in front of the pillars where the circuit can be seen.</div><div class="check">L.tank.z = 0.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G9_G10_tank.png" target="_blank"><img src="proof/G9_G10_tank.png" alt="" loading="lazy"><small>Tank on the centreline</small></a></div></td>
+</tr>
+<tr data-id="G11" data-area="Geometry and clutter" data-req="The vent is a hole in the container: nothing protruding inside, no pillar under it, no round protrusion at the bottom." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g11 geometry and clutter the vent is a hole in the container: nothing protruding inside, no pillar under it, no round protrusion at the bottom. path starts flush at -r_in; stack base and funnel deleted; the line turns up and clears the roof.">
+  <td class="id">G11</td>
+  <td>Geometry and clutter</td>
+  <td><div class="req">The vent is a hole in the container: nothing protruding inside, no pillar under it, no round protrusion at the bottom.</div><div class="check">Path starts flush at -R_IN; stack base and funnel deleted; the line turns up and clears the roof.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G11_vent.png" target="_blank"><img src="proof/G11_vent.png" alt="" loading="lazy"><small>Vent: hole, elbow, up</small></a></div></td>
+</tr>
+<tr data-id="G12" data-area="Geometry and clutter" data-req="The container concrete must not look hollow." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g12 geometry and clutter the container concrete must not look hollow. stencil section caps (js/view/section.js): the plane's cut through the wall and dome is capped exactly, the standard clipping_stencil technique. shell closed at the foot so the count is meaningful.">
+  <td class="id">G12</td>
+  <td>Geometry and clutter</td>
+  <td><div class="req">The container concrete must not look hollow.</div><div class="check">Stencil section caps (js/view/section.js): the plane's cut through the wall and dome is capped exactly, the standard clipping_stencil technique. Shell closed at the foot so the count is meaningful.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G12_wall.png" target="_blank"><img src="proof/G12_wall.png" alt="" loading="lazy"><small>Cut wall reads a metre thick</small></a></div></td>
+</tr>
+<tr data-id="G13" data-area="Geometry and clutter" data-req="No grey vertical arch or bar in the middle of the reactor view." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g13 geometry and clutter no grey vertical arch or bar in the middle of the reactor view. the cap planes that made it are gone; the stencil cap only draws where the plane is inside concrete.">
+  <td class="id">G13</td>
+  <td>Geometry and clutter</td>
+  <td><div class="req">No grey vertical arch or bar in the middle of the reactor view.</div><div class="check">The cap planes that made it are gone; the stencil cap only draws where the plane is inside concrete.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G13_no_bar.png" target="_blank"><img src="proof/G13_no_bar.png" alt="" loading="lazy"><small>Whole unit, nothing across it</small></a></div></td>
+</tr>
+<tr data-id="G14" data-area="Geometry and clutter" data-req="Bubbles must not appear in the air outside the vessels." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g14 geometry and clutter bubbles must not appear in the air outside the vessels. each riser clipped on its own vessel's plane.">
+  <td class="id">G14</td>
+  <td>Geometry and clutter</td>
+  <td><div class="req">Bubbles must not appear in the air outside the vessels.</div><div class="check">Each riser clipped on its own vessel's plane.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G14_bubbles.png" target="_blank"><img src="proof/G14_bubbles.png" alt="" loading="lazy"><small>Side view: nothing outside the shell</small></a></div></td>
+</tr>
+<tr data-id="G15" data-area="Geometry and clutter" data-req="Steam enters the turbine at the SIDE, and the turbine looks like a real machine cut half open: walls, no floating rings." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g15 geometry and clutter steam enters the turbine at the side, and the turbine looks like a real machine cut half open: walls, no floating rings. closed casing with an end wall at each end, dark inside; floating hoops removed; steam in along the axis at shaft height.">
+  <td class="id">G15</td>
+  <td>Geometry and clutter</td>
+  <td><div class="req">Steam enters the turbine at the SIDE, and the turbine looks like a real machine cut half open: walls, no floating rings.</div><div class="check">Closed casing with an end wall at each end, dark inside; floating hoops removed; steam in along the axis at shaft height.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G15_G16_turbine.png" target="_blank"><img src="proof/G15_G16_turbine.png" alt="" loading="lazy"><small>Turbine cut open</small></a></div></td>
+</tr>
+<tr data-id="G16" data-area="Geometry and clutter" data-req="It must be clear how steam goes from the turbine to the condenser." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g16 geometry and clutter it must be clear how steam goes from the turbine to the condenser. glass throat with vapour falling through it, one stream from the inlet past the wheel into the shell.">
+  <td class="id">G16</td>
+  <td>Geometry and clutter</td>
+  <td><div class="req">It must be clear how steam goes from the turbine to the condenser.</div><div class="check">Glass throat with vapour falling through it, one stream from the inlet past the wheel into the shell.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G15_G16_turbine.png" target="_blank"><img src="proof/G15_G16_turbine.png" alt="" loading="lazy"><small>Steam down the throat</small></a></div></td>
+</tr>
+<tr data-id="G17" data-area="Geometry and clutter" data-req="Click a pipe to break it must work: a hole with water coming out, no black ring." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g17 geometry and clutter click a pipe to break it must work: a hole with water coming out, no black ring. torn lip in the pipe's own steel oriented as a hole in the wall; a narrow stream falls to the floor.">
+  <td class="id">G17</td>
+  <td>Geometry and clutter</td>
+  <td><div class="req">Click a pipe to break it must work: a hole with water coming out, no black ring.</div><div class="check">Torn lip in the pipe's own steel oriented as a hole in the wall; a narrow stream falls to the floor.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G17_break.png" target="_blank"><img src="proof/G17_break.png" alt="" loading="lazy"><small>Hot leg broken</small></a></div></td>
+</tr>
+<tr data-id="U1" data-area="Interface and platform" data-req="On mobile it must render correctly when moving around, and the inside view must not be blank." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="u1 interface and platform on mobile it must render correctly when moving around, and the inside view must not be blank. visual-viewport sizing, context-loss handling, lowfx path, caption layer measured in its own frame.">
+  <td class="id">U1</td>
+  <td>Interface and platform</td>
+  <td><div class="req">On mobile it must render correctly when moving around, and the inside view must not be blank.</div><div class="check">Visual-viewport sizing, context-loss handling, LOWFX path, caption layer measured in its own frame.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/U1_phone_inside.png" target="_blank"><img src="proof/U1_phone_inside.png" alt="" loading="lazy"><small>iPhone viewport, inside view</small></a></div></td>
+</tr>
+<tr data-id="U2" data-area="Interface and platform" data-req="The welcome modal must be simple and make people want to click start." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="u2 interface and platform the welcome modal must be simple and make people want to click start. index.html: kicker, three-line headline, two comparison cards, one call to action.">
+  <td class="id">U2</td>
+  <td>Interface and platform</td>
+  <td><div class="req">The welcome modal must be simple and make people want to click start.</div><div class="check">index.html: kicker, three-line headline, two comparison cards, one call to action.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/U2_welcome.png" target="_blank"><img src="proof/U2_welcome.png" alt="" loading="lazy"><small>Welcome card</small></a></div></td>
+</tr>
+<tr data-id="U3" data-area="Interface and platform" data-req="A config wheel at the top right to enable or disable each expensive feature individually." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="u3 interface and platform a config wheel at the top right to enable or disable each expensive feature individually. seven toggles with live counters; each drives stage.setquality.">
+  <td class="id">U3</td>
+  <td>Interface and platform</td>
+  <td><div class="req">A config wheel at the top right to enable or disable each expensive feature individually.</div><div class="check">Seven toggles with live counters; each drives stage.setQuality.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/U3_settings.png" target="_blank"><img src="proof/U3_settings.png" alt="" loading="lazy"><small>Settings panel open</small></a></div></td>
+</tr>
+<tr data-id="U4" data-area="Interface and platform" data-req="W A S D must work on the Site view." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="u4 interface and platform w a s d must work on the site view. nudgesite() in js/main.js; proof shows the camera before and after holding a then w.">
+  <td class="id">U4</td>
+  <td>Interface and platform</td>
+  <td><div class="req">W A S D must work on the Site view.</div><div class="check">nudgeSite() in js/main.js; proof shows the camera before and after holding A then W.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/U4_wasd_before.png" target="_blank"><img src="proof/U4_wasd_before.png" alt="" loading="lazy"><small>Before</small></a><a href="proof/U4_wasd_after.png" target="_blank"><img src="proof/U4_wasd_after.png" alt="" loading="lazy"><small>After A, W</small></a></div></td>
+</tr>
+<tr data-id="U5" data-area="Interface and platform" data-req="The background sound must be a pleasant nature-like sound with a soothing melody; no white noise; a real looped asset." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="u5 interface and platform the background sound must be a pleasant nature-like sound with a soothing melody; no white noise; a real looped asset. audio/sea-waves.mp3 (mit, credited), equal-power crossfade loop, highpass 160 hz, lowpass 3.2 khz, pentatonic bells over it. measured: 0.4% below 120 hz, 18% in 120-400, 7% above 3 khz, 19 db swing.">
+  <td class="id">U5</td>
+  <td>Interface and platform</td>
+  <td><div class="req">The background sound must be a pleasant nature-like sound with a soothing melody; no white noise; a real looped asset.</div><div class="check">audio/sea-waves.mp3 (MIT, credited), equal-power crossfade loop, highpass 160 Hz, lowpass 3.2 kHz, pentatonic bells over it. Measured: 0.4% below 120 Hz, 18% in 120-400, 7% above 3 kHz, 19 dB swing.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><div class="txt">audio/CREDITS.md, audio/LICENSE-sounds-for-focus.txt
+js/audio.js loadSea(): equal-power crossfade, loopStart after the head
+spectrum after filters: &lt;120 Hz 0.4% | 120-400 18% | 400-1200 41% | 1200-3000 33% | &gt;3 kHz 7% | swing 19 dB</div></div></td>
+</tr>
+<tr data-id="U6" data-area="Interface and platform" data-req="30 fps makes no sense for this; use the established way to draw fluids, not a hack." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="u6 interface and platform 30 fps makes no sense for this; use the established way to draw fluids, not a hack. 73 transmissive materials removed (each forced an extra scene pass). measured at 1200x800 on the same renderer.">
+  <td class="id">U6</td>
+  <td>Interface and platform</td>
+  <td><div class="req">30 fps makes no sense for this; use the established way to draw fluids, not a hack.</div><div class="check">73 transmissive materials removed (each forced an extra scene pass). Measured at 1200x800 on the same renderer.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><div class="txt">before: 862 draw calls, 569 ms/frame, 73 transmissive materials
+after:  512 draw calls,  11 ms/frame,  0 transmissive materials</div></div></td>
+</tr>
+<tr data-id="U7" data-area="Interface and platform" data-req="Do not execute any heavy code until the user has clicked Pick an accident." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="u7 interface and platform do not execute any heavy code until the user has clicked pick an accident. boot() in js/main.js builds terrain, ocean, webgl scene and starts the frame loop only on start.">
+  <td class="id">U7</td>
+  <td>Interface and platform</td>
+  <td><div class="req">Do not execute any heavy code until the user has clicked Pick an accident.</div><div class="check">boot() in js/main.js builds terrain, ocean, WebGL scene and starts the frame loop only on Start.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><div class="txt">see proof/U7_lazy.txt: before Start {stage:false, units:0}; after Start {stage:true, units:2}</div></div></td>
+</tr>
+<tr data-id="U8" data-area="Interface and platform" data-req="Commits must carry the repository owner's authorship." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="u8 interface and platform commits must carry the repository owner's authorship. git log --format='%an &lt;%ae&gt; | %cn &lt;%ce&gt;' shows the owner as author and committer on every commit. the harness adds a co-authored-by trailer in the message body.">
+  <td class="id">U8</td>
+  <td>Interface and platform</td>
+  <td><div class="req">Commits must carry the repository owner's authorship.</div><div class="check">git log --format='%an &lt;%ae&gt; | %cn &lt;%ce&gt;' shows the owner as author and committer on every commit. The harness adds a Co-Authored-By trailer in the message body.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><div class="txt">author and committer on every commit: mayerwin &lt;2272127+mayerwin@users.noreply.github.com&gt;</div></div></td>
+</tr>
+<tr data-id="U9" data-area="Interface and platform" data-req="No em dashes in interface copy." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="u9 interface and platform no em dashes in interface copy. grep over index.html, js/ui.js, js/view/labels.js, js/scenarios.js returns nothing.">
+  <td class="id">U9</td>
+  <td>Interface and platform</td>
+  <td><div class="req">No em dashes in interface copy.</div><div class="check">grep over index.html, js/ui.js, js/view/labels.js, js/scenarios.js returns nothing.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-01</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><div class="txt">grep -rn '\u2014' index.html js/ui.js js/view/labels.js js/scenarios.js -&gt; no matches</div></div></td>
+</tr>
+</tbody>
+</table>
+<script>
+(() => {
+  const rows = [...document.querySelectorAll('tbody tr')];
+  const q = document.getElementById('q'), area = document.getElementById('area'), st = document.getElementById('status');
+  const apply = () => {
+    const s = q.value.trim().toLowerCase(), a = area.value, k = st.value;
+    for (const r of rows) {
+      const ok = (!s || r.dataset.text.includes(s)) && (!a || r.dataset.area === a) && (!k || r.dataset.status === k);
+      r.classList.toggle('hide', !ok);
+    }
+  };
+  for (const el of [q, area, st]) el.addEventListener('input', apply);
+  let key = 'raised', asc = false;
+  const tb = document.querySelector('tbody');
+  const sort = () => {
+    const order = { OPEN: 0, WATCH: 1, DONE: 2 };
+    rows.sort((x, y) => {
+      let a = x.dataset[key] || '', b = y.dataset[key] || '';
+      if (key === 'status') { a = order[a]; b = order[b]; }
+      if (a < b) return asc ? -1 : 1;
+      if (a > b) return asc ? 1 : -1;
+      return x.dataset.id < y.dataset.id ? -1 : 1;
+    });
+    for (const r of rows) tb.appendChild(r);
+    for (const th of document.querySelectorAll('th[data-k]')) {
+      th.classList.toggle('on', th.dataset.k === key);
+      th.classList.toggle('asc', th.dataset.k === key && asc);
+    }
+  };
+  for (const th of document.querySelectorAll('th[data-k]')) th.addEventListener('click', () => {
+    if (key === th.dataset.k) asc = !asc; else { key = th.dataset.k; asc = true; }
+    sort();
+  });
+  sort();
+})();
+</script>
+</body>
+</html>
