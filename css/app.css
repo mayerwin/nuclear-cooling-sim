@@ -1,6 +1,6 @@
 :root{
   --bg:#070c12; --ink:#e8f1f8; --dim:#93a6b6; --line:rgba(140,180,215,.14);
-  --panel:rgba(10,17,25,.82); --ok:#63e08a; --warn:#ffc44d; --bad:#ff6a55;
+  --panel:rgba(10,17,25,.9); --ok:#63e08a; --warn:#ffc44d; --bad:#ff6a55;
   --power:#ffd35c; --act:#ff8b5c; --pass:#57d9ff;
   --font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
 }
@@ -14,6 +14,11 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);
 #site{position:fixed;top:0;left:0;width:100%;height:var(--appH,100%);display:block;
   touch-action:none;cursor:grab}
 #site:active{cursor:grabbing}
+/* The site view's vignette, composited by the browser instead of filled
+   into the canvas every frame. --vig follows the gloom. */
+#vig{position:fixed;top:0;left:0;width:100%;height:var(--appH,100%);pointer-events:none;z-index:12;
+  background:radial-gradient(ellipse 78% 78% at 50% 50%,rgba(6,10,18,0) 46%,rgba(6,10,18,var(--vig,0.3)) 100%)}
+body.viewplant #vig{display:none}
 #scene{position:fixed;top:var(--sceneTop,0px);left:0;width:100%;
   height:var(--sceneH,var(--appH,100%));display:none}
 body.viewplant #site{display:none}
@@ -38,8 +43,7 @@ body:not(.viewplant) #focusSeg{display:none}
   text-align:center;pointer-events:none;
   font-size:12.5px;line-height:1.35;white-space:nowrap;
   padding:5px 10px;border-radius:9px;
-  background:rgba(8,14,21,.72);border:1px solid rgba(150,190,225,.20);
-  backdrop-filter:blur(4px);
+  background:rgba(8,14,21,.8);border:1px solid rgba(150,190,225,.20);
   text-shadow:0 1px 2px rgba(0,0,0,.85)}
 .tag b{display:block;font-weight:800;letter-spacing:.04em;font-size:13px}
 .tag span{display:block;color:#b7c8d6;font-weight:600}
@@ -57,8 +61,8 @@ body:not(.viewplant) #focusSeg{display:none}
 
 /* ---- chrome ---- */
 #bar{position:fixed;top:0;left:0;right:0;height:58px;display:flex;align-items:center;
-  gap:14px;padding:0 14px;background:linear-gradient(#070c12ee,#070c1288);
-  border-bottom:1px solid var(--line);z-index:20;backdrop-filter:blur(8px)}
+  gap:14px;padding:0 14px;background:linear-gradient(#070c12f4,#070c12c8);
+  border-bottom:1px solid var(--line);z-index:20}
 .clock{display:flex;flex:0 0 auto;flex-direction:column;line-height:1.1;min-width:132px}
 .clock b{font-variant-numeric:tabular-nums;font-size:19px;letter-spacing:.04em}
 .clock small{color:var(--dim);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase}
@@ -81,7 +85,7 @@ body:not(.viewplant) #focusSeg{display:none}
 
 .panel{position:fixed;top:70px;width:274px;max-height:calc(100vh - 210px);overflow:auto;
   background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:13px;
-  z-index:15;backdrop-filter:blur(9px)}
+  z-index:15}
 #left{left:12px} #right{right:12px}
 .panel h2{margin:0 0 9px;font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;
   color:var(--dim);font-weight:700}
@@ -145,7 +149,7 @@ body:not(.viewplant) #focusSeg{display:none}
 #feed{position:fixed;left:12px;right:12px;bottom:calc(100% - var(--appH,100%) + 12px);
   height:120px;overflow:auto;
   background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:9px 12px;
-  z-index:14;backdrop-filter:blur(9px);font-size:11.5px;line-height:1.65}
+  z-index:14;font-size:11.5px;line-height:1.65}
 #feed .e{display:flex;gap:11px}
 #feed .t{color:#5f7284;font-variant-numeric:tabular-nums;min-width:62px}
 #feed .crit{color:#ff9c88} #feed .ok{color:#8ff0b4}
@@ -153,8 +157,8 @@ body:not(.viewplant) #focusSeg{display:none}
 /* The island is drawn behind this the whole time. Blacking it out at 90%
    wasted the one thing on the page that makes anyone want to press the button,
    so the scrim is thin enough to see the place you are about to go into. */
-.modalWrap{position:fixed;inset:0;background:rgba(4,8,13,.66);z-index:60;display:none;
-  align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
+.modalWrap{position:fixed;inset:0;background:rgba(4,8,13,.7);z-index:60;display:none;
+  align-items:center;justify-content:center;padding:20px}
 .modalWrap.open{display:flex}
 .modal{max-width:620px;max-height:90vh;overflow:auto;
   background:linear-gradient(160deg,#12203097,#0a1119f2) , #0b1219;

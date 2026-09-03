@@ -3,7 +3,7 @@
 // sorted pass; nothing is baked, so nothing can pop in and out of a cached
 // layer or land on the wrong side of a building.
 // ---------------------------------------------------------------------------
-import { project, box, cylinder, cone, shadow, shade, rgba, mix, hash2, poly, polyLine, TW, TZ, EDGE } from './iso.js?v=9d21864aec';
+import { project, box, cylinder, cone, shadow, shade, rgba, mix, hash2, poly, polyLine, TW, TZ, EDGE } from './iso.js?v=df26edc179';
 
 const TRUNK = '#6b5138';
 const LEAF_LIVE = ['#4e8f45', '#5aa04e', '#438239', '#67ab55'];
@@ -20,22 +20,41 @@ export function propKey(p) {
   return p.x + p.y;
 }
 
-export function drawProp(ctx, p, world, time) {
+// The prop itself, with nothing in it that moves: it is drawn into a layer
+// that is kept until the camera or the world changes. What moves is drawn
+// live by the two functions after it.
+export function drawProp(ctx, p, world) {
   const gx = Math.max(0, Math.min(world.W - 1, p.x | 0));
   const gy = Math.max(0, Math.min(world.H - 1, p.y | 0));
   const contam = world.contam[gy * world.W + gx] || 0;
   const dead = Math.min(1, contam * 0.8 + (1 - p.hp));
   switch (p.type) {
-    case 'tree': return tree(ctx, p, dead, time);
-    case 'house': return house(ctx, p, dead, contam, time);
-    case 'boat': return boat(ctx, p, time);
+    case 'tree': return tree(ctx, p, dead);
+    case 'house': return house(ctx, p, dead, contam);
     case 'lamp': return lamp(ctx, p, world);
     case 'silo': return silo(ctx, p);
   }
 }
+// A prop that moves every frame: the boats, bobbing on the water. They are
+// on the sea and nothing stands in front of them, so they can be drawn over
+// the layer.
+export const isLive = (p) => p.type === 'boat';
+export function drawLiveProp(ctx, p, time) {
+  if (p.type === 'boat') boat(ctx, p, time);
+}
+// The fire on a burning prop: additive light, drawn over everything.
+export function drawPropGlow(ctx, p, time) {
+  if (!(p.burn > 0.1)) return;
+  const s = p.s || 1;
+  if (p.type === 'tree' && p.hp > 0.12) {
+    fireGlow(ctx, p.x, p.y, p.z + (p.conifer ? 0.30 : 0.5) * s, 16 * s, time, p.gx);
+  } else if (p.type === 'house' && p.hp > 0.28) {
+    fireGlow(ctx, p.x + p.w / 2, p.y + p.d / 2, p.z + p.h * (p.tall ? 2.3 : 1), 22, time, p.gx);
+  }
+}
 
 // ---- trees ----------------------------------------------------------------
-function tree(ctx, p, dead, time) {
+function tree(ctx, p, dead) {
   const s = p.s;
   if (p.hp <= 0.12) {                        // snapped / burnt stump
     shadow(ctx, p.x, p.y, p.z, 9 * s, 5 * s, 0.2);
@@ -91,11 +110,10 @@ function tree(ctx, p, dead, time) {
     ctx.ellipse(c.x, c.y, 0.62 * s * TW * 0.8, 0.62 * s * TW * 0.8 * 0.86, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
-  if (p.burn > 0.1) fireGlow(ctx, p.x, p.y, p.z + trunkH, 16 * s, time, p.gx);
 }
 
 // ---- buildings ------------------------------------------------------------
-function house(ctx, p, dead, contam, time) {
+function house(ctx, p, dead, contam) {
   const w = p.w, d = p.d;
   if (p.hp <= 0.28) {                          // rubble
     shadow(ctx, p.x + w / 2, p.y + d / 2, p.z, 22, 12, 0.28);
@@ -136,7 +154,6 @@ function house(ctx, p, dead, contam, time) {
     gable(ctx, p.x, p.y, p.z + h, w, d, 0.46,
       burnt ? '#4a3f36' : ROOFS[(hash2(p.gx, p.gy, 4) * ROOFS.length) | 0]);
   }
-  if (p.burn > 0.1) fireGlow(ctx, p.x + w / 2, p.y + d / 2, p.z + h, 22, time, p.gx);
 }
 
 // Pitched roof with the ridge running along +x. Both slopes are visible.

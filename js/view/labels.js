@@ -9,8 +9,8 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { L } from './unit.js?v=9d21864aec';
-import { state } from './state.js?v=9d21864aec';
+import { L } from './unit.js?v=df26edc179';
+import { state } from './state.js?v=df26edc179';
 
 function tag(cls) {
   const el = document.createElement('div');
@@ -62,10 +62,10 @@ export class Labels {
         u.passive ? L.pool.z : L.tank.z, 'L');
       if (!u.passive) add('eccs', 'part', L.eccs.x, 5.2, L.eccs.z, 'L');
       add('turb', 'part', L.turb.x - 6.4, 10.6, L.turb.z, 'R');
-      add('gen', 'part', L.turb.x - 1.0, 9.8, L.turb.z, 'R');
+      add('gen', 'part', L.turb.x + 0.6, 9.8, L.turb.z, 'R');
       add('vent', 'part', L.stack.x, L.stack.h + 1.5, L.stack.z, 'L');
-      add('sea', 'part', L.turb.x + 6.4, -1.2, L.turb.z - 1.5, 'R');
-      add('power', 'part', L.turb.x - 1.0, 13.4, L.turb.z, 'R');
+      add('sea', 'part', L.turb.x + 5.8, -1.2, L.turb.z - 1.5, 'R');
+      add('power', 'part', L.turb.x + 0.6, 13.4, L.turb.z, 'R');
       u.labels = set;
     }
   }

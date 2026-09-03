@@ -6,9 +6,9 @@
 // can never occlude are painted before the pass; anything with a footprint
 // goes into it, keyed on x + y (+ half its footprint for a box).
 // ---------------------------------------------------------------------------
-import { W, H, T } from './world.js?v=9d21864aec';
-import { project, TW, TH, poly, rgba } from './iso.js?v=9d21864aec';
-import { drawProp, propKey } from './props.js?v=9d21864aec';
+import { W, H, T } from './world.js?v=df26edc179';
+import { project, TW, TH, poly, rgba } from './iso.js?v=df26edc179';
+import { drawProp, drawLiveProp, drawPropGlow, isLive, propKey } from './props.js?v=df26edc179';
 
 export class Renderer {
   constructor(canvas, world) {
@@ -97,20 +97,61 @@ export class Renderer {
     this.blit(ctx, w.terrainCanvas, bb, view);
     if (w.overlayCanvas && w.hasOverlay) this.blit(ctx, w.overlayCanvas, bb, view);
 
-    // ---- the one sorted pass ----
-    const list = this.list; list.length = 0;
+    // ---- the one sorted pass, kept in a layer ----
+    // Every tree, house and building is a handful of path fills and strokes,
+    // and the pass is twenty milliseconds of them a frame, none of which
+    // changes while the camera is still and the plant is quiet. So the pass
+    // is drawn once into a layer the size of the canvas and the layer is
+    // blitted until the camera moves, the world is damaged or a station
+    // changes state. What moves every frame - the boats bobbing, the fire on
+    // a burning prop, the corium glow - is drawn live over it. The quake's
+    // camera shake is random per frame, so while it shakes the pass is drawn
+    // straight.
+    const shaking = cam.shake > 0.001;
+    const lkey = shaking ? null : `${cam.x.toFixed(3)}|${cam.y.toFixed(3)}|${cam.zoom.toFixed(5)}|${CW}x${CH}|${cam.ox}|${cam.oy}|${w.propsVersion}|${sim.views.map((v) => v.stateKey()).join('/')}`;
+    if (shaking || lkey !== this.layerKey) {
+      let target = ctx;
+      if (!shaking) {
+        if (!this.layer || this.layer.width !== CW || this.layer.height !== CH) {
+          this.layer = document.createElement('canvas');
+          this.layer.width = CW; this.layer.height = CH;
+          this.layerCtx = this.layer.getContext('2d');
+        }
+        target = this.layerCtx;
+        target.setTransform(1, 0, 0, 1, 0, 0);
+        target.clearRect(0, 0, CW, CH);
+        cam.applyTransform(target);
+      }
+      const list = this.list; list.length = 0;
+      for (const p of w.props) {
+        if (isLive(p)) continue;
+        const q = project(p.x, p.y, p.z);
+        if (q.x < view.minX - 90 || q.x > view.maxX + 90 ||
+          q.y < view.minY - 160 || q.y > view.maxY + 90) continue;
+        list.push({ k: propKey(p), p });
+      }
+      for (const v of sim.views) v.collect(list, sim.visTime);
+      list.sort((a, b) => a.k - b.k);
+      for (const it of list) {
+        if (it.p) drawProp(target, it.p, w);
+        else it.f(target);
+      }
+      this.layerKey = shaking ? null : lkey;
+    }
+    if (!shaking) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(this.layer, 0, 0);
+      cam.applyTransform(ctx);
+    }
+    // live over the layer: the boats, then the light of anything burning
     for (const p of w.props) {
+      if (!isLive(p)) continue;
       const q = project(p.x, p.y, p.z);
-      if (q.x < view.minX - 90 || q.x > view.maxX + 90 ||
-        q.y < view.minY - 160 || q.y > view.maxY + 90) continue;
-      list.push({ k: propKey(p), p });
+      if (q.x < view.minX - 90 || q.x > view.maxX + 90 || q.y < view.minY - 160 || q.y > view.maxY + 90) continue;
+      drawLiveProp(ctx, p, sim.visTime);
     }
-    for (const v of sim.views) v.collect(list, sim.visTime);
-    list.sort((a, b) => a.k - b.k);
-    for (const it of list) {
-      if (it.p) drawProp(ctx, it.p, w, sim.visTime);
-      else it.f(ctx);
-    }
+    for (const p of w.props) if (p.burn > 0.1) drawPropGlow(ctx, p, sim.visTime);
+    for (const v of sim.views) v.drawGlow(ctx, sim.visTime);
 
     // water washes over whatever it has swallowed
     if (sim.tsunami && sim.tsunami.active) this.drawFlood(ctx, sim, view);
@@ -119,7 +160,6 @@ export class Renderer {
     if (sim.showZones) this.drawZones(ctx, sim);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (this.vignette) { ctx.fillStyle = this.vignette; ctx.fillRect(0, 0, CW, CH); }
     if (sim.whiteout > 0.01) {
       ctx.fillStyle = `rgba(255,250,235,${Math.min(0.85, sim.whiteout)})`;
       ctx.fillRect(0, 0, CW, CH);
@@ -542,9 +582,10 @@ export class Renderer {
     ctx.textAlign = 'left';
   }
 
-  // Two gradient objects, not two bitmaps. They belong to this context, they
-  // are rebuilt only when the size or the light changes, and there is nothing
-  // in them for the browser to reclaim.
+  // The sky is a gradient object that belongs to this context and is rebuilt
+  // only when the size or the light changes. The vignette is a CSS overlay
+  // (#vig in the page): a full-screen radial fill every frame cost two
+  // milliseconds for a thing the compositor does for nothing.
   makeBackdrop(CW, CH, gloom, key) {
     const ctx = this.ctx;
     const L = (a, b) => Math.round(a + (b - a) * gloom);
@@ -553,11 +594,7 @@ export class Renderer {
     sky.addColorStop(0.55, `rgb(${L(176, 104)},${L(210, 98)},${L(234, 102)})`);
     sky.addColorStop(1, `rgb(${L(220, 138)},${L(230, 120)},${L(226, 110)})`);
     this.sky = sky;
-    const rg = ctx.createRadialGradient(CW / 2, CH / 2, Math.min(CW, CH) * 0.36,
-      CW / 2, CH / 2, Math.max(CW, CH) * 0.78);
-    rg.addColorStop(0, 'rgba(0,0,0,0)');
-    rg.addColorStop(1, `rgba(6,10,18,${0.3 + gloom * 0.2})`);
-    this.vignette = rg;
+    document.documentElement.style.setProperty('--vig', (0.3 + gloom * 0.2).toFixed(3));
     this.bgKey = key;
   }
 }

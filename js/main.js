@@ -5,17 +5,17 @@
 // inside of the buildings in 3-D. Only one is on screen at a time.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { Sim } from './sim.js?v=9d21864aec';
-import { Renderer } from './site/renderer.js?v=9d21864aec';
-import { unproject } from './site/iso.js?v=9d21864aec';
-import { Stage } from './view/stage.js?v=9d21864aec';
-import { Unit, CUT_AZ } from './view/unit.js?v=9d21864aec';
-import { Labels } from './view/labels.js?v=9d21864aec';
-import { UI } from './ui.js?v=9d21864aec';
-import { initPhysics } from './machines.js?v=9d21864aec';
-import { state } from './view/state.js?v=9d21864aec';
-import { AutoQ } from './view/autoq.js?v=9d21864aec';
-import { clamp } from './util.js?v=9d21864aec';
+import { Sim } from './sim.js?v=df26edc179';
+import { Renderer } from './site/renderer.js?v=df26edc179';
+import { unproject } from './site/iso.js?v=df26edc179';
+import { Stage } from './view/stage.js?v=df26edc179';
+import { Unit, CUT_AZ } from './view/unit.js?v=df26edc179';
+import { Labels } from './view/labels.js?v=df26edc179';
+import { UI } from './ui.js?v=df26edc179';
+import { initPhysics } from './machines.js?v=df26edc179';
+import { state } from './view/state.js?v=df26edc179';
+import { AutoQ } from './view/autoq.js?v=df26edc179';
+import { clamp } from './util.js?v=df26edc179';
 
 const SPAN = 29;
 const siteCanvas = document.getElementById('site');
@@ -410,6 +410,7 @@ function frame(now) {
 
 sim.announce('Both units at 100% power. Grid connected, all systems normal.', 'ok');
 window.__sim = sim;
+window.__renderer = renderer;
 window.__CUT_AZ = CUT_AZ;
 // Handy for the inspection tools: pick a pixel and name what is under it.
 window.__THREE = THREE;

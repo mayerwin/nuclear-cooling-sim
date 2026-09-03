@@ -3,14 +3,14 @@
 //
 // No rendering lives here. The view reads this; it never writes to it.
 // ---------------------------------------------------------------------------
-import { Plant, MODE } from './plant.js?v=9d21864aec';
-import { byId } from './scenarios.js?v=9d21864aec';
-import { Sound } from './audio.js?v=9d21864aec';
-import { World, W, H } from './site/world.js?v=9d21864aec';
-import { PlantView } from './site/plantview.js?v=9d21864aec';
-import { FX } from './site/fx.js?v=9d21864aec';
-import { Camera } from './site/iso.js?v=9d21864aec';
-import { clamp, smoothstep } from './util.js?v=9d21864aec';
+import { Plant, MODE } from './plant.js?v=df26edc179';
+import { byId } from './scenarios.js?v=df26edc179';
+import { Sound } from './audio.js?v=df26edc179';
+import { World, W, H } from './site/world.js?v=df26edc179';
+import { PlantView } from './site/plantview.js?v=df26edc179';
+import { FX } from './site/fx.js?v=df26edc179';
+import { Camera } from './site/iso.js?v=df26edc179';
+import { clamp, smoothstep } from './util.js?v=df26edc179';
 
 export const SPEEDS = [0, 1, 50, 100, 1000, 2000, -1];
 export const SPEED_LABELS = ['Paused', '1x', '50x', '100x', '1000x', '2000x', 'Auto'];
@@ -70,6 +70,7 @@ export class Sim {
       const d = Math.hypot(p.x - cx, p.y - cy);
       if (d < r) { p.hp = Math.max(0, p.hp - (1 - d / r) * 1.5); p.burn = 1; }
     }
+    this.world.propsVersion++;
   }
 
 
@@ -123,6 +124,7 @@ export class Sim {
           if (p.hp > 0) {
             p.hp = Math.max(0, p.hp - rdt * 2.2);
             p.burn = 0;
+            this.world.propsVersion++;
           }
         }
       }
@@ -239,6 +241,7 @@ export class Sim {
     w.contam.fill(0); w.scorch.fill(0); w.flood.fill(0);
     w.hasOverlay = false; w.dirtyOverlay = true;
     for (const q of w.props) { q.hp = 1; q.burn = 0; }
+    w.propsVersion++;
     this.fx.clear();
     this.gloom = 0; this.whiteout = 0;
     this.tsunami = null; this.tsunamiCfg = null; this.cine = null;

@@ -43,6 +43,14 @@ const CAMS = {
   'breachsky chernobyl 12': [['S2_breach', [290, 60, 1220, 830]]]
 };
 CAMS.turbine.push(['F13_engine_turbine', [560, 380, 1220, 830]]);
+// The second review: boiler, reactor, turbine exhaust, condenser, sea water.
+CAMS.sg = [['G19_boiler_steam', [480, 60, 1100, 560]]];
+CAMS.unit = (CAMS.unit || []).concat([['G20_feed_route', [290, 60, 1220, 830]]]);
+CAMS.head.push(['G21_head_nozzles', [300, 200, 1250, 830]]);
+CAMS.rpv.push(['G22_reactor_interior', [450, 150, 1050, 850]]);
+CAMS.turbine.push(['G23_funnel', [290, 60, 1220, 830]]);
+CAMS.cond = [['G24_condenser', [290, 60, 1220, 830]]];
+CAMS.bay = [['G25_sea_circuit', [200, 200, 1300, 830]]];
 CAMS.outside.push(['F14_primary_span', [290, 60, 1220, 830]]);
 
 function run(cmd, args, env) {

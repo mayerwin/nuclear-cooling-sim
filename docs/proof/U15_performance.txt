@@ -1,0 +1,25 @@
+Owner's laptop, Chrome, full window 1829x1008 CSS px at 1.75x (3201x1764
+device px), vsync off, mean frame time over 3 s. 2026-09-02.
+
+                                   Intel Arc (Chrome's choice)   RTX 4070 (test browser)
+site view, as reviewed                      79.3 ms                      21.0 ms
+site view, blur removed                     44.2 ms                      17.0 ms
+site view, layer cache + CSS vignette        2.9 ms                          -
+inside, defaults, as reviewed               23.0 ms                      10.0 ms
+inside, defaults, now                       12.1 ms                       6.4 ms
+inside, every option on, now                25.2 ms                      16.7 ms
+
+Where the site view's 79 ms went (Intel, 1829x1008): the panels' backdrop
+blur 35 ms; the sorted Canvas-2D pass 21 ms (props 13, the two stations 9);
+the ocean 6 ms; the vignette fill 2 ms. None of it scaled with pixel
+density: it is per-path overhead, not fill. The pass is now drawn into a
+layer and reused until the camera or the plant changes; the blur is gone;
+the vignette is a CSS overlay.
+
+On the engine: the same page on the RTX runs at 6 ms inside. Three.js is not
+the limit. Chrome runs this page on the Intel GPU because Windows' per-app
+graphics preference for Chrome is the default; the RTX figure above was
+taken by giving a separate test browser binary a "high performance"
+preference for the duration of the measurement and removing it after. To
+have Chrome itself use the RTX: Windows Settings > System > Display >
+Graphics > add chrome.exe > High performance.

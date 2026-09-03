@@ -2,7 +2,7 @@
 // plume.js - steam and smoke, as points that rise, spread and thin out.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { hash1 } from '../flow.js?v=9d21864aec';
+import { hash1 } from '../flow.js?v=df26edc179';
 
 let sprite = null;
 function puffTexture() {

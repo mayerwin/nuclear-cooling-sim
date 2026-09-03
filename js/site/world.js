@@ -1,8 +1,8 @@
 // ---------------------------------------------------------------------------
 // world.js - terrain generation, baking, contamination + flood fields
 // ---------------------------------------------------------------------------
-import { TW, TH, TZ, P } from './iso.js?v=9d21864aec';
-import { mulberry32, fbm, clamp, lerp, smoothstep, rgb, mixRGB } from '../util.js?v=9d21864aec';
+import { TW, TH, TZ, P } from './iso.js?v=df26edc179';
+import { mulberry32, fbm, clamp, lerp, smoothstep, rgb, mixRGB } from '../util.js?v=df26edc179';
 
 export const W = 48, H = 48;
 export const T = {
@@ -37,6 +37,9 @@ export class World {
     this.flood = new Float32Array(W * H);    // water depth (elev units)
     this.props = [];
     this.dirtyOverlay = true;
+    // Bumped whenever a prop's look can have changed (damage, burning,
+    // contamination); the site renderer's cached layer keys on it.
+    this.propsVersion = 0;
     this.W = W; this.H = H;
     this.generate();
   }
@@ -272,6 +275,7 @@ export class World {
       }
     }
     this.dirtyOverlay = true;
+    this.propsVersion++;
   }
 
   // --- baking --------------------------------------------------------------
@@ -480,5 +484,7 @@ export class World {
       }
     }
     this.dirtyOverlay = false;
+    // contamination yellows the props standing on it
+    this.propsVersion++;
   }
 }

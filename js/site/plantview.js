@@ -5,8 +5,8 @@
 // piece with its own depth key, so nothing can draw on the wrong side of
 // anything else. Nothing is cached in a layer, so nothing pops.
 // ---------------------------------------------------------------------------
-import { project, box, cylinder, coolingTower, dome, pylon, shadow, shade, rgba, mix, hash2, poly, polyLine, TW, TH, TZ, EDGE } from './iso.js?v=9d21864aec';
-import { MODE } from '../plant.js?v=9d21864aec';
+import { project, box, cylinder, coolingTower, dome, pylon, shadow, shade, rgba, mix, hash2, poly, polyLine, TW, TH, TZ, EDGE } from './iso.js?v=df26edc179';
+import { MODE } from '../plant.js?v=df26edc179';
 
 const CONCRETE = '#cfccc2';
 const CONCRETE_D = '#a9a69c';
@@ -95,7 +95,7 @@ export class PlantView {
     put(S.x + f.x + S.y + f.y + (f.w + f.d) / 2, (c) => this.drawFuel(c));
 
     put(S.x + pt.stack.x + S.y + pt.stack.y, (c) => this.drawStack(c));
-    put(S.x + pt.reactor.x + S.y + pt.reactor.y, (c) => this.drawReactor(c, time));
+    put(S.x + pt.reactor.x + S.y + pt.reactor.y, (c) => this.drawReactor(c));
 
     const t = pt.turbine;
     put(S.x + t.x + S.y + t.y + (t.w + t.d) / 2, (c) => this.drawTurbine(c));
@@ -393,7 +393,15 @@ export class PlantView {
   }
 
   // ---- the reactor building -------------------------------------------
-  drawReactor(ctx, time) {
+  // Everything the drawing above reads off the plant. The site renderer keeps
+  // the drawn station in a layer until this changes.
+  stateKey() {
+    const p = this.plant;
+    return [p.flooded > 1 ? 1 : 0, p.grid ? 1 : 0, p.explosions, p.rupturedByPower ? 1 : 0,
+      p.coreDamage > 0.2 ? 1 : 0, Math.round(Math.max(0, Math.min(1, p.pccwst / 3.0e6)) * 24)].join(',');
+  }
+
+  drawReactor(ctx) {
     const S = this.s, r = this.parts.reactor, z = this.z;
     const x = S.x + r.x, y = S.y + r.y;
     const p = this.plant;
@@ -461,7 +469,14 @@ export class PlantView {
       });
     }
 
-    // corium glow at the base once the core is coming apart
+  }
+
+  // The corium glow at the base once the core is coming apart. It pulses, so
+  // it is drawn live, over the layer, as light.
+  drawGlow(ctx, time) {
+    const S = this.s, r = this.parts.reactor, z = this.z;
+    const x = S.x + r.x, y = S.y + r.y;
+    const p = this.plant;
     const glow = p.vesselBreach ? 1 : p.coreDamage;
     if (glow > 0.05) {
       const g0 = project(x, y, z + 0.08);

@@ -117,9 +117,37 @@ materials, layout or the section: the pictures must be from the build shipped.
 Layout constants (`L` in unit.js) put every machine in one vertical plane;
 `CUT_AZ` is the heading the section faces. Local +z is the removed half.
 
-## Current state (2026-09-02, code review)
+## Current state (2026-09-02, second review)
 
-55 requirements: 51 DONE, 4 WATCH, 0 OPEN. The last thing done was a full
+63 requirements: 59 DONE, 4 WATCH, 0 OPEN. The last thing done was the
+owner's second review of the machines (G19 to G25) and the performance
+question (U15):
+
+- The boiler's steam space is drawn; the feed line runs straight over the
+  reactor into the boiler's right side; the downcomer ring stands just
+  outside the water column so its blue-to-orange mixing shows as the two
+  strips of a cut ring (inside the column it was behind opaque water).
+- The boiler's legs and divider are gone (one pedestal behind the cut); the
+  hot leg ends on the channel head at an opening, the cold leg leaves from
+  one. The reactor's core barrel is gone.
+- The turbine exhaust is a funnel in the casing floor into a textbook surface
+  condenser under the machine: water boxes, a two-pass tube bank (in cold
+  below, out warm above), hotwell, condensate pump. The sea has a circulating
+  pump at the forebay; in on the near side, out on the far side, no crossing.
+  `L.turb` stays at 26; the casing is t.x-6.5..t.x-1.7, the generator at
+  t.x+0.6, the forebay at t.x+5.8. look.mjs cameras follow.
+- Performance (U15, docs/proof/U15_performance.txt): the slow view was the
+  2-D SITE at 79 ms a frame on the owner's full window, not the 3-D. The
+  panels' backdrop blur cost 35 ms of it and is gone; the sorted Canvas-2D
+  pass is drawn into a layer (`renderer.layer`) and reused until the camera,
+  `world.propsVersion` or a station's `stateKey()` changes, with the boats,
+  fire glows and corium glow drawn live over it; the vignette is the `#vig`
+  CSS overlay. Site view 2.9 ms idle; inside 12 ms defaults on the Intel GPU.
+  On the RTX 4070 the page runs at 6 ms: Chrome's GPU choice is a Windows
+  setting, not the page's.
+
+Before that, the code review (R1 to R6) had found six bugs and halved the
+frame. The last thing done was a full
 code review (register lines R1 to R6): the site's intake pumphouse had never
 drawn (a NaN sort key), Reset did not heal a broken pipe, the Bubbles and
 Steam toggles were overwritten every frame (and Bubbles hid the fuel rods),
@@ -145,6 +173,10 @@ Conventions that came out of the review:
 - `Plume` hides itself when nothing is alive; `PuffCloud` starts hidden.
 - Scratch `THREE.Color`s at the top of unit.js; do not allocate colours in
   `update()`.
+- Anything on the site view that changes every frame must be drawn LIVE
+  (after the layer blit in `drawSite`), not in `drawProp`/`collect`; anything
+  the layer depends on must be in `world.propsVersion` or `PlantView.stateKey`.
+- Do not put `backdrop-filter` back on anything that sits over a canvas.
 
 The WATCH lines are the honest frontier:
 
@@ -173,6 +205,15 @@ each circuit's own temperature span (`Circuit.range`), so a 290-325 C primary
 loop shows its cold leg blue and its hot leg red.
 
 ## Traps that have already bitten (do not rediscover them)
+
+- The GPU tools need `PW_HEADED=1`. Without it headless Chrome renders on
+  SwiftShader and a single look.mjs takes seven minutes; it looks like a hang.
+- Git Bash mangles `/v` `/d` `/f` into paths, so `reg add` fails with
+  "Invalid syntax": do registry work from PowerShell.
+- The working tree is CRLF (autocrlf). A patch script must normalise line
+  endings before matching or every anchor misses.
+- Edits to module files while a proof or check batch is running hand a page
+  a half-written module. Wait for the batch.
 
 - An `InstancedMesh` whose matrices were never written draws every instance at
   the origin: it looked like a white dome on the containment floor. Particle

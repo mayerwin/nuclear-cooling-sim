@@ -39,12 +39,12 @@
 <body>
 <header>
   <h1>Requirements register</h1>
-  <div class="sub">Every piece of review feedback on the visualisation, with the check that closes it and a screenshot as proof. Built 2026-09-02 from <code>docs/requirements.json</code>.</div>
-  <div class="tally"><span class="DONE">51 DONE</span><span class="WATCH">4 WATCH</span><span class="OPEN">0 OPEN</span></div>
+  <div class="sub">Every piece of review feedback on the visualisation, with the check that closes it and a screenshot as proof. Built 2026-09-03 from <code>docs/requirements.json</code>.</div>
+  <div class="tally"><span class="DONE">59 DONE</span><span class="WATCH">4 WATCH</span><span class="OPEN">0 OPEN</span></div>
 </header>
 <div class="bar">
   <input id="q" placeholder="Filter text (requirement, check, id)">
-  <select id="area"><option value="">All areas</option><option>Fluids and colour</option><option>Geometry and clutter</option><option>Interface and platform</option><option>Scenarios</option><option>Code review</option></select>
+  <select id="area"><option value="">All areas</option><option>Fluids and colour</option><option>Geometry and clutter</option><option>Interface and platform</option><option>Scenarios</option><option>Code review</option><option>Geometry and machines, second review</option></select>
   <select id="status"><option value="">All statuses</option><option>DONE</option><option>WATCH</option><option>OPEN</option></select>
 </div>
 <table id="t">
@@ -550,6 +550,78 @@ after:  512 draw calls,  11 ms/frame,  0 transmissive materials</div></div></td>
   <td class="date">2026-09-02</td>
   <td class="date">2026-09-02</td>
   <td><div class="proof"><a href="proof/S1_flood.png" target="_blank"><img src="proof/S1_flood.png" alt="" loading="lazy"><small>The flood over the yard, rippling at the sea's scale</small></a></div></td>
+</tr>
+<tr data-id="G19" data-area="Geometry and machines, second review" data-req="The top of the boiler must show steam, as much as the steam line above it carries." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g19 geometry and machines, second review the top of the boiler must show steam, as much as the steam line above it carries. the steam space above the water and the dome are drawn as a body of torn vapour at half opacity when the boiler is carrying heat, scrolling upward at the steam line's own compressed speed; the puffs rising off the water are denser too.">
+  <td class="id">G19</td>
+  <td>Geometry and machines, second review</td>
+  <td><div class="req">The top of the boiler must show steam, as much as the steam line above it carries.</div><div class="check">The steam space above the water and the dome are drawn as a body of torn vapour at half opacity when the boiler is carrying heat, scrolling upward at the steam line's own compressed speed; the puffs rising off the water are denser too.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G19_boiler_steam.png" target="_blank"><img src="proof/G19_boiler_steam.png" alt="" loading="lazy"><small>The steam space and dome, full when carrying</small></a></div></td>
+</tr>
+<tr data-id="G20" data-area="Geometry and machines, second review" data-req="The feedwater must not step from blue to orange where it enters the boiler; cold water mixing into hot water changes temperature along a gradient. And the line must not go all round the containment: straight over the reactor, arriving at the boiler's side." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g20 geometry and machines, second review the feedwater must not step from blue to orange where it enters the boiler; cold water mixing into hot water changes temperature along a gradient. and the line must not go all round the containment: straight over the reactor, arriving at the boiler's side. the feed line comes in through the wall low on the turbine side, up beside the steam line, straight across at 29 m above the reactor and the pool, and into the boiler's right side at the feed nozzle. the downcomer ring the feed lands in stands just outside the water column, so in section it is the two strips either side of the column, blue at the nozzle and orange six metres down where it has mixed. its gradient used to run round the sheet instead of down it, and the sheet sat behind opaque water.">
+  <td class="id">G20</td>
+  <td>Geometry and machines, second review</td>
+  <td><div class="req">The feedwater must not step from blue to orange where it enters the boiler; cold water mixing into hot water changes temperature along a gradient. And the line must not go all round the containment: straight over the reactor, arriving at the boiler's side.</div><div class="check">The feed line comes in through the wall low on the turbine side, up beside the steam line, straight across at 29 m above the reactor and the pool, and into the boiler's right side at the feed nozzle. The downcomer ring the feed lands in stands just outside the water column, so in section it is the two strips either side of the column, blue at the nozzle and orange six metres down where it has mixed. Its gradient used to run round the sheet instead of down it, and the sheet sat behind opaque water.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G20_feed_route.png" target="_blank"><img src="proof/G20_feed_route.png" alt="" loading="lazy"><small>The feed line over the reactor into the boiler's side</small></a><a href="proof/G19_boiler_steam.png" target="_blank"><img src="proof/G19_boiler_steam.png" alt="" loading="lazy"><small>The strips beside the column, blue to orange from the nozzle down</small></a></div></td>
+</tr>
+<tr data-id="G21" data-area="Geometry and machines, second review" data-req="The three supports under the boiler's tube bank serve no purpose and clutter the view. The hot leg must arrive AT the bottom of the boiler with water flowing in, not traverse it, and the cold leg must leave through a hole at the bottom left." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g21 geometry and machines, second review the three supports under the boiler's tube bank serve no purpose and clutter the view. the hot leg must arrive at the bottom of the boiler with water flowing in, not traverse it, and the cold leg must leave through a hole at the bottom left. the two legs and the divider plate are gone; the boiler stands on one flat pedestal set back into the kept half, like the turbine's. the hot leg ends on the surface of the channel head at a dark opening, into the head's hot half; the cold leg starts at an opening on the head's left and is drawn out of its cold half.">
+  <td class="id">G21</td>
+  <td>Geometry and machines, second review</td>
+  <td><div class="req">The three supports under the boiler's tube bank serve no purpose and clutter the view. The hot leg must arrive AT the bottom of the boiler with water flowing in, not traverse it, and the cold leg must leave through a hole at the bottom left.</div><div class="check">The two legs and the divider plate are gone; the boiler stands on one flat pedestal set back into the kept half, like the turbine's. The hot leg ends on the surface of the channel head at a dark opening, into the head's hot half; the cold leg starts at an opening on the head's left and is drawn out of its cold half.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G21_head_nozzles.png" target="_blank"><img src="proof/G21_head_nozzles.png" alt="" loading="lazy"><small>The channel head: hot leg in at the right, cold leg out at the left, no struts</small></a></div></td>
+</tr>
+<tr data-id="G22" data-area="Geometry and machines, second review" data-req="The faint structure inside the reactor serves no purpose and overlaps the rods; simplify." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g22 geometry and machines, second review the faint structure inside the reactor serves no purpose and overlaps the rods; simplify. the core barrel cylinder is gone. inside the vessel are the rods, the water, the level line and the fuel-top mark, and nothing else.">
+  <td class="id">G22</td>
+  <td>Geometry and machines, second review</td>
+  <td><div class="req">The faint structure inside the reactor serves no purpose and overlaps the rods; simplify.</div><div class="check">The core barrel cylinder is gone. Inside the vessel are the rods, the water, the level line and the fuel-top mark, and nothing else.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G22_reactor_interior.png" target="_blank"><img src="proof/G22_reactor_interior.png" alt="" loading="lazy"><small>The reactor with only the rods in its water</small></a></div></td>
+</tr>
+<tr data-id="G23" data-area="Geometry and machines, second review" data-req="The pipe out of the turbine must not traverse it: a hole or funnel at the bottom right of the casing, so the spent steam is seen drawn down into the condenser." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g23 geometry and machines, second review the pipe out of the turbine must not traverse it: a hole or funnel at the bottom right of the casing, so the spent steam is seen drawn down into the condenser. a funnel in the casing floor at its exhaust end, the casing's own steel, wide at the machine and narrowing into the top of the condenser shell directly under it, with the steam scrolling down inside it at the steam line's speed. nothing crosses the casing.">
+  <td class="id">G23</td>
+  <td>Geometry and machines, second review</td>
+  <td><div class="req">The pipe out of the turbine must not traverse it: a hole or funnel at the bottom right of the casing, so the spent steam is seen drawn down into the condenser.</div><div class="check">A funnel in the casing floor at its exhaust end, the casing's own steel, wide at the machine and narrowing into the top of the condenser shell directly under it, with the steam scrolling down inside it at the steam line's speed. Nothing crosses the casing.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G23_funnel.png" target="_blank"><img src="proof/G23_funnel.png" alt="" loading="lazy"><small>The funnel under the casing's right-hand end, into the condenser</small></a></div></td>
+</tr>
+<tr data-id="G24" data-area="Geometry and machines, second review" data-req="The condensation chamber does not look realistic; draw a proper, standard surface condenser." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g24 geometry and machines, second review the condensation chamber does not look realistic; draw a proper, standard surface condenser. drawn as the textbooks draw one: a horizontal shell under the turbine, water boxes at both ends, a two-pass tube bank with the sea in cold along the lower row and out warm along the upper (each run one body of water changing colour along its length), the steam settling onto the bank, drops falling into a hotwell under the shell, and the condensate pump drawing from the hotwell.">
+  <td class="id">G24</td>
+  <td>Geometry and machines, second review</td>
+  <td><div class="req">The condensation chamber does not look realistic; draw a proper, standard surface condenser.</div><div class="check">Drawn as the textbooks draw one: a horizontal shell under the turbine, water boxes at both ends, a two-pass tube bank with the sea in cold along the lower row and out warm along the upper (each run one body of water changing colour along its length), the steam settling onto the bank, drops falling into a hotwell under the shell, and the condensate pump drawing from the hotwell.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G24_condenser.png" target="_blank"><img src="proof/G24_condenser.png" alt="" loading="lazy"><small>The surface condenser in section</small></a></div></td>
+</tr>
+<tr data-id="G25" data-area="Geometry and machines, second review" data-req="The sea water circuit crosses itself, and nothing shows how the sea gets into the condenser." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g25 geometry and machines, second review the sea water circuit crosses itself, and nothing shows how the sea gets into the condenser. a circulating pump stands at the forebay and draws straight up out of it, pushing into the lower half of the sea-side water box; the warm water leaves the upper half of the same box and runs out beyond the pump to the far side of the forebay. in on the near side, out on the far side: no crossing.">
+  <td class="id">G25</td>
+  <td>Geometry and machines, second review</td>
+  <td><div class="req">The sea water circuit crosses itself, and nothing shows how the sea gets into the condenser.</div><div class="check">A circulating pump stands at the forebay and draws straight up out of it, pushing into the lower half of the sea-side water box; the warm water leaves the upper half of the same box and runs out beyond the pump to the far side of the forebay. In on the near side, out on the far side: no crossing.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G25_sea_circuit.png" target="_blank"><img src="proof/G25_sea_circuit.png" alt="" loading="lazy"><small>Forebay, circulating pump, in below, out above and beyond</small></a></div></td>
+</tr>
+<tr data-id="U15" data-area="Interface and platform" data-req="Performance is still poor despite how simple the model is; switch to a true game engine if the current one is showing its limits." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="u15 interface and platform performance is still poor despite how simple the model is; switch to a true game engine if the current one is showing its limits. measured on the owner's full window: the slow view was the 2-d site, at 79 ms a frame (12 fps), and the 3-d was 23 ms. the site's cost was the panels' backdrop blur (35 ms) and per-path canvas-2d overhead in the sorted pass (21 ms), neither of which scales with pixels; the blur is gone, the pass is drawn into a layer and reused until the camera or the plant changes, the vignette is a css overlay. site view now 2.9 ms idle; inside 12 ms defaults, 25 ms every option on. the engine is not the limit: on the laptop's rtx 4070 the same page runs at 6 ms inside, but chrome uses the intel gpu unless windows is told otherwise (see the proof text).">
+  <td class="id">U15</td>
+  <td>Interface and platform</td>
+  <td><div class="req">Performance is still poor despite how simple the model is; switch to a true game engine if the current one is showing its limits.</div><div class="check">Measured on the owner's full window: the slow view was the 2-D site, at 79 ms a frame (12 fps), and the 3-D was 23 ms. The site's cost was the panels' backdrop blur (35 ms) and per-path Canvas-2D overhead in the sorted pass (21 ms), neither of which scales with pixels; the blur is gone, the pass is drawn into a layer and reused until the camera or the plant changes, the vignette is a CSS overlay. Site view now 2.9 ms idle; inside 12 ms defaults, 25 ms every option on. The engine is not the limit: on the laptop's RTX 4070 the same page runs at 6 ms inside, but Chrome uses the Intel GPU unless Windows is told otherwise (see the proof text).</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><div class="txt">docs/proof/U15_performance.txt: before and after on both GPUs, where the 79 ms went, and the Windows setting that puts Chrome on the RTX.</div></div></td>
 </tr>
 </tbody>
 </table>
