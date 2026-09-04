@@ -189,6 +189,14 @@ of the viewport is the feedback loop; read it, then `look` the app.
 Frame cost after the change, inside view, the tools' 1500x950 window at 1x on
 the laptop's Intel Arc: see B5 in the register (numbers there).
 
+NEXT PART, IN ANOTHER REPOSITORY. The owner wants the fluid code (flow.js,
+fluid.js, parts.js's pipe(), the placement and frame loop in unit.js) pulled
+out into a reusable library that adds fluids to any 3D model. It is seeded as
+a local git repository next door, `../3d-fluid-simulator` (no GitHub yet),
+whose HANDOFF.md is the brief; this project is its first consumer and test
+bed. Do not grow the bespoke fluid code here further without reading that
+file first.
+
 ## Current state (2026-09-02, fourth round)
 
 69 requirements: 65 DONE, 4 WATCH, 0 OPEN. This round re-read every proof
