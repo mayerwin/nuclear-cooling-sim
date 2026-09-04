@@ -5,17 +5,17 @@
 // inside of the buildings in 3-D. Only one is on screen at a time.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { Sim } from './sim.js?v=f7bec3ea79';
-import { Renderer } from './site/renderer.js?v=f7bec3ea79';
-import { unproject } from './site/iso.js?v=f7bec3ea79';
-import { Stage } from './view/stage.js?v=f7bec3ea79';
-import { Unit, CUT_AZ } from './view/unit.js?v=f7bec3ea79';
-import { Labels } from './view/labels.js?v=f7bec3ea79';
-import { UI } from './ui.js?v=f7bec3ea79';
-import { initPhysics } from './machines.js?v=f7bec3ea79';
-import { state } from './view/state.js?v=f7bec3ea79';
-import { AutoQ } from './view/autoq.js?v=f7bec3ea79';
-import { clamp } from './util.js?v=f7bec3ea79';
+import { Sim } from './sim.js?v=a4d7bb2070';
+import { Renderer } from './site/renderer.js?v=a4d7bb2070';
+import { unproject } from './site/iso.js?v=a4d7bb2070';
+import { Stage } from './view/stage.js?v=a4d7bb2070';
+import { Unit, CUT_AZ } from './view/unit.js?v=a4d7bb2070';
+import { Labels } from './view/labels.js?v=a4d7bb2070';
+import { UI } from './ui.js?v=a4d7bb2070';
+import { initPhysics } from './machines.js?v=a4d7bb2070';
+import { state } from './view/state.js?v=a4d7bb2070';
+import { AutoQ } from './view/autoq.js?v=a4d7bb2070';
+import { clamp } from './util.js?v=a4d7bb2070';
 
 const SPAN = 29;
 const siteCanvas = document.getElementById('site');

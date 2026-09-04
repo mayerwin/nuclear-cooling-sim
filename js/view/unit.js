@@ -7,12 +7,12 @@
 // in at the water.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { pipe, vessel, tube, slab, V, roundedPath } from './parts.js?v=f7bec3ea79';
-import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles, frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=f7bec3ea79';
-import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=f7bec3ea79';
-import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=f7bec3ea79';
-import { Machines } from '../machines.js?v=f7bec3ea79';
-import { SectionCap } from './section.js?v=f7bec3ea79';
+import { pipe, vessel, tube, slab, V, roundedPath } from './parts.js?v=a4d7bb2070';
+import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles, frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=a4d7bb2070';
+import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=a4d7bb2070';
+import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=a4d7bb2070';
+import { Machines } from '../machines.js?v=a4d7bb2070';
+import { SectionCap } from './section.js?v=a4d7bb2070';
 
 const R_IN = 15.4, WALL = 1.0, SHELL_H = 31, DOME_R = R_IN + WALL;
 
@@ -382,14 +382,12 @@ export class Unit {
     // stays behind them as something to read them against. Clipping is in
     // world space, so each unit gets its own plane.
     this.cut = [cutPlane(worldX, worldZ)];
-    // The other half of the same plane: keeps the NEAR half and discards the
-    // far. The sectioned structures put a sheet of glass here, so the half
-    // that was taken off is still there to be seen through, the way a
-    // cutaway model in a museum has a perspex face.
-    this.cutNear = [new THREE.Plane(CUT_N.clone().negate(), CUT_N.x * worldX + CUT_N.z * worldZ)];
-    this.glassNear = (opacity) => new THREE.MeshStandardMaterial({
-      color: 0xdfeaf4, roughness: 0.12, metalness: 0.1, transparent: true, opacity,
-      side: THREE.DoubleSide, clippingPlanes: this.cutNear, depthWrite: false, envMapIntensity: 0.45 });
+    // NO GLASS on the cut. Everything is built whole and the near half is
+    // taken off at render time by this one plane, walls and liquids alike;
+    // the simulation never knows. A sheet of glass where the wall had been
+    // was tried and taken out again: the liquid behind it was still cut, so
+    // the glass explained nothing and covered everything.
+    this.steamSection = { cut: this.cut };
     const m = stage.mat;
     const clip = (src) => {
       const c = src.clone();
@@ -579,11 +577,13 @@ export class Unit {
     // They hang high and clear of every vessel. A lamp standing inside the
     // reactor is not a lamp, it is a blown highlight, and a specular spike big
     // enough to overflow the buffer takes the bloom pass down with it.
-    for (const [lx, ly, lz, inten] of [[11, 22, 9, 280], [-12, 20, -10, 220]]) {
-      const lamp = new THREE.PointLight(0xdcecf8, inten, 0, 2);
-      lamp.position.set(lx, ly, lz);
-      g.add(lamp);
-    }
+    // ONE source per unit. Two point lights per unit, four in the scene, were
+    // a quarter of the whole frame on the laptop's Intel GPU: every fragment
+    // of the sea and the ground evaluated all four. One, hung high on the
+    // far side of the cut, lifts the machinery off the wall just as well.
+    const lamp = new THREE.PointLight(0xdcecf8, 420, 0, 2);
+    lamp.position.set(-2, 23, -6);
+    g.add(lamp);
 
     const dome = new THREE.Mesh(
       new THREE.SphereGeometry(DOME_R, 96, 40, 0, Math.PI * 2, 0, Math.PI / 2), m.concrete);
@@ -594,18 +594,6 @@ export class Unit {
     domeIn.position.y = SHELL_H;
     g.add(domeIn);
     this.dome = dome; this.domeIn = domeIn;
-    // The near half of the building, in glass: a faint sheet, so what is
-    // inside stays the subject and the building still has a whole shape.
-    const gWall = new THREE.Mesh(
-      new THREE.CylinderGeometry(R_IN + WALL, R_IN + WALL, SHELL_H, 72, 1, true), this.glassNear(0.08));
-    gWall.position.y = SHELL_H / 2; gWall.renderOrder = 6;
-    g.add(gWall);
-    const gDome = new THREE.Mesh(
-      new THREE.SphereGeometry(DOME_R, 96, 40, 0, Math.PI * 2, 0, Math.PI / 2), this.glassNear(0.08));
-    gDome.position.y = SHELL_H; gDome.renderOrder = 6;
-    g.add(gDome);
-    for (const t of this.section.mirror(dome)) g.add(t);
-    for (const t of this.section.mirror(domeIn, true)) g.add(t);
     // and the face itself. The cut plane is z = 0 in the unit's own frame (the
     // whole station is turned so the plane faces the camera), so the quad
     // lies in the xy plane, big enough to cover the building and its dome.
@@ -657,11 +645,6 @@ export class Unit {
     rpvHead.position.set(r.x, r.base, r.z);
     rpvHead.castShadow = false;
     g.add(rpvHead);
-    // and the near half, whole, in glass
-    const rpvGlass = vessel(RPV_PROFILE, this.glassNear(0.14));
-    rpvGlass.position.set(r.x, r.base, r.z);
-    rpvGlass.castShadow = false; rpvGlass.renderOrder = 6;
-    g.add(rpvGlass);
 
     // No core barrel. A grey cylinder standing round the rods was a second
     // object inside the vessel that the eye had to explain away, and it lay
@@ -770,10 +753,6 @@ export class Unit {
       part.position.set(s.x, SG_BASE, s.z);
       g.add(part);
     }
-    const sgGlass = vessel(SG_PROFILE, this.glassNear(0.14));
-    sgGlass.position.set(s.x, SG_BASE, s.z);
-    sgGlass.castShadow = false; sgGlass.renderOrder = 6;
-    g.add(sgGlass);
 
     // The water in the head, in two real bodies either side of the divider:
     // the hot leg's water arrives in one, the tubes drink from it, and what
@@ -1025,12 +1004,6 @@ export class Unit {
     cas.position.set((X0 + X1) / 2, AX, t.z);
     cas.castShadow = true;
     g.add(cas);
-    const casGlass = new THREE.Mesh(
-      new THREE.CylinderGeometry(2.4, 3.6, X1 - X0, 44, 1, false), this.glassNear(0.16));
-    casGlass.rotation.z = Math.PI / 2;
-    casGlass.position.copy(cas.position);
-    casGlass.renderOrder = 6;
-    g.add(casGlass);
 
     const GX = t.x + 0.6;   // where the generator, and the lamp above it, stand
     const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 8.6, 20)
@@ -1123,8 +1096,8 @@ export class Unit {
     // sea side of the machine.
     const CR = 2.0, CYC = 3.4, CXC = X1 - 0.8, CLEN = 6.2;
     const CTOP = CYC + CR, CBOT = CYC - CR;
-    // The shell: steel at the back, glass at the front, so the bank is read
-    // against a wall and seen through a window.
+    // The shell: steel, cut on the plane like every vessel, so the bank is
+    // read against its far wall.
     const shellMat = this.stage.mat.painted.clone();
     shellMat.side = THREE.DoubleSide;
     shellMat.clippingPlanes = this.cut;
@@ -1134,11 +1107,6 @@ export class Unit {
     shell.castShadow = true;
     g.add(shell);
     this.cond = shell;
-    const shellGlass = new THREE.Mesh(
-      new THREE.CylinderGeometry(CR, CR, CLEN, 40, 1, true).rotateZ(Math.PI / 2), this.glassNear(0.16));
-    shellGlass.position.copy(shell.position);
-    shellGlass.renderOrder = 6;
-    g.add(shellGlass);
     // The end plates: thin, so the tubes are seen to meet the nozzles
     // through them and nothing stands in front of the sea coming and going.
     const PL = 0.25;
@@ -1156,8 +1124,11 @@ export class Unit {
     // end and straight down into the top of the shell. It starts inside the
     // casing's steam and ends inside the shell's, so it is one run of vapour
     // from the wheel to the bank.
-    this.exhaust = pipe([V(X1 - 1.3, AX - 1.4, t.z), V(X1 - 1.3, CTOP - 0.25, t.z)],
-      1.4, m, { bend: 0.5, steam: true });
+    // It starts INSIDE the casing wall (the floor at this x is 3.3 m below
+    // the axis) and ends just inside the shell's top, so both ends are buried
+    // and what shows is a duct leaving one machine and entering the other.
+    this.exhaust = pipe([V(X1 - 1.3, AX - 3.0, t.z), V(X1 - 1.3, CTOP - 0.25, t.z)],
+      1.4, m, { bend: 0.5, steam: true, section: this.steamSection });
     this.exhaust.leg = this.legSteam;
     g.add(this.exhaust.group);
     this.pipes.push(this.exhaust);
@@ -1329,7 +1300,7 @@ export class Unit {
     this.steam = pipe([
       V(s.x, SG_BASE + 18.6, s.z), V(s.x, 31.4, s.z),
       V(SX, 31.4, t.z), V(SX, AX, t.z), V(X0 + 0.6, AX, t.z)
-    ], 1.2, m, { bend: 3.0, steam: true });
+    ], 1.2, m, { bend: 3.0, steam: true, section: this.steamSection });
     this.steam.kindBreak = 'steamline';
     this.steam.leg = this.legSteam;
     g.add(this.steam.group);
@@ -1365,7 +1336,7 @@ export class Unit {
     g.add(hole);
     this.vent = pipe([
       V(-R_IN, VY, 0), V(-R_IN - 3.2, VY, 0), V(-R_IN - 3.2, st.h, 0)
-    ], 0.8, m, { bend: 1.6, steam: true });
+    ], 0.8, m, { bend: 1.6, steam: true, section: this.steamSection });
     const mouth = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 0.55, 1.6, 20, 1, true),
       this.stage.mat.painted);
     mouth.material = this.stage.mat.painted.clone();
@@ -1652,8 +1623,8 @@ export class Unit {
 // ---------------------------------------------------------------------------
 // per frame: solve the flows, step the machines, and let the geometry follow
 // ---------------------------------------------------------------------------
-import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=f7bec3ea79';
-import { Plume, PuffCloud } from './plume.js?v=f7bec3ea79';
+import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=a4d7bb2070';
+import { Plume, PuffCloud } from './plume.js?v=a4d7bb2070';
 
 Object.assign(Unit.prototype, {
 
@@ -2338,8 +2309,11 @@ function ripple(mesh, surf, radius, amp = 1) {
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), z = pos.getZ(i);
     const u = (x / radius + 1) / 2;
+    // Flat at the wall, moving in the middle. Weighted the other way round
+    // the silhouette of the surface was a row of triangular shards where the
+    // one-dimensional wave met the rim.
     const r = Math.hypot(x, z) / radius;
-    pos.setY(i, surf.sample(u) * Math.min(1, 0.35 + r) * amp);
+    pos.setY(i, surf.sample(u) * Math.max(0, 1 - r * 0.9) * amp);
   }
   pos.needsUpdate = true;
   mesh.geometry.computeVertexNormals();

@@ -2,7 +2,7 @@
 // parts.js - the reusable pieces of plant, as real geometry.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { liquidMaterial, steamMaterial, Bubbles, frameOf } from './fluid.js?v=f7bec3ea79';
+import { liquidMaterial, steamMaterial, Bubbles, frameOf } from './fluid.js?v=a4d7bb2070';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -34,8 +34,23 @@ export function pipe(pts, dia, mats, opts = {}) {
   const len = path.getLength();
   const seg = Math.max(24, Math.round(len * 1.6));
   const group = new THREE.Group();
-  const casing = new THREE.Mesh(
-    new THREE.TubeGeometry(path, seg, dia / 2, 12, false), mats.pipe);
+  // A water run's casing is its far wall only (BackSide): the opaque coloured
+  // core inside reads as the pipe. A steam run's core is a translucent
+  // vapour, so with only a far wall it read as a glowing tube floating in
+  // the air. Given opts.section it is built like the machines: a whole
+  // steel tube cut on the unit's plane, so its far half stands as a solid
+  // wall and the vapour is seen inside a pipe.
+  const casGeo = new THREE.TubeGeometry(path, seg, dia / 2, 12, false);
+  let casing;
+  if (opts.section) {
+    const far = mats.pipe.clone();
+    far.side = THREE.DoubleSide;
+    far.clippingPlanes = opts.section.cut;
+    far.clipIntersection = false;
+    casing = new THREE.Mesh(casGeo, far);
+  } else {
+    casing = new THREE.Mesh(casGeo, mats.pipe);
+  }
   casing.castShadow = true;
   group.add(casing);
 

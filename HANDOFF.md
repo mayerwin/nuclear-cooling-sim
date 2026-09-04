@@ -118,7 +118,33 @@ materials, layout or the section: the pictures must be from the build shipped.
 Layout constants (`L` in unit.js) put every machine in one vertical plane;
 `CUT_AZ` is the heading the section faces. Local +z is the removed half.
 
-## Current state (2026-09-02, third review)
+## Current state (2026-09-02, fourth round)
+
+69 requirements: 65 DONE, 4 WATCH, 0 OPEN. This round re-read every proof
+against its line (the owner's ask), rewrote the lines whose text still
+described the old condenser (G18, G15, G16, G6, G7, F10, F11, F3, F6, F7,
+G21, G23), and changed three things:
+
+- NO GLASS. The glass fronts of the third round are gone, at the owner's
+  request: the liquid behind them was still cut, so they explained nothing.
+  Everything is built whole and the near half is removed at render time by
+  the unit's one plane, walls and liquids alike; the simulation never
+  knows. Steam runs get `section: this.steamSection` in `pipe()`, which
+  gives them a solid far casing (a water run's opaque core needs none).
+- THE SITE VIEW MOVES AT 2 ms. `Renderer.layerBlit()` draws the ocean and
+  the sorted pass into layers a third wider than the window each way and
+  blits them panned and zoomed; the pass is redrawn only when the view
+  leaves the margin, the zoom drifts past an eighth, or the plant changes.
+  Dragging went from 44 ms a frame to 1.6.
+- THE INSIDE VIEW AT 9 ms on the owner's full window: one interior lamp per
+  unit (four point lights were a quarter of the frame), pixel density
+  capped at 1.25x (1.5x cost another quarter for nothing visible).
+  `?aa=0` switches the canvas's multisampling off for measuring.
+
+The third review had set two rules that still hold: EVERY PIPE END IS
+BURIED inside the water of what it serves, and CAPTIONS SHOW IN BOTH VIEWS.
+
+## Earlier (2026-09-02, third review)
 
 69 requirements: 65 DONE, 4 WATCH, 0 OPEN. The third review (G26 to G30,
 U16) set three rules that every future change must keep:
@@ -126,11 +152,8 @@ U16) set three rules that every future change must keep:
 - EVERY PIPE END IS BURIED. A pipe starts and ends inside the water of the
   body it serves (a vessel's water, a pump's water, a plate), never on a
   surface. No caps, no openings drawn on walls, no gaps.
-- SECTIONED STRUCTURES KEEP A GLASS FRONT. `unit.cutNear` is the same plane
-  the other way round; `unit.glassNear(opacity)` is the material. The
-  containment, reactor, boiler, turbine casing and condenser shell each have
-  one; the condenser's back is opaque steel. Anything new that is cut on
-  `unit.cut` gets one too.
+- (Glass fronts: tried in this review, removed in the fourth round. Do not
+  put them back; the section is walls and liquids alike.)
 - CAPTIONS SHOW IN BOTH VIEWS on a wide screen, each station's in the margin
   on its own side; a column that overflows shares its height evenly.
 

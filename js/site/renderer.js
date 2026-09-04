@@ -6,9 +6,12 @@
 // can never occlude are painted before the pass; anything with a footprint
 // goes into it, keyed on x + y (+ half its footprint for a box).
 // ---------------------------------------------------------------------------
-import { W, H, T } from './world.js?v=f7bec3ea79';
-import { project, TW, TH, poly, rgba } from './iso.js?v=f7bec3ea79';
-import { drawProp, drawLiveProp, drawPropGlow, isLive, propKey } from './props.js?v=f7bec3ea79';
+import { W, H, T } from './world.js?v=a4d7bb2070';
+import { project, TW, TH, poly, rgba } from './iso.js?v=a4d7bb2070';
+import { drawProp, drawLiveProp, drawPropGlow, isLive, propKey } from './props.js?v=a4d7bb2070';
+
+// How much wider than the window a cached layer is drawn, each way.
+const LAYER_MARGIN = 0.34;
 
 export class Renderer {
   constructor(canvas, world) {
@@ -17,6 +20,60 @@ export class Renderer {
     this.world = world;
     this.list = [];
     this.shorePts = [];
+    this.layers = {};
+  }
+
+  // A cached layer: a bitmap the size of the canvas, drawn by `render` with
+  // the camera as it was, and blitted back with whatever pan and zoom the
+  // camera has done since. It is drawn again only when `key` changes, or
+  // when the camera has moved and the bitmap is older than `maxAge`. So a
+  // drag or a zoom costs a transformed blit on every frame and the real
+  // drawing a few times a second, instead of the real drawing every frame.
+  //
+  // The layer is drawn with a MARGIN round the view (a third of it each way),
+  // so a drag pans across drawn ground and only a drag that runs past the
+  // margin, a zoom that drifts more than an eighth, or a change of `key`
+  // draws it again. Between those the pass costs a copy. `maxAge` is for
+  // layers that animate (the ocean): they are redrawn that often anyway.
+  layerBlit(name, ctx, cam, CW, CH, key, maxAge, render) {
+    const L = this.layers[name] || (this.layers[name] = { key: null });
+    const now = performance.now();
+    const M = LAYER_MARGIN, LW = Math.ceil(CW * (1 + 2 * M)), LH = Math.ceil(CH * (1 + 2 * M));
+    const px = Math.round(CW * M), py = Math.round(CH * M);
+    if (!L.canvas || L.canvas.width !== LW || L.canvas.height !== LH) {
+      L.canvas = document.createElement('canvas');
+      L.canvas.width = LW; L.canvas.height = LH;
+      L.ctx = L.canvas.getContext('2d');
+      L.key = null;
+    }
+    let redraw = L.key !== key || (maxAge < Infinity && now - L.at > maxAge);
+    let s = 1, dx = 0, dy = 0;
+    if (!redraw) {
+      s = cam.zoom / L.zoom;
+      const c0 = project(L.cx, L.cy, 0), c1 = project(cam.x, cam.y, 0);
+      dx = (c0.x - c1.x) * cam.zoom + (cam.ox - L.ox);
+      dy = (c0.y - c1.y) * cam.zoom + (cam.oy - L.oy);
+      if (s > 1.125 || s < 0.89 || Math.abs(dx) > px * 0.92 || Math.abs(dy) > py * 0.92) redraw = true;
+    }
+    if (redraw) {
+      const c = L.ctx;
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      c.clearRect(0, 0, LW, LH);
+      // the view's transform, shifted by the margin
+      c.translate(px, py);
+      cam.applyTransform(c);
+      render(c);
+      L.key = key; L.at = now;
+      L.cx = cam.x; L.cy = cam.y; L.zoom = cam.zoom; L.ox = cam.ox; L.oy = cam.oy;
+      s = 1; dx = 0; dy = 0;
+    }
+    // Where a point drawn at the old camera lands under the new one:
+    // scaled about the old centre by the zoom ratio, then shifted by the pan;
+    // and the margin taken back off.
+    const mx = CW / 2 + L.ox, my = CH / 2 + L.oy;
+    ctx.setTransform(s, 0, 0, s, mx * (1 - s) + dx - px * s, my * (1 - s) + dy - py * s);
+    ctx.drawImage(L.canvas, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
   // -------------------------------------------------------------------
@@ -90,8 +147,19 @@ export class Renderer {
       maxY: cc.y + halfH - cam.oy / cam.zoom
     };
     this.view = view;
+    // what the cached layers cull against: the view plus their margin
+    const mw = (view.maxX - view.minX) * LAYER_MARGIN, mh = (view.maxY - view.minY) * LAYER_MARGIN;
+    const viewM = { minX: view.minX - mw, maxX: view.maxX + mw, minY: view.minY - mh, maxY: view.maxY + mh };
 
-    this.drawOcean(ctx, sim, view);
+    // The ocean's waves move slowly; drawn twenty times a second into a
+    // layer and blitted the rest of the time, they cost a copy instead of
+    // sixty-four strokes a frame.
+    const shaking = cam.shake > 0.001;
+    if (shaking) this.drawOcean(ctx, sim, view);
+    else {
+      this.layerBlit('ocean', ctx, cam, CW, CH, 'ocean', 80, (c) => this.drawOcean(c, sim, viewM));
+      cam.applyTransform(ctx);
+    }
 
     const bb = w.bakeBox;
     this.blit(ctx, w.terrainCanvas, bb, view);
@@ -101,33 +169,19 @@ export class Renderer {
     // Every tree, house and building is a handful of path fills and strokes,
     // and the pass is twenty milliseconds of them a frame, none of which
     // changes while the camera is still and the plant is quiet. So the pass
-    // is drawn once into a layer the size of the canvas and the layer is
-    // blitted until the camera moves, the world is damaged or a station
-    // changes state. What moves every frame - the boats bobbing, the fire on
-    // a burning prop, the corium glow - is drawn live over it. The quake's
-    // camera shake is random per frame, so while it shakes the pass is drawn
-    // straight.
-    const shaking = cam.shake > 0.001;
-    const lkey = shaking ? null : `${cam.x.toFixed(3)}|${cam.y.toFixed(3)}|${cam.zoom.toFixed(5)}|${CW}x${CH}|${cam.ox}|${cam.oy}|${w.propsVersion}|${sim.views.map((v) => v.stateKey()).join('/')}`;
-    if (shaking || lkey !== this.layerKey) {
-      let target = ctx;
-      if (!shaking) {
-        if (!this.layer || this.layer.width !== CW || this.layer.height !== CH) {
-          this.layer = document.createElement('canvas');
-          this.layer.width = CW; this.layer.height = CH;
-          this.layerCtx = this.layer.getContext('2d');
-        }
-        target = this.layerCtx;
-        target.setTransform(1, 0, 0, 1, 0, 0);
-        target.clearRect(0, 0, CW, CH);
-        cam.applyTransform(target);
-      }
+    // is drawn into a layer and blitted back until the world is damaged or a
+    // station changes state; while the camera moves the layer is blitted
+    // panned and zoomed, and redrawn a few times a second. What moves every
+    // frame - the boats bobbing, the fire on a burning prop, the corium glow
+    // - is drawn live over it. The quake's camera shake is random per frame,
+    // so while it shakes the pass is drawn straight.
+    const renderPass = (target) => {
       const list = this.list; list.length = 0;
       for (const p of w.props) {
         if (isLive(p)) continue;
         const q = project(p.x, p.y, p.z);
-        if (q.x < view.minX - 90 || q.x > view.maxX + 90 ||
-          q.y < view.minY - 160 || q.y > view.maxY + 90) continue;
+        if (q.x < viewM.minX - 90 || q.x > viewM.maxX + 90 ||
+          q.y < viewM.minY - 160 || q.y > viewM.maxY + 90) continue;
         list.push({ k: propKey(p), p });
       }
       for (const v of sim.views) v.collect(list, sim.visTime);
@@ -136,11 +190,11 @@ export class Renderer {
         if (it.p) drawProp(target, it.p, w);
         else it.f(target);
       }
-      this.layerKey = shaking ? null : lkey;
-    }
-    if (!shaking) {
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.drawImage(this.layer, 0, 0);
+    };
+    if (shaking) renderPass(ctx);
+    else {
+      const passKey = `${CW}x${CH}|${w.propsVersion}|${sim.views.map((v) => v.stateKey()).join('/')}`;
+      this.layerBlit('pass', ctx, cam, CW, CH, passKey, Infinity, renderPass);
       cam.applyTransform(ctx);
     }
     // live over the layer: the boats, then the light of anything burning

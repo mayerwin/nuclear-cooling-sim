@@ -48,9 +48,8 @@ CAMS.sg = [['G19_boiler_steam', [480, 60, 1100, 560]]];
 CAMS.unit = (CAMS.unit || []).concat([['G20_feed_route', [290, 60, 1220, 830]]]);
 CAMS.head.push(['G21_head_nozzles', [300, 200, 1250, 830]]);
 CAMS.rpv.push(['G22_reactor_interior', [450, 150, 1050, 850]]);
-CAMS.turbine.push(['G23_funnel', [290, 60, 1220, 830]]);
 CAMS.cond = [['G24_condenser', [290, 60, 1220, 830]]];
-CAMS.bay = [['G25_sea_circuit', [200, 200, 1300, 830]]];
+CAMS.bay.push(['G25_sea_circuit', [200, 200, 1300, 830]]);
 // The third review: the exhaust pipe, the plates, the drops, glass fronts, seamless joins, captions.
 CAMS.turbine.push(['G26_exhaust_pipe', [290, 60, 1220, 830]]);
 CAMS.cond.push(['G27_plates_nozzles', [290, 60, 1220, 830]], ['G28_drops_in_shell', [290, 60, 1220, 830]]);
@@ -113,8 +112,16 @@ async function specials() {
     u.root.updateMatrixWorld(true);
     u.rupture(q, u.root.localToWorld(q.path.getPointAt(0.5).clone()));
     const s = window.__sim; s.speedIdx = 3; for (let i = 0; i < 200; i++) s.update(0.05);
+    // park the camera on the wound: the lip and the stream are the picture
+    const b = u.breakFx[0], st = window.__stage;
+    const tgt = u.root.localToWorld(b.at.clone());
+    const az = window.__CUT_AZ, e = 0.14, d = 20;
+    st.want = null; st.controls.minDistance = 0.5; st.controls.target.copy(tgt);
+    st.camera.position.set(tgt.x + Math.cos(az) * Math.cos(e) * d, tgt.y + Math.sin(e) * d, tgt.z + Math.sin(az) * Math.cos(e) * d);
+    st.controls.update();
+    document.getElementById('labels').style.display = 'none';
   });
-  await p.waitForTimeout(9000);
+  await p.waitForTimeout(6000);
   await p.screenshot({ path: `${OUT}/G17_break_full.png` });
   await p.close();
   // U1: a phone, inside view
@@ -184,7 +191,7 @@ function cameras() {
     const src = spec === 'pump' ? `${TMP}/look/pump-plain.png` : shotOf(spec);
     for (const [name, box] of outs) plan.push({ src, out: `${OUT}/${name}.png`, box });
   }
-  plan.push({ src: `${OUT}/G17_break_full.png`, out: `${OUT}/G17_break.png`, box: [440, 420, 860, 800] });
+  plan.push({ src: `${OUT}/G17_break_full.png`, out: `${OUT}/G17_break.png`, box: [350, 150, 1150, 900] });
   // U10: the same pump with real refraction switched on. Taken last, because
   // it overwrites the plain pump shot the F9 and G5 crops were cut from.
   run('node', ['tools/look.mjs', 'pump'], { REFRACT: '1', LABELS: '0' });

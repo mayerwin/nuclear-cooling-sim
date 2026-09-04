@@ -5,8 +5,11 @@ device px), vsync off, mean frame time over 3 s. 2026-09-02.
 site view, as reviewed                      79.3 ms                      21.0 ms
 site view, blur removed                     44.2 ms                      17.0 ms
 site view, layer cache + CSS vignette        2.9 ms                          -
+site view, dragging, as reviewed            44 ms
+site view, dragging, margin layers           1.6 ms   (zooming 2.0 ms)
+inside, defaults, one lamp, 1.25x            9.1 ms
 inside, defaults, as reviewed               23.0 ms                      10.0 ms
-inside, defaults, now                       12.1 ms                       6.4 ms
+inside, defaults, no blur                  12.1 ms                       6.4 ms
 inside, every option on, now                25.2 ms                      16.7 ms
 
 Where the site view's 79 ms went (Intel, 1829x1008): the panels' backdrop
@@ -23,3 +26,10 @@ taken by giving a separate test browser binary a "high performance"
 preference for the duration of the measurement and removing it after. To
 have Chrome itself use the RTX: Windows Settings > System > Display >
 Graphics > add chrome.exe > High performance.
+
+Inside-view knobs, full window, Intel, measured one at a time from 14.4 ms:
+shadow map 1024        14.6 ms (nothing)     pixel density 1.25x   11.0 ms
+pixel density 1.0x      8.4 ms               interior lights off   10.6 ms
+clearcoat off          12.5 ms               anti-aliasing off     10.3 ms
+Taken: one interior lamp per unit, density capped at 1.25x. Left: anti-
+aliasing (edges), clearcoat (the water's sheen), density below 1.25x.

@@ -13,8 +13,8 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { build as buildMaterials } from './materials.js?v=f7bec3ea79';
-import { rippleNormal, LOWFX, FLUID_TIME, twoOctaveFlow, SEA_TILE } from './fluid.js?v=f7bec3ea79';
+import { build as buildMaterials } from './materials.js?v=a4d7bb2070';
+import { rippleNormal, LOWFX, FLUID_TIME, twoOctaveFlow, SEA_TILE } from './fluid.js?v=a4d7bb2070';
 
 // A vertical sky gradient, baked once into an equirectangular strip.
 function skyTexture() {
@@ -43,11 +43,13 @@ export class Stage {
     this.mobile = mobile;
     // A stencil buffer, because the cut faces of the containment are drawn by
     // stencil (see section.js), and since r163 nothing has one unless it asks.
+    // ?aa=0 turns the canvas's multisampling off, so its cost can be measured.
+    const aa = !mobile && new URLSearchParams(location.search).get('aa') !== '0';
     this.renderer = new THREE.WebGLRenderer({
-      antialias: !mobile, powerPreference: 'high-performance', stencil: true });
+      antialias: aa, powerPreference: 'high-performance', stencil: true });
     // One device pixel per pixel on a handset. At 3x the same frame costs nine
     // times the fill, and this scene is fill-bound.
-    this.renderer.setPixelRatio(Math.min(mobile ? 1 : 1.5, window.devicePixelRatio || 1));
+    this.renderer.setPixelRatio(Math.min(mobile ? 1 : 1.25, window.devicePixelRatio || 1));
     // Losing the context used to be terminal: the default was prevented, which
     // asks the browser to restore it, and then nothing listened for the
     // restore, so the canvas stayed blank for the rest of the session. Now the
@@ -528,10 +530,11 @@ export class Stage {
   }
 
   // The pixel ratio, from the hidpi toggle and the scale together. Hidpi is
-  // capped at 1.5: a 2x panel is four times the fill of a 1x one, and between
-  // 1.5 and 2 there is nothing a person can see in this picture.
+  // capped at 1.25: a 2x panel is four times the fill of a 1x one, and
+  // measured on the laptop the step from 1.25 to 1.5 cost a quarter of the
+  // frame for nothing a person can see in this picture.
   applyPixelRatio() {
-    const base = this.q.hidpi ? Math.min(1.5, window.devicePixelRatio || 1) : 1;
+    const base = this.q.hidpi ? Math.min(1.25, window.devicePixelRatio || 1) : 1;
     this.renderer.setPixelRatio(base * this.scale);
     this.resize(this.lastW, this.lastH);
   }
