@@ -45,7 +45,25 @@ REFRACT=1 node tools/look.mjs <cam>        # with real refraction switched on
 LABELS=0 node tools/look.mjs <cam>         # captions hidden (proof.mjs does this for every machine close-up)
 node tools/proof.mjs [all|specials|cameras]# re-capture every proof image from THIS build
 node tools/reqpage.mjs                     # rebuild docs/requirements.html from the json
+node tools/perf.mjs                        # frame cost of the inside view (mean/median/p90 ms, calls, tris)
 ```
+
+The station's steel is designed in Blender and imported (see "The model comes
+from Blender" below). To change a machine:
+
+```
+edit assets/layout.json and/or tools/blender/plant.py
+py -3 tools/bl.py run ~/Apps/blender-mcp/reset-scene.py            # empty the live Blender
+py -3 tools/bl.py run ~/Apps/blender-mcp/run-plant.py --shot x.png # rebuild in it and screenshot the viewport
+py -3 tools/bl.py run ~/Apps/blender-mcp/view-inside.py --shot y.png  # building hidden
+py -3 tools/bl.py run tools/blender/glshot.py --out z.png          # viewport rendered offscreen (never black)
+~/Apps/blender-5.2.1-windows-x64/blender.exe -b -P tools/blender/plant.py -- --export assets/plant.glb
+```
+
+then `look` it in the app: the app reads the glb, and the water in unit.js
+reads the same numbers from layout.json (the constants in unit.js's `L` must
+agree with it: they are the same numbers today; move them into the json when
+you next touch them).
 
 Renders run on SwiftShader on the Linux box (1-3 min each), so drive the plant
 clock rather than waiting on frames; `look.mjs` already does. Read the rendered
@@ -117,6 +135,59 @@ materials, layout or the section: the pictures must be from the build shipped.
 
 Layout constants (`L` in unit.js) put every machine in one vertical plane;
 `CUT_AZ` is the heading the section faces. Local +z is the removed half.
+
+## The model comes from Blender (2026-09-04, fifth round)
+
+75 requirements: 71 DONE, 4 WATCH (F2, F9, F12, U14), 0 OPEN. Lines B1 to
+B5 are this round; every earlier proof was re-captured from this build.
+
+The owner asked for the 3D model to be designed properly, in Blender, with
+the agent seeing what it does, and for the half cutout to stay a render-time
+effect. That is how it is built now:
+
+- `assets/layout.json` is the one description of the station in metres:
+  every vessel profile, pipe centreline, pump, the turbine, condenser, sea
+  circuit, vent, pool and tank. Local x runs across the picture, y up, z is
+  depth; the cut plane is z = 0 and the far half (z < 0) is kept.
+- `tools/blender/plant.py` builds every static part from it with bpy (264
+  objects: lathes for the vessels, bevelled curves for the pipes with real
+  elbows, boxes, tori, an empty per rotor with the wheel or impeller under
+  it) and exports `assets/plant.glb` (y-up, 1.7 MB). It runs headless with
+  `-b -P ... -- --export`, or inside the live Blender.
+- `js/view/model.js` loads the glb once. `instantiate({passive, cut})`
+  gives a unit its own copy: the other design's parts dropped by name
+  (`pool_*`, `coil`, `pipe_prhr_*`... vs `tank_*`, `eccs_*`...), the parts
+  the app draws itself dropped (`wall`, `dome`, `liner*`, `slab`, `floor`,
+  `fuel_rod_*`, `sg_tube_*`, `cond_tube_*`), the live parts kept as objects
+  (`*_rotor`, `*_lamp`, `lamp_bulb`, `lamp_bus_*`, `grav_valve`,
+  `rpv_skirt`, `gen_body`, `cond_shell`) and everything else merged into
+  one mesh per material: 16 draw calls for a unit's steel instead of 250.
+  Every material is cloned per unit, DoubleSide, cut on the unit's plane.
+- `unit.js` builds only what is wet, moving or glowing: water bodies,
+  steam, the tube banks (fluid rods with gradients), tracers, drips, the
+  fuel, the level ring, the lights. Pipes are built with
+  `{ casing: false, cut: this.cut }` (`this.pipeOpts`): `parts.pipe()` then
+  makes no casing (the model's is there) and clips the core on the plane,
+  so a water run is a trough in a trough, the way a cutaway drawing has
+  it. Tracers use a per-unit clone of the fleck material, cut the same.
+- The building (wall, dome, liner, floor, breach plug, section caps) stays
+  procedural: it is what the stencil caps and the breach need.
+- No nozzle stubs, no collars: the model's pipes end inside the walls they
+  serve and the app's water runs on through, which is what G4, F6 and G8
+  ask. A first export had bosses at every penetration; cut on the plane
+  they read as the grey collars the owner had already rejected.
+
+Seeing Blender: the official Blender Lab MCP add-on (`bl_ext.user_default.mcp`,
+Blender 5.1+; the portable 5.2.1 LTS is under `~/Apps`) listens on
+192.168.1.38:9876 with autostart and online access on; the MCP server is
+`~/Apps/blender-mcp/.venv` (`blender-mcp` 1.0.0 with `mcp[cli]<2`), registered
+in `~/.claude.json` as `blender`. `tools/bl.py` drives it from a shell:
+`run <file|-> [--shot out.png] [--window]` executes Python in the live Blender
+and screenshots the 3D viewport (`shot`, `objects` too). Blender's screenshot
+of the viewport is the feedback loop; read it, then `look` the app.
+
+Frame cost after the change, inside view, the tools' 1500x950 window at 1x on
+the laptop's Intel Arc: see B5 in the register (numbers there).
 
 ## Current state (2026-09-02, fourth round)
 
@@ -249,6 +320,30 @@ each circuit's own temperature span (`Circuit.range`), so a 290-325 C primary
 loop shows its cold leg blue and its hot leg red.
 
 ## Traps that have already bitten (do not rediscover them)
+
+- Blender: the official MCP add-on needs Blender 5.1+ (4.2 will not load
+  it); `mcp` 2.x breaks the server (`mcp[cli]<2`); the add-on will not
+  start its server until `preferences.system.use_online_access` is on; the
+  screenshot tool's parameter is `area_ui_type`, not `area_type`; on this
+  laptop 127.0.0.1 is dead (VPN), so the add-on binds the LAN address.
+- glTF: the exporter turns bevelled curves into meshes only with
+  `export_apply=True`; the y-up conversion leaves a child's local axes as
+  built, which is why the rotors are empties positioned at the wheel with
+  children in local coordinates. `mergeGeometries` needs identical
+  attribute sets: model.js strips everything but position and normal.
+- `pipe()` with `casing: false` returns the core as `casing`, which is what
+  main.js raycasts to break a pipe; keep it that way.
+- `tools/proof.mjs`: the camera map is extended below its literal with
+  `CAMS.x.push(...)` and `CAMS.x = (CAMS.x || []).concat(...)`; a plain
+  `CAMS.x = [...]` there silently drops every crop the literal listed for
+  that camera (B3 went missing that way).
+- Patching a CRLF file from Python: read and write in BINARY. In text mode
+  Windows Python turns an explicit `
+` into `
+` on write, and on
+  read turns the lone `` into a blank line, so the next anchor never
+  matches and the file grows blank lines. This round did exactly that to
+  five files before noticing.
 
 - `Camera.applyTransform` SETS the canvas matrix. Anything meant to shift it
   (the cached layers' margin) goes through `cam.ox/oy`, not a translate before

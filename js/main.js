@@ -5,17 +5,18 @@
 // inside of the buildings in 3-D. Only one is on screen at a time.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { Sim } from './sim.js?v=4ef08b3842';
-import { Renderer } from './site/renderer.js?v=4ef08b3842';
-import { unproject } from './site/iso.js?v=4ef08b3842';
-import { Stage } from './view/stage.js?v=4ef08b3842';
-import { Unit, CUT_AZ } from './view/unit.js?v=4ef08b3842';
-import { Labels } from './view/labels.js?v=4ef08b3842';
-import { UI } from './ui.js?v=4ef08b3842';
-import { initPhysics } from './machines.js?v=4ef08b3842';
-import { state } from './view/state.js?v=4ef08b3842';
-import { AutoQ } from './view/autoq.js?v=4ef08b3842';
-import { clamp } from './util.js?v=4ef08b3842';
+import { Sim } from './sim.js?v=0993587cdd';
+import { Renderer } from './site/renderer.js?v=0993587cdd';
+import { unproject } from './site/iso.js?v=0993587cdd';
+import { Stage } from './view/stage.js?v=0993587cdd';
+import { Unit, CUT_AZ } from './view/unit.js?v=0993587cdd';
+import { Labels } from './view/labels.js?v=0993587cdd';
+import { UI } from './ui.js?v=0993587cdd';
+import { initPhysics } from './machines.js?v=0993587cdd';
+import { state } from './view/state.js?v=0993587cdd';
+import { loadPlant } from './view/model.js?v=0993587cdd';
+import { AutoQ } from './view/autoq.js?v=0993587cdd';
+import { clamp } from './util.js?v=0993587cdd';
 
 const SPAN = 29;
 const siteCanvas = document.getElementById('site');
@@ -48,13 +49,15 @@ if (!GL_OK) {
 // not being used should cost nothing, so all of it waits here until the card
 // is dismissed, and the frame loop does not start until the same moment.
 let booted = false;
-function boot() {
+async function boot() {
   if (booted) return;
   booted = true;
   sim.world.bakeTerrain();
   sim.world.bakeOverlay();
   renderer.buildOcean();
   if (GL_OK) {
+    // The station's steel, from Blender, before the units that stand in it.
+    try { await loadPlant(); } catch (e) { console.error('plant model failed to load', e); }
     stage = new Stage(host, labelHost);
     // The stations stand along the camera's screen-right axis for the CUT_AZ
     // heading, so in the side-by-side view both sit at the same depth and draw

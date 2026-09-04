@@ -40,11 +40,11 @@
 <header>
   <h1>Requirements register</h1>
   <div class="sub">Every piece of review feedback on the visualisation, with the check that closes it and a screenshot as proof. Built 2026-09-04 from <code>docs/requirements.json</code>.</div>
-  <div class="tally"><span class="DONE">66 DONE</span><span class="WATCH">4 WATCH</span><span class="OPEN">0 OPEN</span></div>
+  <div class="tally"><span class="DONE">71 DONE</span><span class="WATCH">4 WATCH</span><span class="OPEN">0 OPEN</span></div>
 </header>
 <div class="bar">
   <input id="q" placeholder="Filter text (requirement, check, id)">
-  <select id="area"><option value="">All areas</option><option>Fluids and colour</option><option>Geometry and clutter</option><option>Interface and platform</option><option>Scenarios</option><option>Code review</option><option>Geometry and machines, second review</option><option>Geometry and machines, third review</option></select>
+  <select id="area"><option value="">All areas</option><option>Fluids and colour</option><option>Geometry and clutter</option><option>Interface and platform</option><option>Scenarios</option><option>Code review</option><option>Geometry and machines, second review</option><option>Geometry and machines, third review</option><option>Model from Blender</option></select>
   <select id="status"><option value="">All statuses</option><option>DONE</option><option>WATCH</option><option>OPEN</option></select>
 </div>
 <table id="t">
@@ -53,638 +53,683 @@
   <th data-k="status">Status</th><th data-k="raised">Raised</th><th data-k="verified">Verified</th><th>Proof</th>
 </tr></thead>
 <tbody>
-<tr data-id="F1" data-area="Fluids and colour" data-req="Particles in the water must read as flowing water, not as bubbles or white balls." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f1 fluids and colour particles in the water must read as flowing water, not as bubbles or white balls. look head: tracers are streaks along the bore. root cause was `mats.fleck` missing from the unit's material table, so three fell back to a white meshbasicmaterial.">
+<tr data-id="F1" data-area="Fluids and colour" data-req="Particles in the water must read as flowing water, not as bubbles or white balls." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="f1 fluids and colour particles in the water must read as flowing water, not as bubbles or white balls. look head: tracers are streaks along the bore. root cause was `mats.fleck` missing from the unit's material table, so three fell back to a white meshbasicmaterial.">
   <td class="id">F1</td>
   <td>Fluids and colour</td>
   <td><div class="req">Particles in the water must read as flowing water, not as bubbles or white balls.</div><div class="check">look head: tracers are streaks along the bore. Root cause was `mats.fleck` missing from the unit's material table, so Three fell back to a white MeshBasicMaterial.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/F1_tracers.png" target="_blank"><img src="proof/F1_tracers.png" alt="" loading="lazy"><small>Channel head: streaks, not beads</small></a></div></td>
 </tr>
-<tr data-id="F2" data-area="Fluids and colour" data-req="Colours must NEVER change suddenly; every change is a gradient." data-status="WATCH" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f2 fluids and colour colours must never change suddenly; every change is a gradient. one recipe everywhere, and since f13 the recipe's input is a temperature: colouroft(t) is the only place a colour is made, and every paint call reads a leg's t0/t1. any new call site that mixes its own colour breaks this, hence watch.">
+<tr data-id="F2" data-area="Fluids and colour" data-req="Colours must NEVER change suddenly; every change is a gradient." data-status="WATCH" data-raised="2026-09-01" data-verified="2026-09-04" data-text="f2 fluids and colour colours must never change suddenly; every change is a gradient. one recipe everywhere, and since f13 the recipe's input is a temperature: colouroft(t) is the only place a colour is made, and every paint call reads a leg's t0/t1. any new call site that mixes its own colour breaks this, hence watch.">
   <td class="id">F2</td>
   <td>Fluids and colour</td>
   <td><div class="req">Colours must NEVER change suddenly; every change is a gradient.</div><div class="check">One recipe everywhere, and since F13 the recipe's input is a temperature: colourOfT(T) is the only place a colour is made, and every paint call reads a leg's T0/T1. Any new call site that mixes its own colour breaks this, hence WATCH.</div></td>
   <td><span class="st WATCH">WATCH</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/F2_gradient.png" target="_blank"><img src="proof/F2_gradient.png" alt="" loading="lazy"><small>Sea water warming across the tube bank</small></a></div></td>
 </tr>
-<tr data-id="F3" data-area="Fluids and colour" data-req="The condensate is the same temperature as the water going back to the boiler, so it must be the same colour, and the tank below the turbine must look full of water, not painted walls." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f3 fluids and colour the condensate is the same temperature as the water going back to the boiler, so it must be the same colour, and the tank below the turbine must look full of water, not painted walls. look sump: the condensate pool lies in the bottom of the condenser shell, a body with a rippling top, painted from the secondary's own span at the condensate temperature, and the suction line out of it to the condensate pump carries the same colour.">
+<tr data-id="F3" data-area="Fluids and colour" data-req="The condensate is the same temperature as the water going back to the boiler, so it must be the same colour, and the tank below the turbine must look full of water, not painted walls." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="f3 fluids and colour the condensate is the same temperature as the water going back to the boiler, so it must be the same colour, and the tank below the turbine must look full of water, not painted walls. look sump: the condensate pool lies in the bottom of the condenser shell, a body with a rippling top, painted from the secondary's own span at the condensate temperature, and the suction line out of it to the condensate pump carries the same colour.">
   <td class="id">F3</td>
   <td>Fluids and colour</td>
   <td><div class="req">The condensate is the same temperature as the water going back to the boiler, so it must be the same colour, and the tank below the turbine must look full of water, not painted walls.</div><div class="check">look sump: the condensate pool lies in the bottom of the condenser shell, a body with a rippling top, painted from the secondary's own span at the condensate temperature, and the suction line out of it to the condensate pump carries the same colour.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/F3_condensate.png" target="_blank"><img src="proof/F3_condensate.png" alt="" loading="lazy"><small>The pool in the bottom of the shell and its suction line</small></a></div></td>
 </tr>
-<tr data-id="F4" data-area="Fluids and colour" data-req="Water must visibly become more orangish towards the top of the reactor, realistically, not paint in front." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f4 fluids and colour water must visibly become more orangish towards the top of the reactor, realistically, not paint in front. look rpv: vertical ramp on the body of the water, cold at the bottom of the vessel to amber at the surface.">
+<tr data-id="F4" data-area="Fluids and colour" data-req="Water must visibly become more orangish towards the top of the reactor, realistically, not paint in front." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="f4 fluids and colour water must visibly become more orangish towards the top of the reactor, realistically, not paint in front. look rpv: vertical ramp on the body of the water, cold at the bottom of the vessel to amber at the surface.">
   <td class="id">F4</td>
   <td>Fluids and colour</td>
   <td><div class="req">Water must visibly become more orangish towards the top of the reactor, realistically, not paint in front.</div><div class="check">look rpv: vertical ramp on the body of the water, cold at the bottom of the vessel to amber at the surface.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/F4_reactor.png" target="_blank"><img src="proof/F4_reactor.png" alt="" loading="lazy"><small>Reactor: blue at the bottom, amber at the top</small></a></div></td>
 </tr>
-<tr data-id="F5" data-area="Fluids and colour" data-req="Steam speed in the pipe must be consistent with the steam in the boiler; fluid speeds consistent overall." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f5 fluids and colour steam speed in the pipe must be consistent with the steam in the boiler; fluid speeds consistent overall. one compression law drawv(v) = 2.6 * |v|^0.55 drives every scroll, tracer, riser and vapour cloud.">
+<tr data-id="F5" data-area="Fluids and colour" data-req="Steam speed in the pipe must be consistent with the steam in the boiler; fluid speeds consistent overall." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="f5 fluids and colour steam speed in the pipe must be consistent with the steam in the boiler; fluid speeds consistent overall. one compression law drawv(v) = 2.6 * |v|^0.55 drives every scroll, tracer, riser and vapour cloud.">
   <td class="id">F5</td>
   <td>Fluids and colour</td>
   <td><div class="req">Steam speed in the pipe must be consistent with the steam in the boiler; fluid speeds consistent overall.</div><div class="check">One compression law drawV(v) = 2.6 * |v|^0.55 drives every scroll, tracer, riser and vapour cloud.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/F5_speeds.png" target="_blank"><img src="proof/F5_speeds.png" alt="" loading="lazy"><small>Boiler and its steam line</small></a><div class="txt">js/view/unit.js: drawV() is the only speed mapping; grep -n 'drawV(' shows every scroll and tracer uses it.</div></div></td>
 </tr>
-<tr data-id="F6" data-area="Fluids and colour" data-req="Junctions between pipe and vessel must be seamless: no colour step, no grey rod, no sleeve, no 'dark orange pipe and light orange tank'." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f6 fluids and colour junctions between pipe and vessel must be seamless: no colour step, no grey rod, no sleeve, no 'dark orange pipe and light orange tank'. look head: the hot leg runs half a metre into the channel head's hot half and the cold leg starts half a metre inside its cold half, through the head's wall; one colour call per junction; no collars, no openings drawn on the wall.">
+<tr data-id="F6" data-area="Fluids and colour" data-req="Junctions between pipe and vessel must be seamless: no colour step, no grey rod, no sleeve, no 'dark orange pipe and light orange tank'." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="f6 fluids and colour junctions between pipe and vessel must be seamless: no colour step, no grey rod, no sleeve, no 'dark orange pipe and light orange tank'. look head: the hot leg runs half a metre into the channel head's hot half and the cold leg starts half a metre inside its cold half, through the head's wall; one colour call per junction; no collars, no openings drawn on the wall.">
   <td class="id">F6</td>
   <td>Fluids and colour</td>
   <td><div class="req">Junctions between pipe and vessel must be seamless: no colour step, no grey rod, no sleeve, no 'dark orange pipe and light orange tank'.</div><div class="check">look head: the hot leg runs half a metre into the channel head's hot half and the cold leg starts half a metre inside its cold half, through the head's wall; one colour call per junction; no collars, no openings drawn on the wall.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G30_seamless_head.png" target="_blank"><img src="proof/G30_seamless_head.png" alt="" loading="lazy"><small>Hot and cold legs running into the head</small></a></div></td>
 </tr>
-<tr data-id="F7" data-area="Fluids and colour" data-req="The incoming water pipe must be seamless and properly connected to the rest." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f7 fluids and colour the incoming water pipe must be seamless and properly connected to the rest. look dome: the feed line runs through the shell and ends inside the boiler's water column at the feed nozzle; the downcomer ring that starts there is drawn just outside the column and runs six metres down.">
+<tr data-id="F7" data-area="Fluids and colour" data-req="The incoming water pipe must be seamless and properly connected to the rest." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="f7 fluids and colour the incoming water pipe must be seamless and properly connected to the rest. look dome: the feed line runs through the shell and ends inside the boiler's water column at the feed nozzle; the downcomer ring that starts there is drawn just outside the column and runs six metres down.">
   <td class="id">F7</td>
   <td>Fluids and colour</td>
   <td><div class="req">The incoming water pipe must be seamless and properly connected to the rest.</div><div class="check">look dome: the feed line runs through the shell and ends inside the boiler's water column at the feed nozzle; the downcomer ring that starts there is drawn just outside the column and runs six metres down.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/F7_feed.png" target="_blank"><img src="proof/F7_feed.png" alt="" loading="lazy"><small>Feed line into the boiler</small></a></div></td>
 </tr>
-<tr data-id="F8" data-area="Fluids and colour" data-req="The blue pipe into the boiler must look like fluid going into a bigger tank." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f8 fluids and colour the blue pipe into the boiler must look like fluid going into a bigger tank. look dome.">
+<tr data-id="F8" data-area="Fluids and colour" data-req="The blue pipe into the boiler must look like fluid going into a bigger tank." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="f8 fluids and colour the blue pipe into the boiler must look like fluid going into a bigger tank. look dome.">
   <td class="id">F8</td>
   <td>Fluids and colour</td>
   <td><div class="req">The blue pipe into the boiler must look like fluid going into a bigger tank.</div><div class="check">look dome.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/F8_feed_tank.png" target="_blank"><img src="proof/F8_feed_tank.png" alt="" loading="lazy"><small>Boiler feed</small></a></div></td>
 </tr>
-<tr data-id="F9" data-area="Fluids and colour" data-req="Water must be rendered the way games and physical simulations render fluids: a clean, standard model, not a hack. 'No game would ship such poor graphics.'" data-status="WATCH" data-raised="2026-09-02" data-verified="2026-09-02" data-text="f9 fluids and colour water must be rendered the way games and physical simulations render fluids: a clean, standard model, not a hack. 'no game would ship such poor graphics.' standard real-time water model: two-octave flow map (aperiodic fbm, anisotropic along the bore), beer-lambert absorption by path length, fresnel edge, glossy specular; refraction available as a toggle. marked watch because the bar is 'game quality' and reflections of surroundings are still off by default for frame rate.">
+<tr data-id="F9" data-area="Fluids and colour" data-req="Water must be rendered the way games and physical simulations render fluids: a clean, standard model, not a hack. 'No game would ship such poor graphics.'" data-status="WATCH" data-raised="2026-09-02" data-verified="2026-09-04" data-text="f9 fluids and colour water must be rendered the way games and physical simulations render fluids: a clean, standard model, not a hack. 'no game would ship such poor graphics.' standard real-time water model: two-octave flow map (aperiodic fbm, anisotropic along the bore), beer-lambert absorption by path length, fresnel edge, glossy specular; refraction available as a toggle. marked watch because the bar is 'game quality' and reflections of surroundings are still off by default for frame rate.">
   <td class="id">F9</td>
   <td>Fluids and colour</td>
   <td><div class="req">Water must be rendered the way games and physical simulations render fluids: a clean, standard model, not a hack. 'No game would ship such poor graphics.'</div><div class="check">Standard real-time water model: two-octave flow map (aperiodic FBM, anisotropic along the bore), Beer-Lambert absorption by path length, Fresnel edge, glossy specular; refraction available as a toggle. Marked WATCH because the bar is 'game quality' and reflections of surroundings are still off by default for frame rate.</div></td>
   <td><span class="st WATCH">WATCH</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/F9_fluid_pump.png" target="_blank"><img src="proof/F9_fluid_pump.png" alt="" loading="lazy"><small>Pump body</small></a><a href="proof/F9_fluid_unit.png" target="_blank"><img src="proof/F9_fluid_unit.png" alt="" loading="lazy"><small>Whole unit</small></a></div></td>
 </tr>
-<tr data-id="F10" data-area="Fluids and colour" data-req="If sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="f10 fluids and colour if sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor. the sea leg picks up 10 c across the condenser's tube bank (dt, display gain 10): blue on the lower row where it enters, amber on the upper row where it leaves, and the outfall from the upper nozzle carries the outlet temperature back to the sea.">
+<tr data-id="F10" data-area="Fluids and colour" data-req="If sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="f10 fluids and colour if sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor. the sea leg picks up 10 c across the condenser's tube bank (dt, display gain 10): blue on the lower row where it enters, amber on the upper row where it leaves, and the outfall from the upper nozzle carries the outlet temperature back to the sea.">
   <td class="id">F10</td>
   <td>Fluids and colour</td>
   <td><div class="req">If sea water is heated by condensing the steam, the pipe after the turbine must look orangish, less than the reactor.</div><div class="check">The sea leg picks up 10 C across the condenser's tube bank (dT, display gain 10): blue on the lower row where it enters, amber on the upper row where it leaves, and the outfall from the upper nozzle carries the outlet temperature back to the sea.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/F10_outfall.png" target="_blank"><img src="proof/F10_outfall.png" alt="" loading="lazy"><small>Outfall amber off the upper row, intake blue on the lower</small></a></div></td>
 </tr>
-<tr data-id="F11" data-area="Fluids and colour" data-req="The INCOMING sea water is colder than the outgoing water and must be blue, not orange." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="f11 fluids and colour the incoming sea water is colder than the outgoing water and must be blue, not orange. the intake carries the sea leg's inlet end (tempat 'in'): the circulating pump's suction and discharge are blue up to the lower nozzle of the sea-side plate. both sea runs are built in the direction their water goes.">
+<tr data-id="F11" data-area="Fluids and colour" data-req="The INCOMING sea water is colder than the outgoing water and must be blue, not orange." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="f11 fluids and colour the incoming sea water is colder than the outgoing water and must be blue, not orange. the intake carries the sea leg's inlet end (tempat 'in'): the circulating pump's suction and discharge are blue up to the lower nozzle of the sea-side plate. both sea runs are built in the direction their water goes.">
   <td class="id">F11</td>
   <td>Fluids and colour</td>
   <td><div class="req">The INCOMING sea water is colder than the outgoing water and must be blue, not orange.</div><div class="check">The intake carries the sea leg's inlet end (tempAt 'in'): the circulating pump's suction and discharge are blue up to the lower nozzle of the sea-side plate. Both sea runs are built in the direction their water goes.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/F11_intake.png" target="_blank"><img src="proof/F11_intake.png" alt="" loading="lazy"><small>Intake blue where the sea arrives at the lower row</small></a></div></td>
 </tr>
-<tr data-id="F12" data-area="Fluids and colour" data-req="The sea must look like one seamless surface, no patches with different textures." data-status="WATCH" data-raised="2026-09-02" data-verified="2026-09-02" data-text="f12 fluids and colour the sea must look like one seamless surface, no patches with different textures. open sea, forebay and channel set their ripple repeat from sea_tile and share the two-octave flow. watch: at the bay camera the forebay still reads flatter than the open water beside it; the boundary itself needs its own shot before this is called done.">
+<tr data-id="F12" data-area="Fluids and colour" data-req="The sea must look like one seamless surface, no patches with different textures." data-status="WATCH" data-raised="2026-09-02" data-verified="2026-09-04" data-text="f12 fluids and colour the sea must look like one seamless surface, no patches with different textures. open sea, forebay and channel set their ripple repeat from sea_tile and share the two-octave flow. watch: at the bay camera the forebay still reads flatter than the open water beside it; the boundary itself needs its own shot before this is called done.">
   <td class="id">F12</td>
   <td>Fluids and colour</td>
   <td><div class="req">The sea must look like one seamless surface, no patches with different textures.</div><div class="check">Open sea, forebay and channel set their ripple repeat from SEA_TILE and share the two-octave flow. WATCH: at the bay camera the forebay still reads flatter than the open water beside it; the boundary itself needs its own shot before this is called done.</div></td>
   <td><span class="st WATCH">WATCH</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/F12_sea.png" target="_blank"><img src="proof/F12_sea.png" alt="" loading="lazy"><small>Forebay and open sea</small></a></div></td>
 </tr>
-<tr data-id="G1" data-area="Geometry and clutter" data-req="Get rid of the network of pipes around the concrete container; they connect to nothing." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g1 geometry and clutter get rid of the network of pipes around the concrete container; they connect to nothing. 28 buttresses removed; steam and feed leave the containment in one corner.">
+<tr data-id="G1" data-area="Geometry and clutter" data-req="Get rid of the network of pipes around the concrete container; they connect to nothing." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="g1 geometry and clutter get rid of the network of pipes around the concrete container; they connect to nothing. 28 buttresses removed; steam and feed leave the containment in one corner.">
   <td class="id">G1</td>
   <td>Geometry and clutter</td>
   <td><div class="req">Get rid of the network of pipes around the concrete container; they connect to nothing.</div><div class="check">28 buttresses removed; steam and feed leave the containment in one corner.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G1_G2_containment.png" target="_blank"><img src="proof/G1_G2_containment.png" alt="" loading="lazy"><small>Containment from behind</small></a></div></td>
 </tr>
-<tr data-id="G2" data-area="Geometry and clutter" data-req="No rings or pipes around the containment tank." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g2 geometry and clutter no rings or pipes around the containment tank. three tori deleted: springline, plinth, cut rim.">
+<tr data-id="G2" data-area="Geometry and clutter" data-req="No rings or pipes around the containment tank." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="g2 geometry and clutter no rings or pipes around the containment tank. three tori deleted: springline, plinth, cut rim.">
   <td class="id">G2</td>
   <td>Geometry and clutter</td>
   <td><div class="req">No rings or pipes around the containment tank.</div><div class="check">Three tori deleted: springline, plinth, cut rim.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G1_G2_containment.png" target="_blank"><img src="proof/G1_G2_containment.png" alt="" loading="lazy"><small>No rings</small></a></div></td>
 </tr>
-<tr data-id="G3" data-area="Geometry and clutter" data-req="Get rid of the middle white mini dome in the middle of the containment." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g3 geometry and clutter get rid of the middle white mini dome in the middle of the containment. it was 110 unstepped particle instances stacked at the origin. riser, drip and bubbles start hidden.">
+<tr data-id="G3" data-area="Geometry and clutter" data-req="Get rid of the middle white mini dome in the middle of the containment." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="g3 geometry and clutter get rid of the middle white mini dome in the middle of the containment. it was 110 unstepped particle instances stacked at the origin. riser, drip and bubbles start hidden.">
   <td class="id">G3</td>
   <td>Geometry and clutter</td>
   <td><div class="req">Get rid of the middle white mini dome in the middle of the containment.</div><div class="check">It was 110 unstepped particle instances stacked at the origin. Riser, Drip and Bubbles start hidden.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G3_floor.png" target="_blank"><img src="proof/G3_floor.png" alt="" loading="lazy"><small>Containment floor, nothing on it</small></a></div></td>
 </tr>
-<tr data-id="G4" data-area="Geometry and clutter" data-req="Remove the grey metal rings from all pipes." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g4 geometry and clutter remove the grey metal rings from all pipes. flanges removed from pipe(); all collars deleted.">
+<tr data-id="G4" data-area="Geometry and clutter" data-req="Remove the grey metal rings from all pipes." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="g4 geometry and clutter remove the grey metal rings from all pipes. flanges removed from pipe(); all collars deleted.">
   <td class="id">G4</td>
   <td>Geometry and clutter</td>
   <td><div class="req">Remove the grey metal rings from all pipes.</div><div class="check">Flanges removed from pipe(); all collars deleted.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G4_no_rings.png" target="_blank"><img src="proof/G4_no_rings.png" alt="" loading="lazy"><small>Bare pipes into the head</small></a></div></td>
 </tr>
-<tr data-id="G5" data-area="Geometry and clutter" data-req="No borders on the pumps interrupting the visible flow of water." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g5 geometry and clutter no borders on the pumps interrupting the visible flow of water. casing open-ended and shorter than the water in it.">
+<tr data-id="G5" data-area="Geometry and clutter" data-req="No borders on the pumps interrupting the visible flow of water." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g5 geometry and clutter no borders on the pumps interrupting the visible flow of water. casing open-ended and shorter than the water in it.">
   <td class="id">G5</td>
   <td>Geometry and clutter</td>
   <td><div class="req">No borders on the pumps interrupting the visible flow of water.</div><div class="check">Casing open-ended and shorter than the water in it.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G5_pump.png" target="_blank"><img src="proof/G5_pump.png" alt="" loading="lazy"><small>Pump without rims</small></a></div></td>
 </tr>
-<tr data-id="G6" data-area="Geometry and clutter" data-req="No ugly grey structure hiding the sea water pipes below the turbine." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g6 geometry and clutter no ugly grey structure hiding the sea water pipes below the turbine. the condenser is a steel shell under the turbine, cut on the plane like every vessel: the sea lines arrive at and leave its end plate in the open, and nothing grey stands in front of them.">
+<tr data-id="G6" data-area="Geometry and clutter" data-req="No ugly grey structure hiding the sea water pipes below the turbine." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g6 geometry and clutter no ugly grey structure hiding the sea water pipes below the turbine. the condenser is a steel shell under the turbine, cut on the plane like every vessel: the sea lines arrive at and leave its end plate in the open, and nothing grey stands in front of them.">
   <td class="id">G6</td>
   <td>Geometry and clutter</td>
   <td><div class="req">No ugly grey structure hiding the sea water pipes below the turbine.</div><div class="check">The condenser is a steel shell under the turbine, cut on the plane like every vessel: the sea lines arrive at and leave its end plate in the open, and nothing grey stands in front of them.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G6_G7_condenser.png" target="_blank"><img src="proof/G6_G7_condenser.png" alt="" loading="lazy"><small>Condenser and sea lines</small></a></div></td>
 </tr>
-<tr data-id="G7" data-area="Geometry and clutter" data-req="No weird grey stuff at the bottom of the condenser." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g7 geometry and clutter no weird grey stuff at the bottom of the condenser. nothing in the shell but the tube bank, the drops off it, the vapour above it and the pool below it.">
+<tr data-id="G7" data-area="Geometry and clutter" data-req="No weird grey stuff at the bottom of the condenser." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="g7 geometry and clutter no weird grey stuff at the bottom of the condenser. nothing in the shell but the tube bank, the drops off it, the vapour above it and the pool below it.">
   <td class="id">G7</td>
   <td>Geometry and clutter</td>
   <td><div class="req">No weird grey stuff at the bottom of the condenser.</div><div class="check">Nothing in the shell but the tube bank, the drops off it, the vapour above it and the pool below it.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G6_G7_condenser.png" target="_blank"><img src="proof/G6_G7_condenser.png" alt="" loading="lazy"><small>Condenser</small></a></div></td>
 </tr>
-<tr data-id="G8" data-area="Geometry and clutter" data-req="No weird grey cylinder coming out of the blue tube into the boiler." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g8 geometry and clutter no weird grey cylinder coming out of the blue tube into the boiler. look dome.">
+<tr data-id="G8" data-area="Geometry and clutter" data-req="No weird grey cylinder coming out of the blue tube into the boiler." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="g8 geometry and clutter no weird grey cylinder coming out of the blue tube into the boiler. look dome.">
   <td class="id">G8</td>
   <td>Geometry and clutter</td>
   <td><div class="req">No weird grey cylinder coming out of the blue tube into the boiler.</div><div class="check">look dome.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G8_boiler_inlet.png" target="_blank"><img src="proof/G8_boiler_inlet.png" alt="" loading="lazy"><small>Boiler inlet</small></a></div></td>
 </tr>
-<tr data-id="G9" data-area="Geometry and clutter" data-req="The backup pump must be on the correct side of the tank and pump to something." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g9 geometry and clutter the backup pump must be on the correct side of the tank and pump to something. l.eccs.x = -2.3: suction from the tank, discharge to the cold leg.">
+<tr data-id="G9" data-area="Geometry and clutter" data-req="The backup pump must be on the correct side of the tank and pump to something." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="g9 geometry and clutter the backup pump must be on the correct side of the tank and pump to something. l.eccs.x = -2.3: suction from the tank, discharge to the cold leg.">
   <td class="id">G9</td>
   <td>Geometry and clutter</td>
   <td><div class="req">The backup pump must be on the correct side of the tank and pump to something.</div><div class="check">L.eccs.x = -2.3: suction from the tank, discharge to the cold leg.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G9_G10_tank.png" target="_blank"><img src="proof/G9_G10_tank.png" alt="" loading="lazy"><small>Tank, pump, discharge</small></a></div></td>
 </tr>
-<tr data-id="G10" data-area="Geometry and clutter" data-req="The backup water tank stays in front of the pillars where the circuit can be seen." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g10 geometry and clutter the backup water tank stays in front of the pillars where the circuit can be seen. l.tank.z = 0.">
+<tr data-id="G10" data-area="Geometry and clutter" data-req="The backup water tank stays in front of the pillars where the circuit can be seen." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g10 geometry and clutter the backup water tank stays in front of the pillars where the circuit can be seen. l.tank.z = 0.">
   <td class="id">G10</td>
   <td>Geometry and clutter</td>
   <td><div class="req">The backup water tank stays in front of the pillars where the circuit can be seen.</div><div class="check">L.tank.z = 0.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G9_G10_tank.png" target="_blank"><img src="proof/G9_G10_tank.png" alt="" loading="lazy"><small>Tank on the centreline</small></a></div></td>
 </tr>
-<tr data-id="G11" data-area="Geometry and clutter" data-req="The vent is a hole in the containment wall with the line running away from it: a visible opening on the inside face, nothing protruding inside, no column under it, and the cover back on top." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g11 geometry and clutter the vent is a hole in the containment wall with the line running away from it: a visible opening on the inside face, nothing protruding inside, no column under it, and the cover back on top. a dark disc the bore of the pipe on the inside face of the wall at the penetration; the line leaves flush, rises outside the wall and ends in the cover. no column, no drum.">
+<tr data-id="G11" data-area="Geometry and clutter" data-req="The vent is a hole in the containment wall with the line running away from it: a visible opening on the inside face, nothing protruding inside, no column under it, and the cover back on top." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g11 geometry and clutter the vent is a hole in the containment wall with the line running away from it: a visible opening on the inside face, nothing protruding inside, no column under it, and the cover back on top. a dark disc the bore of the pipe on the inside face of the wall at the penetration; the line leaves flush, rises outside the wall and ends in the cover. no column, no drum.">
   <td class="id">G11</td>
   <td>Geometry and clutter</td>
   <td><div class="req">The vent is a hole in the containment wall with the line running away from it: a visible opening on the inside face, nothing protruding inside, no column under it, and the cover back on top.</div><div class="check">A dark disc the bore of the pipe on the inside face of the wall at the penetration; the line leaves flush, rises outside the wall and ends in the cover. No column, no drum.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G11_vent.png" target="_blank"><img src="proof/G11_vent.png" alt="" loading="lazy"><small>Vent: hole in the wall, line up to the cover</small></a></div></td>
 </tr>
-<tr data-id="G12" data-area="Geometry and clutter" data-req="The container concrete must not look hollow." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g12 geometry and clutter the container concrete must not look hollow. stencil section caps (js/view/section.js): the plane's cut through the wall and dome is capped exactly, the standard clipping_stencil technique. shell closed at the foot so the count is meaningful.">
+<tr data-id="G12" data-area="Geometry and clutter" data-req="The container concrete must not look hollow." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g12 geometry and clutter the container concrete must not look hollow. stencil section caps (js/view/section.js): the plane's cut through the wall and dome is capped exactly, the standard clipping_stencil technique. shell closed at the foot so the count is meaningful.">
   <td class="id">G12</td>
   <td>Geometry and clutter</td>
   <td><div class="req">The container concrete must not look hollow.</div><div class="check">Stencil section caps (js/view/section.js): the plane's cut through the wall and dome is capped exactly, the standard clipping_stencil technique. Shell closed at the foot so the count is meaningful.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G12_wall.png" target="_blank"><img src="proof/G12_wall.png" alt="" loading="lazy"><small>Cut wall reads a metre thick</small></a></div></td>
 </tr>
-<tr data-id="G13" data-area="Geometry and clutter" data-req="No grey vertical arch or bar in the middle of the reactor view." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g13 geometry and clutter no grey vertical arch or bar in the middle of the reactor view. the cap planes that made it are gone; the stencil cap only draws where the plane is inside concrete.">
+<tr data-id="G13" data-area="Geometry and clutter" data-req="No grey vertical arch or bar in the middle of the reactor view." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g13 geometry and clutter no grey vertical arch or bar in the middle of the reactor view. the cap planes that made it are gone; the stencil cap only draws where the plane is inside concrete.">
   <td class="id">G13</td>
   <td>Geometry and clutter</td>
   <td><div class="req">No grey vertical arch or bar in the middle of the reactor view.</div><div class="check">The cap planes that made it are gone; the stencil cap only draws where the plane is inside concrete.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G13_no_bar.png" target="_blank"><img src="proof/G13_no_bar.png" alt="" loading="lazy"><small>Whole unit, nothing across it</small></a></div></td>
 </tr>
-<tr data-id="G14" data-area="Geometry and clutter" data-req="Bubbles must not appear in the air outside the vessels." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g14 geometry and clutter bubbles must not appear in the air outside the vessels. each riser clipped on its own vessel's plane.">
+<tr data-id="G14" data-area="Geometry and clutter" data-req="Bubbles must not appear in the air outside the vessels." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g14 geometry and clutter bubbles must not appear in the air outside the vessels. each riser clipped on its own vessel's plane.">
   <td class="id">G14</td>
   <td>Geometry and clutter</td>
   <td><div class="req">Bubbles must not appear in the air outside the vessels.</div><div class="check">Each riser clipped on its own vessel's plane.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G14_bubbles.png" target="_blank"><img src="proof/G14_bubbles.png" alt="" loading="lazy"><small>Side view: nothing outside the shell</small></a></div></td>
 </tr>
-<tr data-id="G15" data-area="Geometry and clutter" data-req="Steam enters the turbine at the SIDE, and the turbine looks like a real machine cut half open: walls, no floating rings." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g15 geometry and clutter steam enters the turbine at the side, and the turbine looks like a real machine cut half open: walls, no floating rings. look turbine: closed casing with end walls, cut on the plane, no floating hoops; steam in along the axis at the left end, out through the floor at the right-hand end into the exhaust pipe.">
+<tr data-id="G15" data-area="Geometry and clutter" data-req="Steam enters the turbine at the SIDE, and the turbine looks like a real machine cut half open: walls, no floating rings." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g15 geometry and clutter steam enters the turbine at the side, and the turbine looks like a real machine cut half open: walls, no floating rings. look turbine: closed casing with end walls, cut on the plane, no floating hoops; steam in along the axis at the left end, out through the floor at the right-hand end into the exhaust pipe.">
   <td class="id">G15</td>
   <td>Geometry and clutter</td>
   <td><div class="req">Steam enters the turbine at the SIDE, and the turbine looks like a real machine cut half open: walls, no floating rings.</div><div class="check">look turbine: closed casing with end walls, cut on the plane, no floating hoops; steam in along the axis at the left end, out through the floor at the right-hand end into the exhaust pipe.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G15_G16_turbine.png" target="_blank"><img src="proof/G15_G16_turbine.png" alt="" loading="lazy"><small>Turbine cut open</small></a></div></td>
 </tr>
-<tr data-id="G16" data-area="Geometry and clutter" data-req="It must be clear how steam goes from the turbine to the condenser." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g16 geometry and clutter it must be clear how steam goes from the turbine to the condenser. the exhaust is a steam pipe out of the casing floor at its right-hand end, straight down into the top of the condenser shell; you follow it as a pipe.">
+<tr data-id="G16" data-area="Geometry and clutter" data-req="It must be clear how steam goes from the turbine to the condenser." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="g16 geometry and clutter it must be clear how steam goes from the turbine to the condenser. the exhaust is a steam pipe out of the casing floor at its right-hand end, straight down into the top of the condenser shell; you follow it as a pipe.">
   <td class="id">G16</td>
   <td>Geometry and clutter</td>
   <td><div class="req">It must be clear how steam goes from the turbine to the condenser.</div><div class="check">The exhaust is a steam pipe out of the casing floor at its right-hand end, straight down into the top of the condenser shell; you follow it as a pipe.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G26_exhaust_pipe.png" target="_blank"><img src="proof/G26_exhaust_pipe.png" alt="" loading="lazy"><small>The exhaust pipe from casing to shell</small></a></div></td>
 </tr>
-<tr data-id="G17" data-area="Geometry and clutter" data-req="Click a pipe to break it must work: a hole with water coming out, no black ring." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="g17 geometry and clutter click a pipe to break it must work: a hole with water coming out, no black ring. torn lip in the pipe's own steel oriented as a hole in the wall; a narrow stream falls to the floor.">
+<tr data-id="G17" data-area="Geometry and clutter" data-req="Click a pipe to break it must work: a hole with water coming out, no black ring." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="g17 geometry and clutter click a pipe to break it must work: a hole with water coming out, no black ring. torn lip in the pipe's own steel oriented as a hole in the wall; a narrow stream falls to the floor.">
   <td class="id">G17</td>
   <td>Geometry and clutter</td>
   <td><div class="req">Click a pipe to break it must work: a hole with water coming out, no black ring.</div><div class="check">Torn lip in the pipe's own steel oriented as a hole in the wall; a narrow stream falls to the floor.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G17_break.png" target="_blank"><img src="proof/G17_break.png" alt="" loading="lazy"><small>Hot leg broken</small></a></div></td>
 </tr>
-<tr data-id="U1" data-area="Interface and platform" data-req="On mobile it must render correctly when moving around, and the inside view must not be blank." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="u1 interface and platform on mobile it must render correctly when moving around, and the inside view must not be blank. visual-viewport sizing, context-loss handling, lowfx path, caption layer measured in its own frame.">
+<tr data-id="U1" data-area="Interface and platform" data-req="On mobile it must render correctly when moving around, and the inside view must not be blank." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="u1 interface and platform on mobile it must render correctly when moving around, and the inside view must not be blank. visual-viewport sizing, context-loss handling, lowfx path, caption layer measured in its own frame.">
   <td class="id">U1</td>
   <td>Interface and platform</td>
   <td><div class="req">On mobile it must render correctly when moving around, and the inside view must not be blank.</div><div class="check">Visual-viewport sizing, context-loss handling, LOWFX path, caption layer measured in its own frame.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/U1_phone_inside.png" target="_blank"><img src="proof/U1_phone_inside.png" alt="" loading="lazy"><small>iPhone viewport, inside view</small></a></div></td>
 </tr>
-<tr data-id="U2" data-area="Interface and platform" data-req="The welcome modal must be simple and make people want to click start." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="u2 interface and platform the welcome modal must be simple and make people want to click start. index.html: kicker, three-line headline, two comparison cards, one call to action.">
+<tr data-id="U2" data-area="Interface and platform" data-req="The welcome modal must be simple and make people want to click start." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="u2 interface and platform the welcome modal must be simple and make people want to click start. index.html: kicker, three-line headline, two comparison cards, one call to action.">
   <td class="id">U2</td>
   <td>Interface and platform</td>
   <td><div class="req">The welcome modal must be simple and make people want to click start.</div><div class="check">index.html: kicker, three-line headline, two comparison cards, one call to action.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/U2_welcome.png" target="_blank"><img src="proof/U2_welcome.png" alt="" loading="lazy"><small>Welcome card</small></a></div></td>
 </tr>
-<tr data-id="U3" data-area="Interface and platform" data-req="A config wheel at the top right to enable or disable each expensive feature individually." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="u3 interface and platform a config wheel at the top right to enable or disable each expensive feature individually. seven toggles with live counters; each drives stage.setquality.">
+<tr data-id="U3" data-area="Interface and platform" data-req="A config wheel at the top right to enable or disable each expensive feature individually." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="u3 interface and platform a config wheel at the top right to enable or disable each expensive feature individually. seven toggles with live counters; each drives stage.setquality.">
   <td class="id">U3</td>
   <td>Interface and platform</td>
   <td><div class="req">A config wheel at the top right to enable or disable each expensive feature individually.</div><div class="check">Seven toggles with live counters; each drives stage.setQuality.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/U3_settings.png" target="_blank"><img src="proof/U3_settings.png" alt="" loading="lazy"><small>Settings panel open</small></a></div></td>
 </tr>
-<tr data-id="U4" data-area="Interface and platform" data-req="W A S D must work on the Site view." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="u4 interface and platform w a s d must work on the site view. nudgesite() in js/main.js; proof shows the camera before and after holding a then w.">
+<tr data-id="U4" data-area="Interface and platform" data-req="W A S D must work on the Site view." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="u4 interface and platform w a s d must work on the site view. nudgesite() in js/main.js; proof shows the camera before and after holding a then w.">
   <td class="id">U4</td>
   <td>Interface and platform</td>
   <td><div class="req">W A S D must work on the Site view.</div><div class="check">nudgeSite() in js/main.js; proof shows the camera before and after holding A then W.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/U4_wasd_before.png" target="_blank"><img src="proof/U4_wasd_before.png" alt="" loading="lazy"><small>Before</small></a><a href="proof/U4_wasd_after.png" target="_blank"><img src="proof/U4_wasd_after.png" alt="" loading="lazy"><small>After A, W</small></a></div></td>
 </tr>
-<tr data-id="U5" data-area="Interface and platform" data-req="The background sound must be a pleasant nature-like sound with a soothing melody; no white noise; a real looped asset." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="u5 interface and platform the background sound must be a pleasant nature-like sound with a soothing melody; no white noise; a real looped asset. audio/sea-waves.mp3 (mit, credited), equal-power crossfade loop, highpass 160 hz, lowpass 3.2 khz, pentatonic bells over it. measured: 0.4% below 120 hz, 18% in 120-400, 7% above 3 khz, 19 db swing.">
+<tr data-id="U5" data-area="Interface and platform" data-req="The background sound must be a pleasant nature-like sound with a soothing melody; no white noise; a real looped asset." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="u5 interface and platform the background sound must be a pleasant nature-like sound with a soothing melody; no white noise; a real looped asset. audio/sea-waves.mp3 (mit, credited), equal-power crossfade loop, highpass 160 hz, lowpass 3.2 khz, pentatonic bells over it. measured: 0.4% below 120 hz, 18% in 120-400, 7% above 3 khz, 19 db swing.">
   <td class="id">U5</td>
   <td>Interface and platform</td>
   <td><div class="req">The background sound must be a pleasant nature-like sound with a soothing melody; no white noise; a real looped asset.</div><div class="check">audio/sea-waves.mp3 (MIT, credited), equal-power crossfade loop, highpass 160 Hz, lowpass 3.2 kHz, pentatonic bells over it. Measured: 0.4% below 120 Hz, 18% in 120-400, 7% above 3 kHz, 19 dB swing.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><div class="txt">audio/CREDITS.md, audio/LICENSE-sounds-for-focus.txt
 js/audio.js loadSea(): equal-power crossfade, loopStart after the head
 spectrum after filters: &lt;120 Hz 0.4% | 120-400 18% | 400-1200 41% | 1200-3000 33% | &gt;3 kHz 7% | swing 19 dB</div></div></td>
 </tr>
-<tr data-id="U6" data-area="Interface and platform" data-req="30 fps makes no sense for this; use the established way to draw fluids, not a hack." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="u6 interface and platform 30 fps makes no sense for this; use the established way to draw fluids, not a hack. 73 transmissive materials removed (each forced an extra scene pass). measured at 1200x800 on the same renderer.">
+<tr data-id="U6" data-area="Interface and platform" data-req="30 fps makes no sense for this; use the established way to draw fluids, not a hack." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="u6 interface and platform 30 fps makes no sense for this; use the established way to draw fluids, not a hack. 73 transmissive materials removed (each forced an extra scene pass). measured at 1200x800 on the same renderer.">
   <td class="id">U6</td>
   <td>Interface and platform</td>
   <td><div class="req">30 fps makes no sense for this; use the established way to draw fluids, not a hack.</div><div class="check">73 transmissive materials removed (each forced an extra scene pass). Measured at 1200x800 on the same renderer.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><div class="txt">before: 862 draw calls, 569 ms/frame, 73 transmissive materials
 after:  512 draw calls,  11 ms/frame,  0 transmissive materials</div></div></td>
 </tr>
-<tr data-id="U7" data-area="Interface and platform" data-req="Do not execute any heavy code until the user has clicked Pick an accident." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="u7 interface and platform do not execute any heavy code until the user has clicked pick an accident. boot() in js/main.js builds terrain, ocean, webgl scene and starts the frame loop only on start.">
+<tr data-id="U7" data-area="Interface and platform" data-req="Do not execute any heavy code until the user has clicked Pick an accident." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="u7 interface and platform do not execute any heavy code until the user has clicked pick an accident. boot() in js/main.js builds terrain, ocean, webgl scene and starts the frame loop only on start.">
   <td class="id">U7</td>
   <td>Interface and platform</td>
   <td><div class="req">Do not execute any heavy code until the user has clicked Pick an accident.</div><div class="check">boot() in js/main.js builds terrain, ocean, WebGL scene and starts the frame loop only on Start.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><div class="txt">see proof/U7_lazy.txt: before Start {stage:false, units:0}; after Start {stage:true, units:2}</div></div></td>
 </tr>
-<tr data-id="U8" data-area="Interface and platform" data-req="Commits must carry the repository owner's authorship." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="u8 interface and platform commits must carry the repository owner's authorship. git log --format='%an &lt;%ae&gt; | %cn &lt;%ce&gt;' shows the owner as author and committer on every commit. the harness adds a co-authored-by trailer in the message body.">
+<tr data-id="U8" data-area="Interface and platform" data-req="Commits must carry the repository owner's authorship." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="u8 interface and platform commits must carry the repository owner's authorship. git log --format='%an &lt;%ae&gt; | %cn &lt;%ce&gt;' shows the owner as author and committer on every commit. the harness adds a co-authored-by trailer in the message body.">
   <td class="id">U8</td>
   <td>Interface and platform</td>
   <td><div class="req">Commits must carry the repository owner's authorship.</div><div class="check">git log --format='%an &lt;%ae&gt; | %cn &lt;%ce&gt;' shows the owner as author and committer on every commit. The harness adds a Co-Authored-By trailer in the message body.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><div class="txt">author and committer on every commit: mayerwin &lt;2272127+mayerwin@users.noreply.github.com&gt;</div></div></td>
 </tr>
-<tr data-id="U9" data-area="Interface and platform" data-req="No em dashes in interface copy." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-02" data-text="u9 interface and platform no em dashes in interface copy. grep over index.html, js/ui.js, js/view/labels.js, js/scenarios.js returns nothing.">
+<tr data-id="U9" data-area="Interface and platform" data-req="No em dashes in interface copy." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="u9 interface and platform no em dashes in interface copy. grep over index.html, js/ui.js, js/view/labels.js, js/scenarios.js returns nothing.">
   <td class="id">U9</td>
   <td>Interface and platform</td>
   <td><div class="req">No em dashes in interface copy.</div><div class="check">grep over index.html, js/ui.js, js/view/labels.js, js/scenarios.js returns nothing.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><div class="txt">grep -rn '\u2014' index.html js/ui.js js/view/labels.js js/scenarios.js -&gt; no matches</div></div></td>
 </tr>
-<tr data-id="F13" data-area="Fluids and colour" data-req="Use a proper engine for the fluids: design the 3-D structures, put water in them, set the sea's temperature and say where heat goes in, and let the engine derive the colours. No hand-assigned colours per pipe." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="f13 fluids and colour use a proper engine for the fluids: design the 3-d structures, put water in them, set the sea's temperature and say where heat goes in, and let the engine derive the colours. no hand-assigned colours per pipe. temperature travels with the water (leg.t0/t1/dt, circuit.settemps in flow order); solvetemps() sets one inlet temperature per circuit and the dt of the exchanging legs; colourin() maps a temperature within its circuit's own span. nothing is told a colour.">
+<tr data-id="F13" data-area="Fluids and colour" data-req="Use a proper engine for the fluids: design the 3-D structures, put water in them, set the sea's temperature and say where heat goes in, and let the engine derive the colours. No hand-assigned colours per pipe." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="f13 fluids and colour use a proper engine for the fluids: design the 3-d structures, put water in them, set the sea's temperature and say where heat goes in, and let the engine derive the colours. no hand-assigned colours per pipe. temperature travels with the water (leg.t0/t1/dt, circuit.settemps in flow order); solvetemps() sets one inlet temperature per circuit and the dt of the exchanging legs; colourin() maps a temperature within its circuit's own span. nothing is told a colour.">
   <td class="id">F13</td>
   <td>Fluids and colour</td>
   <td><div class="req">Use a proper engine for the fluids: design the 3-D structures, put water in them, set the sea's temperature and say where heat goes in, and let the engine derive the colours. No hand-assigned colours per pipe.</div><div class="check">Temperature travels with the water (Leg.T0/T1/dT, Circuit.setTemps in flow order); solveTemps() sets one inlet temperature per circuit and the dT of the exchanging legs; colourIn() maps a temperature within its circuit's own span. Nothing is told a colour.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/F13_engine_turbine.png" target="_blank"><img src="proof/F13_engine_turbine.png" alt="" loading="lazy"><small>Sea leg: in at 15 C, out warmer, colours derived</small></a><a href="proof/F13_engine_loop.png" target="_blank"><img src="proof/F13_engine_loop.png" alt="" loading="lazy"><small>Primary loop: cold leg to hot leg from the core's rise</small></a></div></td>
 </tr>
-<tr data-id="U10" data-area="Interface and platform" data-req="With Refraction switched on the liquids must not go near black." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="u10 interface and platform with refraction switched on the liquids must not go near black. stage.setquality('refraction'): the fluid shader's absorption density steps back to a quarter while transmission is on, and is restored when it is off.">
+<tr data-id="U10" data-area="Interface and platform" data-req="With Refraction switched on the liquids must not go near black." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="u10 interface and platform with refraction switched on the liquids must not go near black. stage.setquality('refraction'): the fluid shader's absorption density steps back to a quarter while transmission is on, and is restored when it is off.">
   <td class="id">U10</td>
   <td>Interface and platform</td>
   <td><div class="req">With Refraction switched on the liquids must not go near black.</div><div class="check">stage.setQuality('refraction'): the fluid shader's absorption density steps back to a quarter while transmission is on, and is restored when it is off.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/U10_refraction.png" target="_blank"><img src="proof/U10_refraction.png" alt="" loading="lazy"><small>Refraction on: water still blue</small></a></div></td>
 </tr>
-<tr data-id="U11" data-area="Interface and platform" data-req="Bloom must not cost most of the frame rate." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="u11 interface and platform bloom must not cost most of the frame rate. bloom is off by default on every device and, on, runs on a buffer 0.34 of the frame on each axis (a ninth of the pixels) instead of 0.6. measured at 1200x800 on this build: bloom off 10.6 ms a frame, bloom on 10.2 ms; the difference is inside the noise.">
+<tr data-id="U11" data-area="Interface and platform" data-req="Bloom must not cost most of the frame rate." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="u11 interface and platform bloom must not cost most of the frame rate. bloom is off by default on every device and, on, runs on a buffer 0.34 of the frame on each axis (a ninth of the pixels) instead of 0.6. measured at 1200x800 on this build: bloom off 10.6 ms a frame, bloom on 10.2 ms; the difference is inside the noise.">
   <td class="id">U11</td>
   <td>Interface and platform</td>
   <td><div class="req">Bloom must not cost most of the frame rate.</div><div class="check">Bloom is off by default on every device and, on, runs on a buffer 0.34 of the frame on each axis (a ninth of the pixels) instead of 0.6. Measured at 1200x800 on this build: bloom off 10.6 ms a frame, bloom on 10.2 ms; the difference is inside the noise.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/U3_settings.png" target="_blank"><img src="proof/U3_settings.png" alt="" loading="lazy"><small>Bloom unticked by default</small></a><div class="txt">js/view/stage.js: bloom default false; setSize(w*0.34, h*0.34). Measured: 10.6 ms off, 10.2 ms on.</div></div></td>
 </tr>
-<tr data-id="S1" data-area="Scenarios" data-req="In the tsunami the flood must cover the emergency water tank and the pump beside it; when the text says the sea has receded, the water must be gone." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="s1 scenarios in the tsunami the flood must cover the emergency water tank and the pump beside it; when the text says the sea has receded, the water must be gone. the flood sheet reaches into the section (its hole round the containment is gone: this model keeps the equipment a tsunami drowns inside the cutaway), rises at 2.5 m/s, is painted as sea water, and a 14 m wave puts about five metres on the deck (clamp((flooded-5.7)*0.9, 0, 7.6)). the recede event sets flooded back to 0.8 and the sheet drops.">
+<tr data-id="S1" data-area="Scenarios" data-req="In the tsunami the flood must cover the emergency water tank and the pump beside it; when the text says the sea has receded, the water must be gone." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="s1 scenarios in the tsunami the flood must cover the emergency water tank and the pump beside it; when the text says the sea has receded, the water must be gone. the flood sheet reaches into the section (its hole round the containment is gone: this model keeps the equipment a tsunami drowns inside the cutaway), rises at 2.5 m/s, is painted as sea water, and a 14 m wave puts about five metres on the deck (clamp((flooded-5.7)*0.9, 0, 7.6)). the recede event sets flooded back to 0.8 and the sheet drops.">
   <td class="id">S1</td>
   <td>Scenarios</td>
   <td><div class="req">In the tsunami the flood must cover the emergency water tank and the pump beside it; when the text says the sea has receded, the water must be gone.</div><div class="check">The flood sheet reaches into the section (its hole round the containment is gone: this model keeps the equipment a tsunami drowns inside the cutaway), rises at 2.5 m/s, is painted as sea water, and a 14 m wave puts about five metres on the deck (clamp((flooded-5.7)*0.9, 0, 7.6)). The recede event sets flooded back to 0.8 and the sheet drops.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/S1_flood.png" target="_blank"><img src="proof/S1_flood.png" alt="" loading="lazy"><small>Tsunami at 55 min, from outside: the emergency tank and its pump are under the water</small></a></div></td>
 </tr>
-<tr data-id="S2" data-area="Scenarios" data-req="When the containment is breached the smoke must leave through the breach only, not cross the building, and the breach must not be a row of cones." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="s2 scenarios when the containment is breached the smoke must leave through the breach only, not cross the building, and the breach must not be a row of cones. the breach plume is released 4.5 m outside the wall with a 2.2 m spread and rises; the tear is a ragged rim of flat concrete shards set into the wall round the opening.">
+<tr data-id="S2" data-area="Scenarios" data-req="When the containment is breached the smoke must leave through the breach only, not cross the building, and the breach must not be a row of cones." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="s2 scenarios when the containment is breached the smoke must leave through the breach only, not cross the building, and the breach must not be a row of cones. the breach plume is released 4.5 m outside the wall with a 2.2 m spread and rises; the tear is a ragged rim of flat concrete shards set into the wall round the opening.">
   <td class="id">S2</td>
   <td>Scenarios</td>
   <td><div class="req">When the containment is breached the smoke must leave through the breach only, not cross the building, and the breach must not be a row of cones.</div><div class="check">The breach plume is released 4.5 m outside the wall with a 2.2 m spread and rises; the tear is a ragged rim of flat concrete shards set into the wall round the opening.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/S2_breach.png" target="_blank"><img src="proof/S2_breach.png" alt="" loading="lazy"><small>Breached containment from behind</small></a></div></td>
 </tr>
-<tr data-id="F14" data-area="Fluids and colour" data-req="In the primary circuit the difference between the cold leg and the hot leg must be visible. Scale colour between the coldest and warmest water of each circuit; the same orange need not mean the same degrees in two circuits." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="f14 fluids and colour in the primary circuit the difference between the cold leg and the hot leg must be visible. scale colour between the coldest and warmest water of each circuit; the same orange need not mean the same degrees in two circuits. circuit.range() in js/flow.js gives each circuit its own coldest and hottest water every frame; colourin(range, t) in unit.js maps that span onto the ramp. a 290 c cold leg is drawn blue and a 325 c hot leg orange in the same picture as a 15 c sea and a 115 c outfall.">
+<tr data-id="F14" data-area="Fluids and colour" data-req="In the primary circuit the difference between the cold leg and the hot leg must be visible. Scale colour between the coldest and warmest water of each circuit; the same orange need not mean the same degrees in two circuits." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="f14 fluids and colour in the primary circuit the difference between the cold leg and the hot leg must be visible. scale colour between the coldest and warmest water of each circuit; the same orange need not mean the same degrees in two circuits. circuit.range() in js/flow.js gives each circuit its own coldest and hottest water every frame; colourin(range, t) in unit.js maps that span onto the ramp. a 290 c cold leg is drawn blue and a 325 c hot leg orange in the same picture as a 15 c sea and a 115 c outfall.">
   <td class="id">F14</td>
   <td>Fluids and colour</td>
   <td><div class="req">In the primary circuit the difference between the cold leg and the hot leg must be visible. Scale colour between the coldest and warmest water of each circuit; the same orange need not mean the same degrees in two circuits.</div><div class="check">Circuit.range() in js/flow.js gives each circuit its own coldest and hottest water every frame; colourIn(range, T) in unit.js maps that span onto the ramp. A 290 C cold leg is drawn blue and a 325 C hot leg orange in the same picture as a 15 C sea and a 115 C outfall.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/F14_primary_span.png" target="_blank"><img src="proof/F14_primary_span.png" alt="" loading="lazy"><small>Primary loop: cold leg blue, hot leg orange, from a 35 degree span</small></a></div></td>
 </tr>
-<tr data-id="G18" data-area="Geometry and clutter" data-req="Steam must leave the turbine through a real opening, not cross the casing wall, and the condenser must show the sea taking the heat. (Written for an earlier condenser with one cold pipe; superseded by G24 to G28, which is what the picture now shows.)" data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g18 geometry and clutter steam must leave the turbine through a real opening, not cross the casing wall, and the condenser must show the sea taking the heat. (written for an earlier condenser with one cold pipe; superseded by g24 to g28, which is what the picture now shows.) the exhaust pipe starts inside the casing's floor at the right-hand end and ends inside the shell; the condenser is the surface condenser of g24: a tube bank the sea runs through, cold in along the lower row, warm out along the upper, drops into the pool.">
+<tr data-id="G18" data-area="Geometry and clutter" data-req="Steam must leave the turbine through a real opening, not cross the casing wall, and the condenser must show the sea taking the heat. (Written for an earlier condenser with one cold pipe; superseded by G24 to G28, which is what the picture now shows.)" data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g18 geometry and clutter steam must leave the turbine through a real opening, not cross the casing wall, and the condenser must show the sea taking the heat. (written for an earlier condenser with one cold pipe; superseded by g24 to g28, which is what the picture now shows.) the exhaust pipe starts inside the casing's floor at the right-hand end and ends inside the shell; the condenser is the surface condenser of g24: a tube bank the sea runs through, cold in along the lower row, warm out along the upper, drops into the pool.">
   <td class="id">G18</td>
   <td>Geometry and clutter</td>
   <td><div class="req">Steam must leave the turbine through a real opening, not cross the casing wall, and the condenser must show the sea taking the heat. (Written for an earlier condenser with one cold pipe; superseded by G24 to G28, which is what the picture now shows.)</div><div class="check">The exhaust pipe starts inside the casing's floor at the right-hand end and ends inside the shell; the condenser is the surface condenser of G24: a tube bank the sea runs through, cold in along the lower row, warm out along the upper, drops into the pool.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G26_exhaust_pipe.png" target="_blank"><img src="proof/G26_exhaust_pipe.png" alt="" loading="lazy"><small>Turbine end, exhaust pipe, condenser with its tube bank</small></a></div></td>
 </tr>
-<tr data-id="U12" data-area="Interface and platform" data-req="With every graphics option on, the frame rate must not collapse (17 fps on a laptop is not acceptable)." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="u12 interface and platform with every graphics option on, the frame rate must not collapse (17 fps on a laptop is not acceptable). measured on the laptop's own gpu (intel arc, chrome, vsync off), as the gap between animation frames. proof file, 1500x950, after the code review: every option on 14.6 ms/frame (69 fps), desktop defaults 7.8 ms (128 fps); before the review 24 and 17 ms. session bench on the full 2194x1234 window at 1.5x pixel density: defaults 19 ms (53 fps), every option on 40 ms (25 fps). before this build every option on was 76 ms (13 fps) at 1500x950 and 186 ms (5 fps) on the full window, and the whole of it was bloom: the composer's multisampled half-float target resolved its depth and stencil attachments every frame, 60 ms through angle on this gpu. nothing after the scene pass reads them, so they are no longer resolved, and bloom costs about 5 ms. chrome runs on the laptop's intel gpu, not its rtx 4070; that is windows' per-app graphics setting, not the page's. numbers vary by a third between runs as the laptop warms.">
+<tr data-id="U12" data-area="Interface and platform" data-req="With every graphics option on, the frame rate must not collapse (17 fps on a laptop is not acceptable)." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="u12 interface and platform with every graphics option on, the frame rate must not collapse (17 fps on a laptop is not acceptable). measured on the laptop's own gpu (intel arc, chrome, vsync off), as the gap between animation frames. proof file, 1500x950, after the code review: every option on 14.6 ms/frame (69 fps), desktop defaults 7.8 ms (128 fps); before the review 24 and 17 ms. session bench on the full 2194x1234 window at 1.5x pixel density: defaults 19 ms (53 fps), every option on 40 ms (25 fps). before this build every option on was 76 ms (13 fps) at 1500x950 and 186 ms (5 fps) on the full window, and the whole of it was bloom: the composer's multisampled half-float target resolved its depth and stencil attachments every frame, 60 ms through angle on this gpu. nothing after the scene pass reads them, so they are no longer resolved, and bloom costs about 5 ms. chrome runs on the laptop's intel gpu, not its rtx 4070; that is windows' per-app graphics setting, not the page's. numbers vary by a third between runs as the laptop warms.">
   <td class="id">U12</td>
   <td>Interface and platform</td>
   <td><div class="req">With every graphics option on, the frame rate must not collapse (17 fps on a laptop is not acceptable).</div><div class="check">Measured on the laptop's own GPU (Intel Arc, Chrome, vsync off), as the gap between animation frames. Proof file, 1500x950, after the code review: every option on 14.6 ms/frame (69 fps), desktop defaults 7.8 ms (128 fps); before the review 24 and 17 ms. Session bench on the full 2194x1234 window at 1.5x pixel density: defaults 19 ms (53 fps), every option on 40 ms (25 fps). Before this build every option on was 76 ms (13 fps) at 1500x950 and 186 ms (5 fps) on the full window, and the whole of it was bloom: the composer's multisampled half-float target resolved its depth and stencil attachments every frame, 60 ms through ANGLE on this GPU. Nothing after the scene pass reads them, so they are no longer resolved, and bloom costs about 5 ms. Chrome runs on the laptop's Intel GPU, not its RTX 4070; that is Windows' per-app graphics setting, not the page's. Numbers vary by a third between runs as the laptop warms.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><div class="txt">docs/proof/U12_allon.txt: GPU, 1500x950, every option on 24 ms/frame (42 fps); desktop defaults 17 ms (60 fps); phone defaults 12 ms. Was 76 ms (13 fps).</div></div></td>
 </tr>
-<tr data-id="D1" data-area="Interface and platform" data-req="The requirements page must be reachable without cloning the repository: part of the app, hosted with it." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="d1 interface and platform the requirements page must be reachable without cloning the repository: part of the app, hosted with it. docs/requirements.html is linked from the app's help card and ships with the site, so on github pages it is at &lt;site&gt;/docs/requirements.html. the branch is merged to main so pages serves it.">
+<tr data-id="D1" data-area="Interface and platform" data-req="The requirements page must be reachable without cloning the repository: part of the app, hosted with it." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="d1 interface and platform the requirements page must be reachable without cloning the repository: part of the app, hosted with it. docs/requirements.html is linked from the app's help card and ships with the site, so on github pages it is at &lt;site&gt;/docs/requirements.html. the branch is merged to main so pages serves it.">
   <td class="id">D1</td>
   <td>Interface and platform</td>
   <td><div class="req">The requirements page must be reachable without cloning the repository: part of the app, hosted with it.</div><div class="check">docs/requirements.html is linked from the app's help card and ships with the site, so on GitHub Pages it is at &lt;site&gt;/docs/requirements.html. The branch is merged to main so Pages serves it.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/D1_help_link.png" target="_blank"><img src="proof/D1_help_link.png" alt="" loading="lazy"><small>Help card with the link to the page</small></a></div></td>
 </tr>
-<tr data-id="U13" data-area="Interface and platform" data-req="On a less capable phone the graphics settings must adjust themselves the first time, so the frame rate is good enough." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="u13 interface and platform on a less capable phone the graphics settings must adjust themselves the first time, so the frame rate is good enough. view/autoq.js. the first time the inside view is drawn, the tuner measures the wall-clock gap between frames over two-second windows (after a warm-up for shader compiles, ignoring hitches) and while the median is over 37 ms (30 fps with a tenth of slack) takes one thing off, cheapest loss first: bloom, refraction, full pixel density, shadows, resolution 80%, steam, resolution 65%, bubbles, resolution 50%. what it settled on is stored and put back on the next visit without measuring again. a box or the resolution slider set by hand is stored as the visitor’s own choice and ends tuning; measure again re-runs it. under automation (the gate and proof tools, on a software renderer) the tuner stands down unless ?tune=1 asks for it, so the proofs show the shipped settings. verified in chrome’s pixel-class phone emulation throttled 8x: five rungs in 37 s, stored, restored on reload, overridden by hand, re-measured on request.">
+<tr data-id="U13" data-area="Interface and platform" data-req="On a less capable phone the graphics settings must adjust themselves the first time, so the frame rate is good enough." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="u13 interface and platform on a less capable phone the graphics settings must adjust themselves the first time, so the frame rate is good enough. view/autoq.js. the first time the inside view is drawn, the tuner measures the wall-clock gap between frames over two-second windows (after a warm-up for shader compiles, ignoring hitches) and while the median is over 37 ms (30 fps with a tenth of slack) takes one thing off, cheapest loss first: bloom, refraction, full pixel density, shadows, resolution 80%, steam, resolution 65%, bubbles, resolution 50%. what it settled on is stored and put back on the next visit without measuring again. a box or the resolution slider set by hand is stored as the visitor’s own choice and ends tuning; measure again re-runs it. under automation (the gate and proof tools, on a software renderer) the tuner stands down unless ?tune=1 asks for it, so the proofs show the shipped settings. verified in chrome’s pixel-class phone emulation throttled 8x: five rungs in 37 s, stored, restored on reload, overridden by hand, re-measured on request.">
   <td class="id">U13</td>
   <td>Interface and platform</td>
   <td><div class="req">On a less capable phone the graphics settings must adjust themselves the first time, so the frame rate is good enough.</div><div class="check">view/autoq.js. The first time the inside view is drawn, the tuner measures the wall-clock gap between frames over two-second windows (after a warm-up for shader compiles, ignoring hitches) and while the median is over 37 ms (30 fps with a tenth of slack) takes one thing off, cheapest loss first: bloom, refraction, full pixel density, shadows, resolution 80%, steam, resolution 65%, bubbles, resolution 50%. What it settled on is stored and put back on the next visit without measuring again. A box or the resolution slider set by hand is stored as the visitor’s own choice and ends tuning; Measure again re-runs it. Under automation (the gate and proof tools, on a software renderer) the tuner stands down unless ?tune=1 asks for it, so the proofs show the shipped settings. Verified in Chrome’s Pixel-class phone emulation throttled 8x: five rungs in 37 s, stored, restored on reload, overridden by hand, re-measured on request.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/U13_tuned_panel.png" target="_blank"><img src="proof/U13_tuned_panel.png" alt="" loading="lazy"><small>Phone, after tuning: what came off, and the rate before and after</small></a><div class="txt">docs/proof/U13_tune.txt: the step log, the stored record, the reload, the hand override and the re-measure.</div></div></td>
 </tr>
-<tr data-id="U14" data-area="Interface and platform" data-req="The simulation must run smoothly on a Pixel 10." data-status="WATCH" data-raised="2026-09-02" data-verified="2026-09-02" data-text="u14 interface and platform the simulation must run smoothly on a pixel 10. not yet measured on a pixel 10: none is attached, and the android emulator on the laptop became unreachable when a vpn cut loopback. the phone path draws one device pixel per css pixel with shadows, bloom and refraction off (418 draws, 387k triangles), which is 5 ms a frame on the laptop gpu under pixel-class emulation; that is a floor, not a prediction. on the phone itself u13 measures the real frame gap and steps down until the median is under 37 ms. watch until a pixel 10 number exists.">
+<tr data-id="U14" data-area="Interface and platform" data-req="The simulation must run smoothly on a Pixel 10." data-status="WATCH" data-raised="2026-09-02" data-verified="2026-09-04" data-text="u14 interface and platform the simulation must run smoothly on a pixel 10. not yet measured on a pixel 10: none is attached, and the android emulator on the laptop became unreachable when a vpn cut loopback. the phone path draws one device pixel per css pixel with shadows, bloom and refraction off (418 draws, 387k triangles), which is 5 ms a frame on the laptop gpu under pixel-class emulation; that is a floor, not a prediction. on the phone itself u13 measures the real frame gap and steps down until the median is under 37 ms. watch until a pixel 10 number exists.">
   <td class="id">U14</td>
   <td>Interface and platform</td>
   <td><div class="req">The simulation must run smoothly on a Pixel 10.</div><div class="check">Not yet measured on a Pixel 10: none is attached, and the Android emulator on the laptop became unreachable when a VPN cut loopback. The phone path draws one device pixel per CSS pixel with shadows, bloom and refraction off (418 draws, 387k triangles), which is 5 ms a frame on the laptop GPU under Pixel-class emulation; that is a floor, not a prediction. On the phone itself U13 measures the real frame gap and steps down until the median is under 37 ms. WATCH until a Pixel 10 number exists.</div></td>
   <td><span class="st WATCH">WATCH</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><div class="txt">docs/proof/U14_pixel10.txt: what is measured, what is not, and why.</div></div></td>
 </tr>
-<tr data-id="R1" data-area="Code review" data-req="The intake pumphouse on the site view must be drawn (it referenced a height field the part does not have, so its depth was NaN, it never drew, and its NaN sort key could scramble the depth sort of the whole site)." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="r1 code review the intake pumphouse on the site view must be drawn (it referenced a height field the part does not have, so its depth was nan, it never drew, and its nan sort key could scramble the depth sort of the whole site). plantview.js reads the part's depth. probe: every sort key on the site is finite (20 of 20). the pumphouse stands on its pier at the seaward corner of each site.">
+<tr data-id="R1" data-area="Code review" data-req="The intake pumphouse on the site view must be drawn (it referenced a height field the part does not have, so its depth was NaN, it never drew, and its NaN sort key could scramble the depth sort of the whole site)." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="r1 code review the intake pumphouse on the site view must be drawn (it referenced a height field the part does not have, so its depth was nan, it never drew, and its nan sort key could scramble the depth sort of the whole site). plantview.js reads the part's depth. probe: every sort key on the site is finite (20 of 20). the pumphouse stands on its pier at the seaward corner of each site.">
   <td class="id">R1</td>
   <td>Code review</td>
   <td><div class="req">The intake pumphouse on the site view must be drawn (it referenced a height field the part does not have, so its depth was NaN, it never drew, and its NaN sort key could scramble the depth sort of the whole site).</div><div class="check">plantview.js reads the part's depth. Probe: every sort key on the site is finite (20 of 20). The pumphouse stands on its pier at the seaward corner of each site.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/R1_intake.png" target="_blank"><img src="proof/R1_intake.png" alt="" loading="lazy"><small>The pumphouse at the water, on its pier</small></a></div></td>
 </tr>
-<tr data-id="R2" data-area="Code review" data-req="Reset must heal a pipe broken by hand: the plant kept its break flag, so the wound stayed on screen and the same pipe could never be broken again." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="r2 code review reset must heal a pipe broken by hand: the plant kept its break flag, so the wound stayed on screen and the same pipe could never be broken again. plant.reset clears the break flags; unit.reset removes the torn lip, the jet and the spray and disposes their geometry, material and texture; sim.onreset calls it.">
+<tr data-id="R2" data-area="Code review" data-req="Reset must heal a pipe broken by hand: the plant kept its break flag, so the wound stayed on screen and the same pipe could never be broken again." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="r2 code review reset must heal a pipe broken by hand: the plant kept its break flag, so the wound stayed on screen and the same pipe could never be broken again. plant.reset clears the break flags; unit.reset removes the torn lip, the jet and the spray and disposes their geometry, material and texture; sim.onreset calls it.">
   <td class="id">R2</td>
   <td>Code review</td>
   <td><div class="req">Reset must heal a pipe broken by hand: the plant kept its break flag, so the wound stayed on screen and the same pipe could never be broken again.</div><div class="check">Plant.reset clears the break flags; Unit.reset removes the torn lip, the jet and the spray and disposes their geometry, material and texture; sim.onReset calls it.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><div class="txt">docs/proof/R2_reset.txt: after reset broken=false, fx=0, leak=0; the pipe can be broken again.</div></div></td>
 </tr>
-<tr data-id="R3" data-area="Code review" data-req="The Bubbles and Steam toggles in the settings panel must stick. Both were overwritten by the units on the next frame, Bubbles also hid the fuel rods for a frame, and Steam switched back on revealed a drum in the boiler that is never meant to be drawn." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="r3 code review the bubbles and steam toggles in the settings panel must stick. both were overwritten by the units on the next frame, bubbles also hid the fuel rods for a frame, and steam switched back on revealed a drum in the boiler that is never meant to be drawn. the units read stage.q every frame and decide the visibility of their own tracers, risers, drips, vapour and steam cores from it; the stage no longer traverses instancedmeshes; the hidden drum is untagged. hidden tracers are no longer advanced.">
+<tr data-id="R3" data-area="Code review" data-req="The Bubbles and Steam toggles in the settings panel must stick. Both were overwritten by the units on the next frame, Bubbles also hid the fuel rods for a frame, and Steam switched back on revealed a drum in the boiler that is never meant to be drawn." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="r3 code review the bubbles and steam toggles in the settings panel must stick. both were overwritten by the units on the next frame, bubbles also hid the fuel rods for a frame, and steam switched back on revealed a drum in the boiler that is never meant to be drawn. the units read stage.q every frame and decide the visibility of their own tracers, risers, drips, vapour and steam cores from it; the stage no longer traverses instancedmeshes; the hidden drum is untagged. hidden tracers are no longer advanced.">
   <td class="id">R3</td>
   <td>Code review</td>
   <td><div class="req">The Bubbles and Steam toggles in the settings panel must stick. Both were overwritten by the units on the next frame, Bubbles also hid the fuel rods for a frame, and Steam switched back on revealed a drum in the boiler that is never meant to be drawn.</div><div class="check">The units read stage.q every frame and decide the visibility of their own tracers, risers, drips, vapour and steam cores from it; the stage no longer traverses InstancedMeshes; the hidden drum is untagged. Hidden tracers are no longer advanced.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><div class="txt">docs/proof/R3_toggles.txt: particles off leaves 0 tracers shown and the fuel visible; steam off leaves 0 steam cores; both restore.</div></div></td>
 </tr>
-<tr data-id="R4" data-area="Code review" data-req="Keys typed into a control must not be commands: Space in the focused resolution slider paused the plant and R reset it." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="r4 code review keys typed into a control must not be commands: space in the focused resolution slider paused the plant and r reset it. the key handler ignores events whose target is an input, textarea or select.">
+<tr data-id="R4" data-area="Code review" data-req="Keys typed into a control must not be commands: Space in the focused resolution slider paused the plant and R reset it." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="r4 code review keys typed into a control must not be commands: space in the focused resolution slider paused the plant and r reset it. the key handler ignores events whose target is an input, textarea or select.">
   <td class="id">R4</td>
   <td>Code review</td>
   <td><div class="req">Keys typed into a control must not be commands: Space in the focused resolution slider paused the plant and R reset it.</div><div class="check">The key handler ignores events whose target is an input, textarea or select.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><div class="txt">ui.js keydown: target INPUT/TEXTAREA/SELECT returns before any key is read.</div></div></td>
 </tr>
-<tr data-id="R5" data-area="Code review" data-req="The inside view must not spend its frame on work nobody can see: caption layout forced the page to lay out twenty times a frame, hidden tracers were advanced, finished plumes uploaded buffers, the shadow map was redrawn every frame, and a dozen colours were allocated a frame." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="r5 code review the inside view must not spend its frame on work nobody can see: caption layout forced the page to lay out twenty times a frame, hidden tracers were advanced, finished plumes uploaded buffers, the shadow map was redrawn every frame, and a dozen colours were allocated a frame. captions are measured only when their text or the page changes; tracers advance only when shown and moving; idle plumes hide themselves; the shadow map redraws on alternate frames; scratch colours and a fixed circuit list. measured on the laptop gpu at 1500x950: defaults 17.0 to 7.8 ms a frame, every option on 23.7 to 14.6 ms.">
+<tr data-id="R5" data-area="Code review" data-req="The inside view must not spend its frame on work nobody can see: caption layout forced the page to lay out twenty times a frame, hidden tracers were advanced, finished plumes uploaded buffers, the shadow map was redrawn every frame, and a dozen colours were allocated a frame." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="r5 code review the inside view must not spend its frame on work nobody can see: caption layout forced the page to lay out twenty times a frame, hidden tracers were advanced, finished plumes uploaded buffers, the shadow map was redrawn every frame, and a dozen colours were allocated a frame. captions are measured only when their text or the page changes; tracers advance only when shown and moving; idle plumes hide themselves; the shadow map redraws on alternate frames; scratch colours and a fixed circuit list. measured on the laptop gpu at 1500x950: defaults 17.0 to 7.8 ms a frame, every option on 23.7 to 14.6 ms.">
   <td class="id">R5</td>
   <td>Code review</td>
   <td><div class="req">The inside view must not spend its frame on work nobody can see: caption layout forced the page to lay out twenty times a frame, hidden tracers were advanced, finished plumes uploaded buffers, the shadow map was redrawn every frame, and a dozen colours were allocated a frame.</div><div class="check">Captions are measured only when their text or the page changes; tracers advance only when shown and moving; idle plumes hide themselves; the shadow map redraws on alternate frames; scratch colours and a fixed circuit list. Measured on the laptop GPU at 1500x950: defaults 17.0 to 7.8 ms a frame, every option on 23.7 to 14.6 ms.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><div class="txt">docs/proof/R5_frametime.txt: before and after, six configurations.</div></div></td>
 </tr>
-<tr data-id="R6" data-area="Code review" data-req="The flood sheet is the sea come over the wall, so it must ripple at the sea's tile; it set the shared tile and then overrode it with its own." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="r6 code review the flood sheet is the sea come over the wall, so it must ripple at the sea's tile; it set the shared tile and then overrode it with its own. the override is gone; the sheet uses 1400 / sea_tile like the open water, the forebay and the channel.">
+<tr data-id="R6" data-area="Code review" data-req="The flood sheet is the sea come over the wall, so it must ripple at the sea's tile; it set the shared tile and then overrode it with its own." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="r6 code review the flood sheet is the sea come over the wall, so it must ripple at the sea's tile; it set the shared tile and then overrode it with its own. the override is gone; the sheet uses 1400 / sea_tile like the open water, the forebay and the channel.">
   <td class="id">R6</td>
   <td>Code review</td>
   <td><div class="req">The flood sheet is the sea come over the wall, so it must ripple at the sea's tile; it set the shared tile and then overrode it with its own.</div><div class="check">The override is gone; the sheet uses 1400 / SEA_TILE like the open water, the forebay and the channel.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/S1_flood.png" target="_blank"><img src="proof/S1_flood.png" alt="" loading="lazy"><small>The flood over the yard, rippling at the sea's scale</small></a></div></td>
 </tr>
-<tr data-id="G19" data-area="Geometry and machines, second review" data-req="The top of the boiler must show steam, as much as the steam line above it carries." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g19 geometry and machines, second review the top of the boiler must show steam, as much as the steam line above it carries. the steam space above the water and the dome are drawn as a body of torn vapour at half opacity when the boiler is carrying heat, scrolling upward at the steam line's own compressed speed; the puffs rising off the water are denser too.">
+<tr data-id="G19" data-area="Geometry and machines, second review" data-req="The top of the boiler must show steam, as much as the steam line above it carries." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g19 geometry and machines, second review the top of the boiler must show steam, as much as the steam line above it carries. the steam space above the water and the dome are drawn as a body of torn vapour at half opacity when the boiler is carrying heat, scrolling upward at the steam line's own compressed speed; the puffs rising off the water are denser too.">
   <td class="id">G19</td>
   <td>Geometry and machines, second review</td>
   <td><div class="req">The top of the boiler must show steam, as much as the steam line above it carries.</div><div class="check">The steam space above the water and the dome are drawn as a body of torn vapour at half opacity when the boiler is carrying heat, scrolling upward at the steam line's own compressed speed; the puffs rising off the water are denser too.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G19_boiler_steam.png" target="_blank"><img src="proof/G19_boiler_steam.png" alt="" loading="lazy"><small>The steam space and dome, full when carrying</small></a></div></td>
 </tr>
-<tr data-id="G20" data-area="Geometry and machines, second review" data-req="The feedwater must not step from blue to orange where it enters the boiler; cold water mixing into hot water changes temperature along a gradient. And the line must not go all round the containment: straight over the reactor, arriving at the boiler's side." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g20 geometry and machines, second review the feedwater must not step from blue to orange where it enters the boiler; cold water mixing into hot water changes temperature along a gradient. and the line must not go all round the containment: straight over the reactor, arriving at the boiler's side. the feed line comes in through the wall low on the turbine side, up beside the steam line, straight across at 29 m above the reactor and the pool, and into the boiler's right side at the feed nozzle. the downcomer ring the feed lands in stands just outside the water column, so in section it is the two strips either side of the column, blue at the nozzle and orange six metres down where it has mixed. its gradient used to run round the sheet instead of down it, and the sheet sat behind opaque water.">
+<tr data-id="G20" data-area="Geometry and machines, second review" data-req="The feedwater must not step from blue to orange where it enters the boiler; cold water mixing into hot water changes temperature along a gradient. And the line must not go all round the containment: straight over the reactor, arriving at the boiler's side." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g20 geometry and machines, second review the feedwater must not step from blue to orange where it enters the boiler; cold water mixing into hot water changes temperature along a gradient. and the line must not go all round the containment: straight over the reactor, arriving at the boiler's side. the feed line comes in through the wall low on the turbine side, up beside the steam line, straight across at 29 m above the reactor and the pool, and into the boiler's right side at the feed nozzle. the downcomer ring the feed lands in stands just outside the water column, so in section it is the two strips either side of the column, blue at the nozzle and orange six metres down where it has mixed. its gradient used to run round the sheet instead of down it, and the sheet sat behind opaque water.">
   <td class="id">G20</td>
   <td>Geometry and machines, second review</td>
   <td><div class="req">The feedwater must not step from blue to orange where it enters the boiler; cold water mixing into hot water changes temperature along a gradient. And the line must not go all round the containment: straight over the reactor, arriving at the boiler's side.</div><div class="check">The feed line comes in through the wall low on the turbine side, up beside the steam line, straight across at 29 m above the reactor and the pool, and into the boiler's right side at the feed nozzle. The downcomer ring the feed lands in stands just outside the water column, so in section it is the two strips either side of the column, blue at the nozzle and orange six metres down where it has mixed. Its gradient used to run round the sheet instead of down it, and the sheet sat behind opaque water.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G20_feed_route.png" target="_blank"><img src="proof/G20_feed_route.png" alt="" loading="lazy"><small>The feed line over the reactor into the boiler's side</small></a><a href="proof/G19_boiler_steam.png" target="_blank"><img src="proof/G19_boiler_steam.png" alt="" loading="lazy"><small>The strips beside the column, blue to orange from the nozzle down</small></a></div></td>
 </tr>
-<tr data-id="G21" data-area="Geometry and machines, second review" data-req="The three supports under the boiler's tube bank serve no purpose and clutter the view. The hot leg must arrive AT the bottom of the boiler with water flowing in, not traverse it, and the cold leg must leave through a hole at the bottom left." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g21 geometry and machines, second review the three supports under the boiler's tube bank serve no purpose and clutter the view. the hot leg must arrive at the bottom of the boiler with water flowing in, not traverse it, and the cold leg must leave through a hole at the bottom left. the two legs and the divider plate are gone; the boiler stands on one flat pedestal set back into the kept half, like the turbine's. the hot leg runs half a metre into the channel head's hot half and the cold leg starts half a metre inside its cold half (g30); nothing is drawn on the head's wall.">
+<tr data-id="G21" data-area="Geometry and machines, second review" data-req="The three supports under the boiler's tube bank serve no purpose and clutter the view. The hot leg must arrive AT the bottom of the boiler with water flowing in, not traverse it, and the cold leg must leave through a hole at the bottom left." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g21 geometry and machines, second review the three supports under the boiler's tube bank serve no purpose and clutter the view. the hot leg must arrive at the bottom of the boiler with water flowing in, not traverse it, and the cold leg must leave through a hole at the bottom left. the two legs and the divider plate are gone; the boiler stands on one flat pedestal set back into the kept half, like the turbine's. the hot leg runs half a metre into the channel head's hot half and the cold leg starts half a metre inside its cold half (g30); nothing is drawn on the head's wall.">
   <td class="id">G21</td>
   <td>Geometry and machines, second review</td>
   <td><div class="req">The three supports under the boiler's tube bank serve no purpose and clutter the view. The hot leg must arrive AT the bottom of the boiler with water flowing in, not traverse it, and the cold leg must leave through a hole at the bottom left.</div><div class="check">The two legs and the divider plate are gone; the boiler stands on one flat pedestal set back into the kept half, like the turbine's. The hot leg runs half a metre into the channel head's hot half and the cold leg starts half a metre inside its cold half (G30); nothing is drawn on the head's wall.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G21_head_nozzles.png" target="_blank"><img src="proof/G21_head_nozzles.png" alt="" loading="lazy"><small>The channel head: hot leg in at the right, cold leg out at the left, no struts</small></a></div></td>
 </tr>
-<tr data-id="G22" data-area="Geometry and machines, second review" data-req="The faint structure inside the reactor serves no purpose and overlaps the rods; simplify." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g22 geometry and machines, second review the faint structure inside the reactor serves no purpose and overlaps the rods; simplify. the core barrel cylinder is gone. inside the vessel are the rods, the water, the level line and the fuel-top mark, and nothing else.">
+<tr data-id="G22" data-area="Geometry and machines, second review" data-req="The faint structure inside the reactor serves no purpose and overlaps the rods; simplify." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g22 geometry and machines, second review the faint structure inside the reactor serves no purpose and overlaps the rods; simplify. the core barrel cylinder is gone. inside the vessel are the rods, the water, the level line and the fuel-top mark, and nothing else.">
   <td class="id">G22</td>
   <td>Geometry and machines, second review</td>
   <td><div class="req">The faint structure inside the reactor serves no purpose and overlaps the rods; simplify.</div><div class="check">The core barrel cylinder is gone. Inside the vessel are the rods, the water, the level line and the fuel-top mark, and nothing else.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G22_reactor_interior.png" target="_blank"><img src="proof/G22_reactor_interior.png" alt="" loading="lazy"><small>The reactor with only the rods in its water</small></a></div></td>
 </tr>
-<tr data-id="G23" data-area="Geometry and machines, second review" data-req="The pipe out of the turbine must not traverse it: an opening at the bottom right of the casing, so the spent steam is seen drawn down into the condenser. (First done as a funnel; G26 made it a pipe.)" data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g23 geometry and machines, second review the pipe out of the turbine must not traverse it: an opening at the bottom right of the casing, so the spent steam is seen drawn down into the condenser. (first done as a funnel; g26 made it a pipe.) the exhaust pipe starts inside the casing floor at its right-hand end, so what shows is a duct leaving the machine through its floor; nothing crosses the casing.">
+<tr data-id="G23" data-area="Geometry and machines, second review" data-req="The pipe out of the turbine must not traverse it: an opening at the bottom right of the casing, so the spent steam is seen drawn down into the condenser. (First done as a funnel; G26 made it a pipe.)" data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g23 geometry and machines, second review the pipe out of the turbine must not traverse it: an opening at the bottom right of the casing, so the spent steam is seen drawn down into the condenser. (first done as a funnel; g26 made it a pipe.) the exhaust pipe starts inside the casing floor at its right-hand end, so what shows is a duct leaving the machine through its floor; nothing crosses the casing.">
   <td class="id">G23</td>
   <td>Geometry and machines, second review</td>
   <td><div class="req">The pipe out of the turbine must not traverse it: an opening at the bottom right of the casing, so the spent steam is seen drawn down into the condenser. (First done as a funnel; G26 made it a pipe.)</div><div class="check">The exhaust pipe starts inside the casing floor at its right-hand end, so what shows is a duct leaving the machine through its floor; nothing crosses the casing.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G26_exhaust_pipe.png" target="_blank"><img src="proof/G26_exhaust_pipe.png" alt="" loading="lazy"><small>The exhaust leaving the casing floor</small></a></div></td>
 </tr>
-<tr data-id="G24" data-area="Geometry and machines, second review" data-req="The condensation chamber does not look realistic; draw a proper, standard surface condenser." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g24 geometry and machines, second review the condensation chamber does not look realistic; draw a proper, standard surface condenser. drawn as the textbooks draw one: a horizontal shell under the turbine, water boxes at both ends, a two-pass tube bank with the sea in cold along the lower row and out warm along the upper (each run one body of water changing colour along its length), the steam settling onto the bank, drops falling into a hotwell under the shell, and the condensate pump drawing from the hotwell.">
+<tr data-id="G24" data-area="Geometry and machines, second review" data-req="The condensation chamber does not look realistic; draw a proper, standard surface condenser." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g24 geometry and machines, second review the condensation chamber does not look realistic; draw a proper, standard surface condenser. drawn as the textbooks draw one: a horizontal shell under the turbine, water boxes at both ends, a two-pass tube bank with the sea in cold along the lower row and out warm along the upper (each run one body of water changing colour along its length), the steam settling onto the bank, drops falling into a hotwell under the shell, and the condensate pump drawing from the hotwell.">
   <td class="id">G24</td>
   <td>Geometry and machines, second review</td>
   <td><div class="req">The condensation chamber does not look realistic; draw a proper, standard surface condenser.</div><div class="check">Drawn as the textbooks draw one: a horizontal shell under the turbine, water boxes at both ends, a two-pass tube bank with the sea in cold along the lower row and out warm along the upper (each run one body of water changing colour along its length), the steam settling onto the bank, drops falling into a hotwell under the shell, and the condensate pump drawing from the hotwell.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G24_condenser.png" target="_blank"><img src="proof/G24_condenser.png" alt="" loading="lazy"><small>The surface condenser in section</small></a></div></td>
 </tr>
-<tr data-id="G25" data-area="Geometry and machines, second review" data-req="The sea water circuit crosses itself, and nothing shows how the sea gets into the condenser." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g25 geometry and machines, second review the sea water circuit crosses itself, and nothing shows how the sea gets into the condenser. a circulating pump stands at the forebay and draws straight up out of it, pushing into the lower half of the sea-side water box; the warm water leaves the upper half of the same box and runs out beyond the pump to the far side of the forebay. in on the near side, out on the far side: no crossing.">
+<tr data-id="G25" data-area="Geometry and machines, second review" data-req="The sea water circuit crosses itself, and nothing shows how the sea gets into the condenser." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g25 geometry and machines, second review the sea water circuit crosses itself, and nothing shows how the sea gets into the condenser. a circulating pump stands at the forebay and draws straight up out of it, pushing into the lower half of the sea-side water box; the warm water leaves the upper half of the same box and runs out beyond the pump to the far side of the forebay. in on the near side, out on the far side: no crossing.">
   <td class="id">G25</td>
   <td>Geometry and machines, second review</td>
   <td><div class="req">The sea water circuit crosses itself, and nothing shows how the sea gets into the condenser.</div><div class="check">A circulating pump stands at the forebay and draws straight up out of it, pushing into the lower half of the sea-side water box; the warm water leaves the upper half of the same box and runs out beyond the pump to the far side of the forebay. In on the near side, out on the far side: no crossing.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G25_sea_circuit.png" target="_blank"><img src="proof/G25_sea_circuit.png" alt="" loading="lazy"><small>Forebay, circulating pump, in below, out above and beyond</small></a></div></td>
 </tr>
-<tr data-id="U15" data-area="Interface and platform" data-req="Performance is still poor despite how simple the model is; switch to a true game engine if the current one is showing its limits." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="u15 interface and platform performance is still poor despite how simple the model is; switch to a true game engine if the current one is showing its limits. measured on the owner's full window (intel gpu). first the 2-d site was the slow view: 79 ms a frame still, 44 ms while panning; the panels' backdrop blur (35 ms) is gone, and the canvas-2d pass is drawn into a layer with a margin round the view and blitted panned and zoomed, redrawn only when the view leaves the margin, the zoom drifts or the plant changes: 1.9 ms still, 1.6 ms while dragging, 2 ms while zooming (from 44). the inside view went from 23 ms to 9 ms: no blur, one interior lamp per unit instead of two (four point lights were a quarter of the frame), pixel density capped at 1.25x (1.5x was a further quarter for nothing visible). the engine is not the limit: on the laptop's rtx 4070 the same page ran at 6 ms inside before these changes; chrome uses the intel gpu unless windows is told otherwise (see the proof text).">
+<tr data-id="U15" data-area="Interface and platform" data-req="Performance is still poor despite how simple the model is; switch to a true game engine if the current one is showing its limits." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="u15 interface and platform performance is still poor despite how simple the model is; switch to a true game engine if the current one is showing its limits. measured on the owner's full window (intel gpu). first the 2-d site was the slow view: 79 ms a frame still, 44 ms while panning; the panels' backdrop blur (35 ms) is gone, and the canvas-2d pass is drawn into a layer with a margin round the view and blitted panned and zoomed, redrawn only when the view leaves the margin, the zoom drifts or the plant changes: 1.9 ms still, 1.6 ms while dragging, 2 ms while zooming (from 44). the inside view went from 23 ms to 9 ms: no blur, one interior lamp per unit instead of two (four point lights were a quarter of the frame), pixel density capped at 1.25x (1.5x was a further quarter for nothing visible). the engine is not the limit: on the laptop's rtx 4070 the same page ran at 6 ms inside before these changes; chrome uses the intel gpu unless windows is told otherwise (see the proof text).">
   <td class="id">U15</td>
   <td>Interface and platform</td>
   <td><div class="req">Performance is still poor despite how simple the model is; switch to a true game engine if the current one is showing its limits.</div><div class="check">Measured on the owner's full window (Intel GPU). First the 2-D site was the slow view: 79 ms a frame still, 44 ms while panning; the panels' backdrop blur (35 ms) is gone, and the Canvas-2D pass is drawn into a layer with a margin round the view and blitted panned and zoomed, redrawn only when the view leaves the margin, the zoom drifts or the plant changes: 1.9 ms still, 1.6 ms while dragging, 2 ms while zooming (from 44). The inside view went from 23 ms to 9 ms: no blur, one interior lamp per unit instead of two (four point lights were a quarter of the frame), pixel density capped at 1.25x (1.5x was a further quarter for nothing visible). The engine is not the limit: on the laptop's RTX 4070 the same page ran at 6 ms inside before these changes; Chrome uses the Intel GPU unless Windows is told otherwise (see the proof text).</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><div class="txt">docs/proof/U15_performance.txt: before and after on both GPUs, where the 79 ms went, and the Windows setting that puts Chrome on the RTX.</div></div></td>
 </tr>
-<tr data-id="G26" data-area="Geometry and machines, third review" data-req="The connection between the turbine and the condenser must be a proper pipe between both, not a funnel." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-03" data-text="g26 geometry and machines, third review the connection between the turbine and the condenser must be a proper pipe between both, not a funnel. a steam pipe from inside the casing floor at the right-hand end straight down into the shell. steam runs are built whole with a steel casing and cut on the unit's plane like every vessel, vapour included: what shows is the casing's far half as a steel bore with the vapour inside it, not a glowing tube in front of a wall.">
+<tr data-id="G26" data-area="Geometry and machines, third review" data-req="The connection between the turbine and the condenser must be a proper pipe between both, not a funnel." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g26 geometry and machines, third review the connection between the turbine and the condenser must be a proper pipe between both, not a funnel. a steam pipe from inside the casing floor at the right-hand end straight down into the shell. steam runs are built whole with a steel casing and cut on the unit's plane like every vessel, vapour included: what shows is the casing's far half as a steel bore with the vapour inside it, not a glowing tube in front of a wall.">
   <td class="id">G26</td>
   <td>Geometry and machines, third review</td>
   <td><div class="req">The connection between the turbine and the condenser must be a proper pipe between both, not a funnel.</div><div class="check">A steam pipe from inside the casing floor at the right-hand end straight down into the shell. Steam runs are built whole with a steel casing and cut on the unit's plane like every vessel, vapour included: what shows is the casing's far half as a steel bore with the vapour inside it, not a glowing tube in front of a wall.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-03</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G26_exhaust_pipe.png" target="_blank"><img src="proof/G26_exhaust_pipe.png" alt="" loading="lazy"><small>The exhaust duct out of the casing floor into the shell</small></a></div></td>
 </tr>
-<tr data-id="G27" data-area="Geometry and machines, third review" data-req="The two huge discs on the condenser obstruct the view; a thin plate at each end, and the three tube runs must connect to the sea lines perfectly, not hidden, and must not overlap each other." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-03" data-text="g27 geometry and machines, third review the two huge discs on the condenser obstruct the view; a thin plate at each end, and the three tube runs must connect to the sea lines perfectly, not hidden, and must not overlap each other. each end is a plate a quarter of a metre thick. the three runs are nested: the outer run takes the lowest and the highest row, the inner run the two middle rows, so the three bends sit one inside the next (given the same height they lay on top of one another). all three start and end inside the sea-side plate, where the two nozzles end from the other side at the middle of the rows they feed and drain.">
+<tr data-id="G27" data-area="Geometry and machines, third review" data-req="The two huge discs on the condenser obstruct the view; a thin plate at each end, and the three tube runs must connect to the sea lines perfectly, not hidden, and must not overlap each other." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g27 geometry and machines, third review the two huge discs on the condenser obstruct the view; a thin plate at each end, and the three tube runs must connect to the sea lines perfectly, not hidden, and must not overlap each other. each end is a plate a quarter of a metre thick. the three runs are nested: the outer run takes the lowest and the highest row, the inner run the two middle rows, so the three bends sit one inside the next (given the same height they lay on top of one another). all three start and end inside the sea-side plate, where the two nozzles end from the other side at the middle of the rows they feed and drain.">
   <td class="id">G27</td>
   <td>Geometry and machines, third review</td>
   <td><div class="req">The two huge discs on the condenser obstruct the view; a thin plate at each end, and the three tube runs must connect to the sea lines perfectly, not hidden, and must not overlap each other.</div><div class="check">Each end is a plate a quarter of a metre thick. The three runs are nested: the outer run takes the lowest and the highest row, the inner run the two middle rows, so the three bends sit one inside the next (given the same height they lay on top of one another). All three start and end inside the sea-side plate, where the two nozzles end from the other side at the middle of the rows they feed and drain.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-03</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G27_plates_nozzles.png" target="_blank"><img src="proof/G27_plates_nozzles.png" alt="" loading="lazy"><small>Thin plates; three nested runs meeting the sea-side plate</small></a></div></td>
 </tr>
-<tr data-id="G28" data-area="Geometry and machines, third review" data-req="The drops must not fall below the lower wall of the condenser." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g28 geometry and machines, third review the drops must not fall below the lower wall of the condenser. the condensate pool lies in the bottom of the shell (the hotwell is the bottom of the shell), and the drops are given the pool's surface as their floor, half a metre above the shell's wall. the condensate pump draws from the pool through the boiler-side plate.">
+<tr data-id="G28" data-area="Geometry and machines, third review" data-req="The drops must not fall below the lower wall of the condenser." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g28 geometry and machines, third review the drops must not fall below the lower wall of the condenser. the condensate pool lies in the bottom of the shell (the hotwell is the bottom of the shell), and the drops are given the pool's surface as their floor, half a metre above the shell's wall. the condensate pump draws from the pool through the boiler-side plate.">
   <td class="id">G28</td>
   <td>Geometry and machines, third review</td>
   <td><div class="req">The drops must not fall below the lower wall of the condenser.</div><div class="check">The condensate pool lies in the bottom of the shell (the hotwell is the bottom of the shell), and the drops are given the pool's surface as their floor, half a metre above the shell's wall. The condensate pump draws from the pool through the boiler-side plate.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G28_drops_in_shell.png" target="_blank"><img src="proof/G28_drops_in_shell.png" alt="" loading="lazy"><small>Drops landing on the pool inside the shell</small></a></div></td>
 </tr>
-<tr data-id="G29" data-area="Geometry and machines, third review" data-req="Sectioned structures: first asked as an almost transparent near wall instead of a cut; then, seeing the liquid inside was still cut, asked instead for everything to be designed whole and cut visually at the last moment, walls and liquids alike, with no glass." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g29 geometry and machines, third review sectioned structures: first asked as an almost transparent near wall instead of a cut; then, seeing the liquid inside was still cut, asked instead for everything to be designed whole and cut visually at the last moment, walls and liquids alike, with no glass. no glass anywhere. every vessel, casing, pipe and body of water is built whole and the near half is removed at render time by the unit's one cut plane (materials carry the plane; the simulation never knows). the condenser's shell is steel, cut like the rest.">
+<tr data-id="G29" data-area="Geometry and machines, third review" data-req="Sectioned structures: first asked as an almost transparent near wall instead of a cut; then, seeing the liquid inside was still cut, asked instead for everything to be designed whole and cut visually at the last moment, walls and liquids alike, with no glass." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g29 geometry and machines, third review sectioned structures: first asked as an almost transparent near wall instead of a cut; then, seeing the liquid inside was still cut, asked instead for everything to be designed whole and cut visually at the last moment, walls and liquids alike, with no glass. no glass anywhere. every vessel, casing, pipe and body of water is built whole and the near half is removed at render time by the unit's one cut plane (materials carry the plane; the simulation never knows). the condenser's shell is steel, cut like the rest.">
   <td class="id">G29</td>
   <td>Geometry and machines, third review</td>
   <td><div class="req">Sectioned structures: first asked as an almost transparent near wall instead of a cut; then, seeing the liquid inside was still cut, asked instead for everything to be designed whole and cut visually at the last moment, walls and liquids alike, with no glass.</div><div class="check">No glass anywhere. Every vessel, casing, pipe and body of water is built whole and the near half is removed at render time by the unit's one cut plane (materials carry the plane; the simulation never knows). The condenser's shell is steel, cut like the rest.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G29_glass_fronts.png" target="_blank"><img src="proof/G29_glass_fronts.png" alt="" loading="lazy"><small>Both stations in section, no glass</small></a></div></td>
 </tr>
-<tr data-id="G30" data-area="Geometry and machines, third review" data-req="The pipes in and out of the boiler are not properly connected; every connection must be seamless, not half baked." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g30 geometry and machines, third review the pipes in and out of the boiler are not properly connected; every connection must be seamless, not half baked. a rule applied to every pipe in the model: a pipe ends buried inside the water of the body it serves, never on its surface. the hot leg ends half a metre inside the channel head's hot half and the cold leg starts half a metre inside its cold half, both passing through the head's glass; the feed ends inside the boiler's water column; the condensate and sea lines start and end inside their pumps' water and inside the condenser plate; the openings that were drawn on the head are gone.">
+<tr data-id="G30" data-area="Geometry and machines, third review" data-req="The pipes in and out of the boiler are not properly connected; every connection must be seamless, not half baked." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g30 geometry and machines, third review the pipes in and out of the boiler are not properly connected; every connection must be seamless, not half baked. a rule applied to every pipe in the model: a pipe ends buried inside the water of the body it serves, never on its surface. the hot leg ends half a metre inside the channel head's hot half and the cold leg starts half a metre inside its cold half, both passing through the head's glass; the feed ends inside the boiler's water column; the condensate and sea lines start and end inside their pumps' water and inside the condenser plate; the openings that were drawn on the head are gone.">
   <td class="id">G30</td>
   <td>Geometry and machines, third review</td>
   <td><div class="req">The pipes in and out of the boiler are not properly connected; every connection must be seamless, not half baked.</div><div class="check">A rule applied to every pipe in the model: a pipe ends buried inside the water of the body it serves, never on its surface. The hot leg ends half a metre inside the channel head's hot half and the cold leg starts half a metre inside its cold half, both passing through the head's glass; the feed ends inside the boiler's water column; the condensate and sea lines start and end inside their pumps' water and inside the condenser plate; the openings that were drawn on the head are gone.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G30_seamless_head.png" target="_blank"><img src="proof/G30_seamless_head.png" alt="" loading="lazy"><small>Both legs running into the head's water through its glass</small></a></div></td>
 </tr>
-<tr data-id="U16" data-area="Interface and platform" data-req="The labels have been removed. They must be there." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="u16 interface and platform the labels have been removed. they must be there. the part captions were only ever shown in the single-station views (a rule from the original 3-d rebuild); side by side only the two titles showed. on a wide screen every caption now shows in both views, the left column describing the left station and the right column the right one; when a column has more captions than height it shares the height evenly instead of piling them up at the top. on a phone the rule is unchanged.">
+<tr data-id="U16" data-area="Interface and platform" data-req="The labels have been removed. They must be there." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="u16 interface and platform the labels have been removed. they must be there. the part captions were only ever shown in the single-station views (a rule from the original 3-d rebuild); side by side only the two titles showed. on a wide screen every caption now shows in both views, the left column describing the left station and the right column the right one; when a column has more captions than height it shares the height evenly instead of piling them up at the top. on a phone the rule is unchanged.">
   <td class="id">U16</td>
   <td>Interface and platform</td>
   <td><div class="req">The labels have been removed. They must be there.</div><div class="check">The part captions were only ever shown in the single-station views (a rule from the original 3-D rebuild); side by side only the two titles showed. On a wide screen every caption now shows in both views, the left column describing the left station and the right column the right one; when a column has more captions than height it shares the height evenly instead of piling them up at the top. On a phone the rule is unchanged.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
-  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/U16_captions_both.png" target="_blank"><img src="proof/U16_captions_both.png" alt="" loading="lazy"><small>Side by side, every part captioned on its own side</small></a></div></td>
 </tr>
-<tr data-id="R7" data-area="Code review" data-req="The site view showed the stations as empty fields and no houses: a regression from the cached layers." data-status="DONE" data-raised="2026-09-03" data-verified="2026-09-03" data-text="r7 code review the site view showed the stations as empty fields and no houses: a regression from the cached layers. the layers are drawn a third wider than the window, and the shift for that margin was applied before the camera transform, which sets the matrix and threw it away, so every prop and station was drawn a third of a window up and left of where it was blitted. the margin now goes in through the camera's own screen offset. verified on a screenshot of the site view still and after a pan and zoom.">
+<tr data-id="R7" data-area="Code review" data-req="The site view showed the stations as empty fields and no houses: a regression from the cached layers." data-status="DONE" data-raised="2026-09-03" data-verified="2026-09-04" data-text="r7 code review the site view showed the stations as empty fields and no houses: a regression from the cached layers. the layers are drawn a third wider than the window, and the shift for that margin was applied before the camera transform, which sets the matrix and threw it away, so every prop and station was drawn a third of a window up and left of where it was blitted. the margin now goes in through the camera's own screen offset. verified on a screenshot of the site view still and after a pan and zoom.">
   <td class="id">R7</td>
   <td>Code review</td>
   <td><div class="req">The site view showed the stations as empty fields and no houses: a regression from the cached layers.</div><div class="check">The layers are drawn a third wider than the window, and the shift for that margin was applied before the camera transform, which SETS the matrix and threw it away, so every prop and station was drawn a third of a window up and left of where it was blitted. The margin now goes in through the camera's own screen offset. Verified on a screenshot of the site view still and after a pan and zoom.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-03</td>
-  <td class="date">2026-09-03</td>
+  <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/U4_wasd_before.png" target="_blank"><img src="proof/U4_wasd_before.png" alt="" loading="lazy"><small>The site view with its stations and town in place</small></a></div></td>
+</tr>
+<tr data-id="B1" data-area="Model from Blender" data-req="Design the whole 3D model properly, in Blender, with immediate visual feedback; keep the half cutout a render-time effect the simulation knows nothing about." data-status="DONE" data-raised="2026-09-03" data-verified="2026-09-04" data-text="b1 model from blender design the whole 3d model properly, in blender, with immediate visual feedback; keep the half cutout a render-time effect the simulation knows nothing about. the station's steel is one blender scene. tools/blender/plant.py builds 264 objects with bpy from assets/layout.json (the one file the app's water also reads), either headless or inside the running blender through the official blender lab mcp add-on, which the agent drives with tools/bl.py and screenshots for feedback; it exports assets/plant.glb. js/view/model.js loads the glb once and hands each unit an instance: the other design's parts dropped, everything static merged into one mesh per material, and every material cut on the unit's plane with clipshadows. water, steam, tracers, drips and glow stay procedural in unit.js, built from the same layout into the hollows the model leaves, so nothing leaks: the cut is only in the materials.">
+  <td class="id">B1</td>
+  <td>Model from Blender</td>
+  <td><div class="req">Design the whole 3D model properly, in Blender, with immediate visual feedback; keep the half cutout a render-time effect the simulation knows nothing about.</div><div class="check">The station's steel is one Blender scene. tools/blender/plant.py builds 264 objects with bpy from assets/layout.json (the one file the app's water also reads), either headless or inside the running Blender through the official Blender Lab MCP add-on, which the agent drives with tools/bl.py and screenshots for feedback; it exports assets/plant.glb. js/view/model.js loads the glb once and hands each unit an instance: the other design's parts dropped, everything static merged into one mesh per material, and every material cut on the unit's plane with clipShadows. Water, steam, tracers, drips and glow stay procedural in unit.js, built from the same layout into the hollows the model leaves, so nothing leaks: the cut is only in the materials.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-03</td>
+  <td class="date">2026-09-04</td>
+  <td><div class="proof"><a href="proof/B1_blender.png" target="_blank"><img src="proof/B1_blender.png" alt="" loading="lazy"><small>The station in Blender's viewport (building hidden), built by plant.py in the live application</small></a><a href="proof/B1_model_unit.png" target="_blank"><img src="proof/B1_model_unit.png" alt="" loading="lazy"><small>The same station in the app, the near half removed by the unit's plane</small></a></div></td>
+</tr>
+<tr data-id="B2" data-area="Model from Blender" data-req="The parts that move or light up must still be driven by the simulation once the geometry comes from a file." data-status="DONE" data-raised="2026-09-03" data-verified="2026-09-04" data-text="b2 model from blender the parts that move or light up must still be driven by the simulation once the geometry comes from a file. the turbine wheel is built under an empty named turb_rotor, each pump's hub and vanes under &lt;pump&gt;_rotor, and the lamps, busbars, valve and skirt keep their own names; model.js keeps those as live objects (with their world transform, so a rotor turns about its own axis) and unit.js turns, lights and hides them exactly as before. the gltf conversion leaves the layout's axes intact: a rotor's local x is the shaft.">
+  <td class="id">B2</td>
+  <td>Model from Blender</td>
+  <td><div class="req">The parts that move or light up must still be driven by the simulation once the geometry comes from a file.</div><div class="check">The turbine wheel is built under an empty named turb_rotor, each pump's hub and vanes under &lt;pump&gt;_rotor, and the lamps, busbars, valve and skirt keep their own names; model.js keeps those as live objects (with their world transform, so a rotor turns about its own axis) and unit.js turns, lights and hides them exactly as before. The glTF conversion leaves the layout's axes intact: a rotor's local x is the shaft.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-03</td>
+  <td class="date">2026-09-04</td>
+  <td><div class="proof"><a href="proof/B2_live_parts.png" target="_blank"><img src="proof/B2_live_parts.png" alt="" loading="lazy"><small>Turbine, generator, condenser and both pumps from the model, the wheel and impellers turning, the lamps lit by the plant's state</small></a><a href="proof/B2_pump_model.png" target="_blank"><img src="proof/B2_pump_model.png" alt="" loading="lazy"><small>The reactor coolant pump: casing, motor and lamp from the model, the impeller turning in the app's own water</small></a></div></td>
+</tr>
+<tr data-id="B3" data-area="Model from Blender" data-req="The boiler must be a coherent machine: shell, tube sheet, nozzles and support from one design, the water and the bank inside it." data-status="DONE" data-raised="2026-09-03" data-verified="2026-09-04" data-text="b3 model from blender the boiler must be a coherent machine: shell, tube sheet, nozzles and support from one design, the water and the bank inside it. the steam generator's lathe, its tube sheet and the pedestal come from the model; the water column, the downcomer strips, the u-tube bank with its hot-to-cold gradient, the steam space and the boiling band are the app's, placed from the same layout. the legs, the feed and the steam line run straight into the shell with no collar at the wall (g4, f6, g8 still hold): their casings end inside the wall and their water runs on inside.">
+  <td class="id">B3</td>
+  <td>Model from Blender</td>
+  <td><div class="req">The boiler must be a coherent machine: shell, tube sheet, nozzles and support from one design, the water and the bank inside it.</div><div class="check">The steam generator's lathe, its tube sheet and the pedestal come from the model; the water column, the downcomer strips, the U-tube bank with its hot-to-cold gradient, the steam space and the boiling band are the app's, placed from the same layout. The legs, the feed and the steam line run straight into the shell with no collar at the wall (G4, F6, G8 still hold): their casings end inside the wall and their water runs on inside.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-03</td>
+  <td class="date">2026-09-04</td>
+  <td><div class="proof"><a href="proof/B3_boiler_model.png" target="_blank"><img src="proof/B3_boiler_model.png" alt="" loading="lazy"><small>The boiler cut open: model shell and tube sheet, procedural water, bank and steam</small></a></div></td>
+</tr>
+<tr data-id="B4" data-area="Model from Blender" data-req="The reactor must read as a pressure vessel: flange, studs, nozzles and a skirt, with the core and its water inside." data-status="DONE" data-raised="2026-09-03" data-verified="2026-09-04" data-text="b4 model from blender the reactor must read as a pressure vessel: flange, studs, nozzles and a skirt, with the core and its water inside. the vessel is one lathe from the layout's profile with a flange and a ring of studs at the head joint and a skirt into the floor (hidden by the app once the vessel has failed); the legs enter the barrel with no collar. the fuel, the level ring, the water and its surface are the app's.">
+  <td class="id">B4</td>
+  <td>Model from Blender</td>
+  <td><div class="req">The reactor must read as a pressure vessel: flange, studs, nozzles and a skirt, with the core and its water inside.</div><div class="check">The vessel is one lathe from the layout's profile with a flange and a ring of studs at the head joint and a skirt into the floor (hidden by the app once the vessel has failed); the legs enter the barrel with no collar. The fuel, the level ring, the water and its surface are the app's.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-03</td>
+  <td class="date">2026-09-04</td>
+  <td><div class="proof"><a href="proof/B4_reactor_model.png" target="_blank"><img src="proof/B4_reactor_model.png" alt="" loading="lazy"><small>The vessel cut open: model steel, procedural fuel and water</small></a></div></td>
+</tr>
+<tr data-id="B5" data-area="Model from Blender" data-req="Importing a modelled station must not cost frame rate; the owner wants more performance, not less." data-status="DONE" data-raised="2026-09-03" data-verified="2026-09-04" data-text="b5 model from blender importing a modelled station must not cost frame rate; the owner wants more performance, not less. measured with node tools/perf.mjs (mean of 120 animation-frame gaps, inside view, both units, 1500x950 at 1x, pw_gpu=1 on the laptop's intel arc), the build before this one against this one, served side by side and measured back to back. draw calls a frame fell from 419-534 to 272-364 (the range is the alternate-frame shadow pass), because a unit's steel is merged into one mesh per material and each rotor into one mesh under its empty. frame time: before 6.0-8.3 ms mean (8.1 median) across runs, after 6.5 ms mean (4.3 median); run-to-run noise on this laptop is about a millisecond, so the honest reading is no slower, with a third fewer draw calls. the model itself is 58k triangles a station (blades, vanes and busbars at eight sides), 1.4 mb, loaded once.">
+  <td class="id">B5</td>
+  <td>Model from Blender</td>
+  <td><div class="req">Importing a modelled station must not cost frame rate; the owner wants more performance, not less.</div><div class="check">Measured with node tools/perf.mjs (mean of 120 animation-frame gaps, inside view, both units, 1500x950 at 1x, PW_GPU=1 on the laptop's Intel Arc), the build before this one against this one, served side by side and measured back to back. Draw calls a frame fell from 419-534 to 272-364 (the range is the alternate-frame shadow pass), because a unit's steel is merged into one mesh per material and each rotor into one mesh under its empty. Frame time: before 6.0-8.3 ms mean (8.1 median) across runs, after 6.5 ms mean (4.3 median); run-to-run noise on this laptop is about a millisecond, so the honest reading is no slower, with a third fewer draw calls. The model itself is 58k triangles a station (blades, vanes and busbars at eight sides), 1.4 MB, loaded once.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-03</td>
+  <td class="date">2026-09-04</td>
+  <td><div class="proof"><span class="none">no proof yet</span></div></td>
 </tr>
 </tbody>
 </table>

@@ -31,8 +31,11 @@ pipe flow is the one part that is not on an off-the-shelf physics engine.
 It is a static site with no build step. Serve the folder and open `index.html`.
 
 ```
-python3 -m http.server 8099
+node tools/serve.mjs . 8099
 ```
+
+(Python's `http.server` serves `.mjs` as text on Windows and the physics
+module then fails to load; the small server in `tools/` sets the types.)
 
 ## Checking it
 
@@ -51,3 +54,21 @@ node tools/look.mjs floor tmi 260     # a shot after 260 minutes of a scenario
 
 Parks the camera on one piece of plant and screenshots it big, which is the only
 way to judge whether the fluids look right.
+
+## The 3D model
+
+The station's steel is a Blender model. `assets/layout.json` describes every
+vessel, pipe and machine in metres; `tools/blender/plant.py` builds them with
+bpy and exports `assets/plant.glb`; `js/view/model.js` loads that and cuts it
+on each unit's plane at render time. The water, steam and tracers are drawn by
+the app from the same layout, so the cutaway never leaks. To change a machine:
+
+```
+edit assets/layout.json or tools/blender/plant.py
+blender -b -P tools/blender/plant.py -- --export assets/plant.glb
+node tools/look.mjs unit
+```
+
+`tools/bl.py` runs the same build inside a live Blender (through the official
+Blender MCP add-on) and screenshots its viewport, which is how the model is
+reviewed while it is designed.

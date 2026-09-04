@@ -22,11 +22,13 @@ const CAMS = {
   head:    [['F1_tracers', [400, 250, 1150, 800]], ['F6_junction', [400, 250, 1150, 800]], ['G4_no_rings', [400, 250, 1150, 800]]],
   turbine: [['F2_gradient', [560, 380, 1220, 830]], ['F10_outfall', [560, 380, 1220, 830]], ['F11_intake', [560, 380, 1220, 830]],
             ['G6_G7_condenser', [560, 380, 1220, 830]], ['G15_G16_turbine', [290, 60, 1220, 830]],
-            ['G18_exhaust_condenser', [290, 60, 1220, 830]]],
+            ['G18_exhaust_condenser', [290, 60, 1220, 830]], ['B2_live_parts', [290, 60, 1220, 830]]],
   sump:    [['F3_condensate', [300, 150, 1250, 720]]],
-  rpv:     [['F4_reactor', [450, 150, 1050, 850]]],
+  rpv:     [['F4_reactor', [450, 150, 1050, 850]], ['B4_reactor_model', [450, 150, 1050, 850]]],
+  unit:    [['B1_model_unit', [290, 60, 1220, 830]]],
+  sg:      [['B3_boiler_model', [330, 60, 1210, 830]]],
   dome:    [['F5_speeds', [330, 60, 1210, 830]], ['F7_feed', [330, 60, 1210, 830]], ['F8_feed_tank', [330, 60, 1210, 830]], ['G8_boiler_inlet', [330, 60, 1210, 830]]],
-  pump:    [['F9_fluid_pump', [450, 300, 1100, 780]], ['G5_pump', [450, 300, 1100, 780]]],
+  pump:    [['F9_fluid_pump', [450, 300, 1100, 780]], ['G5_pump', [450, 300, 1100, 780]], ['B2_pump_model', [450, 300, 1100, 780]]],
   bay:     [['F12_sea', [300, 100, 1250, 850]]],
   back:    [['G1_G2_containment', [290, 60, 1220, 830]]],
   focusA:  [['G3_floor', [500, 560, 950, 830]], ['G13_no_bar', [290, 60, 1220, 830]], ['F9_fluid_unit', [290, 60, 1220, 830]]],
@@ -44,7 +46,7 @@ const CAMS = {
 };
 CAMS.turbine.push(['F13_engine_turbine', [560, 380, 1220, 830]]);
 // The second review: boiler, reactor, turbine exhaust, condenser, sea water.
-CAMS.sg = [['G19_boiler_steam', [480, 60, 1100, 560]]];
+CAMS.sg = (CAMS.sg || []).concat([['G19_boiler_steam', [480, 60, 1100, 560]]]);
 CAMS.unit = (CAMS.unit || []).concat([['G20_feed_route', [290, 60, 1220, 830]]]);
 CAMS.head.push(['G21_head_nozzles', [300, 200, 1250, 830]]);
 CAMS.rpv.push(['G22_reactor_interior', [450, 150, 1050, 850]]);

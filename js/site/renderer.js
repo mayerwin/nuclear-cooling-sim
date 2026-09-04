@@ -6,9 +6,9 @@
 // can never occlude are painted before the pass; anything with a footprint
 // goes into it, keyed on x + y (+ half its footprint for a box).
 // ---------------------------------------------------------------------------
-import { W, H, T } from './world.js?v=4ef08b3842';
-import { project, TW, TH, poly, rgba } from './iso.js?v=4ef08b3842';
-import { drawProp, drawLiveProp, drawPropGlow, isLive, propKey } from './props.js?v=4ef08b3842';
+import { W, H, T } from './world.js?v=0993587cdd';
+import { project, TW, TH, poly, rgba } from './iso.js?v=0993587cdd';
+import { drawProp, drawLiveProp, drawPropGlow, isLive, propKey } from './props.js?v=0993587cdd';
 
 // How much wider than the window a cached layer is drawn, each way.
 const LAYER_MARGIN = 0.34;

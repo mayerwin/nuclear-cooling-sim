@@ -16,4 +16,10 @@ A line is DONE only when its screenshot, captured from the shipped build by
 `node tools/proof.mjs`, has been read against its caption. Keep it current in
 the same commit as the change it describes.
 
+The station's steel is a Blender model: `assets/layout.json` describes it,
+`tools/blender/plant.py` builds and exports it, `js/view/model.js` imports it.
+Change a machine there, re-export `assets/plant.glb`, then `look` at it in the
+app; never hand-edit the glb, and keep the water in `unit.js` reading the same
+numbers. HANDOFF.md says how to see Blender while you work.
+
 Work on `main`. Run `node tools/check.mjs` before every push.

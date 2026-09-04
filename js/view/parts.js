@@ -2,7 +2,7 @@
 // parts.js - the reusable pieces of plant, as real geometry.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { liquidMaterial, steamMaterial, Bubbles, frameOf } from './fluid.js?v=4ef08b3842';
+import { liquidMaterial, steamMaterial, Bubbles, frameOf } from './fluid.js?v=0993587cdd';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -40,9 +40,14 @@ export function pipe(pts, dia, mats, opts = {}) {
   // the air. Given opts.section it is built like the machines: a whole
   // steel tube cut on the unit's plane, so its far half stands as a solid
   // wall and the vapour is seen inside a pipe.
+  // With opts.casing === false the casing comes from the Blender model and
+  // only the fluid, the tracers and the caps are built here; the core is then
+  // the thing a click on the pipe hits.
   const casGeo = new THREE.TubeGeometry(path, seg, dia / 2, 12, false);
-  let casing;
-  if (opts.section) {
+  let casing = null;
+  if (opts.casing === false) {
+    casGeo.dispose();
+  } else if (opts.section) {
     const far = mats.pipe.clone();
     far.side = THREE.DoubleSide;
     far.clippingPlanes = opts.section.cut;
@@ -53,8 +58,10 @@ export function pipe(pts, dia, mats, opts = {}) {
   } else {
     casing = new THREE.Mesh(casGeo, mats.pipe);
   }
-  casing.castShadow = true;
-  group.add(casing);
+  if (casing) {
+    casing.castShadow = true;
+    group.add(casing);
+  }
 
   // No flanges. They were rings of grey metal every seven metres along every
   // run, and what they actually did was chop each pipe into segments and put a
@@ -66,9 +73,11 @@ export function pipe(pts, dia, mats, opts = {}) {
   // diagram; a full bore is what water in a pipe looks like.
   const steam = !!opts.steam;
   const mat = steam ? steamMaterial() : liquidMaterial(dia);
-  // A cut casing needs a cut core, or the vapour's near half hides the wall
-  // it is supposed to be inside.
-  if (opts.section) mat.clippingPlanes = opts.section.cut;
+  // Cut on the unit's plane like everything else: a cut casing needs a cut
+  // core, and the water in a pipe is a trough in a trough, the way a cutaway
+  // drawing has it.
+  if (opts.cut) mat.clippingPlanes = opts.cut;
+  else if (opts.section) mat.clippingPlanes = opts.section.cut;
   const bore = dia * (steam ? 0.48 : 0.46);
   const core = new THREE.Mesh(
     new THREE.TubeGeometry(path, seg, bore, 14, false), mat);
@@ -104,7 +113,7 @@ export function pipe(pts, dia, mats, opts = {}) {
   const bub = new Bubbles(frame, bore * (steam ? 0.22 : 0.44), count, mats.fleck);
   group.add(bub.mesh);
 
-  return { group, casing, core, caps, bub, len, path, mat, dia, bore, steam, tint: mat };
+  return { group, casing: casing || core, core, caps, bub, len, path, mat, dia, bore, steam, tint: mat };
 }
 
 // A vessel of revolution from a profile, with a cut so the near half comes off.
