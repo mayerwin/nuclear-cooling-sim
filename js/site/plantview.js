@@ -5,8 +5,8 @@
 // piece with its own depth key, so nothing can draw on the wrong side of
 // anything else. Nothing is cached in a layer, so nothing pops.
 // ---------------------------------------------------------------------------
-import { project, box, cylinder, coolingTower, dome, pylon, shadow, shade, rgba, mix, hash2, poly, polyLine, TW, TH, TZ, EDGE } from './iso.js?v=a4d7bb2070';
-import { MODE } from '../plant.js?v=a4d7bb2070';
+import { project, box, cylinder, coolingTower, dome, pylon, shadow, shade, rgba, mix, hash2, poly, polyLine, TW, TH, TZ, EDGE } from './iso.js?v=4ef08b3842';
+import { MODE } from '../plant.js?v=4ef08b3842';
 
 const CONCRETE = '#cfccc2';
 const CONCRETE_D = '#a9a69c';

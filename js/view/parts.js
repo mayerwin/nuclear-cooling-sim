@@ -2,7 +2,7 @@
 // parts.js - the reusable pieces of plant, as real geometry.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { liquidMaterial, steamMaterial, Bubbles, frameOf } from './fluid.js?v=a4d7bb2070';
+import { liquidMaterial, steamMaterial, Bubbles, frameOf } from './fluid.js?v=4ef08b3842';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -47,6 +47,8 @@ export function pipe(pts, dia, mats, opts = {}) {
     far.side = THREE.DoubleSide;
     far.clippingPlanes = opts.section.cut;
     far.clipIntersection = false;
+    // darker inside, so the vapour is the bright thing in a steel bore
+    far.color.setHex(0x6f7b87);
     casing = new THREE.Mesh(casGeo, far);
   } else {
     casing = new THREE.Mesh(casGeo, mats.pipe);
@@ -64,6 +66,9 @@ export function pipe(pts, dia, mats, opts = {}) {
   // diagram; a full bore is what water in a pipe looks like.
   const steam = !!opts.steam;
   const mat = steam ? steamMaterial() : liquidMaterial(dia);
+  // A cut casing needs a cut core, or the vapour's near half hides the wall
+  // it is supposed to be inside.
+  if (opts.section) mat.clippingPlanes = opts.section.cut;
   const bore = dia * (steam ? 0.48 : 0.46);
   const core = new THREE.Mesh(
     new THREE.TubeGeometry(path, seg, bore, 14, false), mat);

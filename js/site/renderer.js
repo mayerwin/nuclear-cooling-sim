@@ -6,9 +6,9 @@
 // can never occlude are painted before the pass; anything with a footprint
 // goes into it, keyed on x + y (+ half its footprint for a box).
 // ---------------------------------------------------------------------------
-import { W, H, T } from './world.js?v=a4d7bb2070';
-import { project, TW, TH, poly, rgba } from './iso.js?v=a4d7bb2070';
-import { drawProp, drawLiveProp, drawPropGlow, isLive, propKey } from './props.js?v=a4d7bb2070';
+import { W, H, T } from './world.js?v=4ef08b3842';
+import { project, TW, TH, poly, rgba } from './iso.js?v=4ef08b3842';
+import { drawProp, drawLiveProp, drawPropGlow, isLive, propKey } from './props.js?v=4ef08b3842';
 
 // How much wider than the window a cached layer is drawn, each way.
 const LAYER_MARGIN = 0.34;
@@ -59,9 +59,12 @@ export class Renderer {
       const c = L.ctx;
       c.setTransform(1, 0, 0, 1, 0, 0);
       c.clearRect(0, 0, LW, LH);
-      // the view's transform, shifted by the margin
-      c.translate(px, py);
+      // The view's transform, shifted by the margin. applyTransform SETS the
+      // matrix, so a translate before it is thrown away: the shift goes in
+      // through the camera's own screen offset and comes straight back out.
+      cam.ox += px; cam.oy += py;
       cam.applyTransform(c);
+      cam.ox -= px; cam.oy -= py;
       render(c);
       L.key = key; L.at = now;
       L.cx = cam.x; L.cy = cam.y; L.zoom = cam.zoom; L.ox = cam.ox; L.oy = cam.oy;

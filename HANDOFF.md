@@ -250,6 +250,14 @@ loop shows its cold leg blue and its hot leg red.
 
 ## Traps that have already bitten (do not rediscover them)
 
+- `Camera.applyTransform` SETS the canvas matrix. Anything meant to shift it
+  (the cached layers' margin) goes through `cam.ox/oy`, not a translate before
+  it. Getting this wrong drew the whole site a third of a window off and an
+  alignment test that compared two frames with the same bug passed: check a
+  site-view SCREENSHOT after touching renderer.js.
+- Steam runs are cut on the plane, casing and vapour (`opts.section` in
+  `pipe()`); water runs keep a whole opaque core inside a far-wall casing.
+- The condenser's three runs nest: outer run lowest and highest row.
 - The GPU tools need `PW_HEADED=1`. Without it headless Chrome renders on
   SwiftShader and a single look.mjs takes seven minutes; it looks like a hang.
 - Git Bash mangles `/v` `/d` `/f` into paths, so `reg add` fails with

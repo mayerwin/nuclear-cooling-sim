@@ -7,12 +7,12 @@
 // in at the water.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { pipe, vessel, tube, slab, V, roundedPath } from './parts.js?v=a4d7bb2070';
-import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles, frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=a4d7bb2070';
-import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=a4d7bb2070';
-import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=a4d7bb2070';
-import { Machines } from '../machines.js?v=a4d7bb2070';
-import { SectionCap } from './section.js?v=a4d7bb2070';
+import { pipe, vessel, tube, slab, V, roundedPath } from './parts.js?v=4ef08b3842';
+import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles, frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=4ef08b3842';
+import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=4ef08b3842';
+import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=4ef08b3842';
+import { Machines } from '../machines.js?v=4ef08b3842';
+import { SectionCap } from './section.js?v=4ef08b3842';
 
 const R_IN = 15.4, WALL = 1.0, SHELL_H = 31, DOME_R = R_IN + WALL;
 
@@ -1144,9 +1144,12 @@ export class Unit {
     // bank; back along the bank, through the plate, sea out.
     const TZ = t.z - 0.35, TXR = PLATE_R;
     this.condTubes = [];
+    // Nested: the outer run takes the lowest and the highest row, the inner
+    // run the two middle rows, so the three bends sit one inside the next.
+    // Given the same height each, the bends lay on top of one another.
     for (let k = 0; k < 3; k++) {
-      const yLo = CYC - 1.0 + k * 0.38, yHi = CYC + 0.45 + k * 0.38;
-      const xl = CXC - CLEN / 2 + 0.5 + k * 0.32;
+      const yLo = CYC - 1.0 + k * 0.38, yHi = CYC + 0.45 + (2 - k) * 0.38;
+      const xl = CXC - CLEN / 2 + 0.5 + k * 0.36;
       const u = fluidRod([V(TXR, yLo, TZ), V(xl, yLo, TZ), V(xl, yHi, TZ), V(TXR, yHi, TZ)],
         0.16, (yHi - yLo) * 0.45);
       u.mesh.castShadow = false;
@@ -1623,8 +1626,8 @@ export class Unit {
 // ---------------------------------------------------------------------------
 // per frame: solve the flows, step the machines, and let the geometry follow
 // ---------------------------------------------------------------------------
-import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=a4d7bb2070';
-import { Plume, PuffCloud } from './plume.js?v=a4d7bb2070';
+import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=4ef08b3842';
+import { Plume, PuffCloud } from './plume.js?v=4ef08b3842';
 
 Object.assign(Unit.prototype, {
 
@@ -1881,7 +1884,7 @@ Object.assign(Unit.prototype, {
         // steam line race past bubbles that were leaving the water it boiled
         // out of.
         mat.alphaMap.offset.x -= vd * dt * 0.25;
-        mat.opacity = moving ? 0.72 : 0.12;
+        mat.opacity = moving ? 0.6 : 0.12;
         mat.emissiveIntensity = moving ? 0.42 : 0.05;
       } else {
         // The leg knows its own inlet and outlet temperature; the pipe is

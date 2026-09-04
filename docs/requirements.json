@@ -961,14 +961,14 @@
   "id": "G26",
   "area": "Geometry and machines, third review",
   "raised": "2026-09-02",
-  "verified": "2026-09-02",
+  "verified": "2026-09-03",
   "status": "DONE",
   "req": "The connection between the turbine and the condenser must be a proper pipe between both, not a funnel.",
-  "check": "A steam pipe like every other in the model: it starts inside the casing's steam at its right-hand end, goes down through the casing floor and ends inside the shell's steam, with its own tracers running at the steam line's speed. Nothing floats between the two machines.",
+  "check": "A steam pipe from inside the casing floor at the right-hand end straight down into the shell. Steam runs are built whole with a steel casing and cut on the unit's plane like every vessel, vapour included: what shows is the casing's far half as a steel bore with the vapour inside it, not a glowing tube in front of a wall.",
   "proof": [
    {
     "img": "proof/G26_exhaust_pipe.png",
-    "caption": "The exhaust pipe out of the casing floor into the shell"
+    "caption": "The exhaust duct out of the casing floor into the shell"
    }
   ]
  },
@@ -976,14 +976,14 @@
   "id": "G27",
   "area": "Geometry and machines, third review",
   "raised": "2026-09-02",
-  "verified": "2026-09-02",
+  "verified": "2026-09-03",
   "status": "DONE",
-  "req": "The two huge discs on the condenser obstruct the view; a thin plate at each end, and the three tube runs must connect to the sea lines perfectly, not hidden.",
-  "check": "Each end is a plate a quarter of a metre thick. The three runs start and end inside the sea-side plate at the heights of their rows, and the two nozzles end inside the same plate from the other side, at the middle of the rows they feed and drain, with a bore wide enough to cover all three: the sea is seen to arrive at the plate and the rows to leave it.",
+  "req": "The two huge discs on the condenser obstruct the view; a thin plate at each end, and the three tube runs must connect to the sea lines perfectly, not hidden, and must not overlap each other.",
+  "check": "Each end is a plate a quarter of a metre thick. The three runs are nested: the outer run takes the lowest and the highest row, the inner run the two middle rows, so the three bends sit one inside the next (given the same height they lay on top of one another). All three start and end inside the sea-side plate, where the two nozzles end from the other side at the middle of the rows they feed and drain.",
   "proof": [
    {
     "img": "proof/G27_plates_nozzles.png",
-    "caption": "Thin plates; nozzles and rows meeting through the sea-side plate"
+    "caption": "Thin plates; three nested runs meeting the sea-side plate"
    }
   ]
  },
@@ -1044,6 +1044,21 @@
    {
     "img": "proof/U16_captions_both.png",
     "caption": "Side by side, every part captioned on its own side"
+   }
+  ]
+ },
+ {
+  "id": "R7",
+  "area": "Code review",
+  "raised": "2026-09-03",
+  "verified": "2026-09-03",
+  "status": "DONE",
+  "req": "The site view showed the stations as empty fields and no houses: a regression from the cached layers.",
+  "check": "The layers are drawn a third wider than the window, and the shift for that margin was applied before the camera transform, which SETS the matrix and threw it away, so every prop and station was drawn a third of a window up and left of where it was blitted. The margin now goes in through the camera's own screen offset. Verified on a screenshot of the site view still and after a pan and zoom.",
+  "proof": [
+   {
+    "img": "proof/U4_wasd_before.png",
+    "caption": "The site view with its stations and town in place"
    }
   ]
  }
