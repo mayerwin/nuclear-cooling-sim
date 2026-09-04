@@ -956,5 +956,95 @@
     "text": "docs/proof/U15_performance.txt: before and after on both GPUs, where the 79 ms went, and the Windows setting that puts Chrome on the RTX."
    }
   ]
+ },
+ {
+  "id": "G26",
+  "area": "Geometry and machines, third review",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "The connection between the turbine and the condenser must be a proper pipe between both, not a funnel.",
+  "check": "A steam pipe like every other in the model: it starts inside the casing's steam at its right-hand end, goes down through the casing floor and ends inside the shell's steam, with its own tracers running at the steam line's speed. Nothing floats between the two machines.",
+  "proof": [
+   {
+    "img": "proof/G26_exhaust_pipe.png",
+    "caption": "The exhaust pipe out of the casing floor into the shell"
+   }
+  ]
+ },
+ {
+  "id": "G27",
+  "area": "Geometry and machines, third review",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "The two huge discs on the condenser obstruct the view; a thin plate at each end, and the three tube runs must connect to the sea lines perfectly, not hidden.",
+  "check": "Each end is a plate a quarter of a metre thick. The three runs start and end inside the sea-side plate at the heights of their rows, and the two nozzles end inside the same plate from the other side, at the middle of the rows they feed and drain, with a bore wide enough to cover all three: the sea is seen to arrive at the plate and the rows to leave it.",
+  "proof": [
+   {
+    "img": "proof/G27_plates_nozzles.png",
+    "caption": "Thin plates; nozzles and rows meeting through the sea-side plate"
+   }
+  ]
+ },
+ {
+  "id": "G28",
+  "area": "Geometry and machines, third review",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "The drops must not fall below the lower wall of the condenser.",
+  "check": "The condensate pool lies in the bottom of the shell (the hotwell is the bottom of the shell), and the drops are given the pool's surface as their floor, half a metre above the shell's wall. The condensate pump draws from the pool through the boiler-side plate.",
+  "proof": [
+   {
+    "img": "proof/G28_drops_in_shell.png",
+    "caption": "Drops landing on the pool inside the shell"
+   }
+  ]
+ },
+ {
+  "id": "G29",
+  "area": "Geometry and machines, third review",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "Instead of cutting the structures in half, keep the near half as an almost transparent wall, as the condenser had; the condenser's back wall must be opaque, not glass.",
+  "check": "The containment (wall and dome), the reactor vessel, the boiler, the turbine casing and the condenser shell each carry their near half in glass on a second clipping plane that keeps only that half: a faint sheet (8 to 16 percent) so the interior stays the subject and the structure keeps its whole shape. The condenser's far half is painted steel and its near half glass.",
+  "proof": [
+   {
+    "img": "proof/G29_glass_fronts.png",
+    "caption": "Both stations, sectioned structures with glass fronts"
+   }
+  ]
+ },
+ {
+  "id": "G30",
+  "area": "Geometry and machines, third review",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "The pipes in and out of the boiler are not properly connected; every connection must be seamless, not half baked.",
+  "check": "A rule applied to every pipe in the model: a pipe ends buried inside the water of the body it serves, never on its surface. The hot leg ends half a metre inside the channel head's hot half and the cold leg starts half a metre inside its cold half, both passing through the head's glass; the feed ends inside the boiler's water column; the condensate and sea lines start and end inside their pumps' water and inside the condenser plate; the openings that were drawn on the head are gone.",
+  "proof": [
+   {
+    "img": "proof/G30_seamless_head.png",
+    "caption": "Both legs running into the head's water through its glass"
+   }
+  ]
+ },
+ {
+  "id": "U16",
+  "area": "Interface and platform",
+  "raised": "2026-09-02",
+  "verified": "2026-09-02",
+  "status": "DONE",
+  "req": "The labels have been removed. They must be there.",
+  "check": "The part captions were only ever shown in the single-station views (a rule from the original 3-D rebuild); side by side only the two titles showed. On a wide screen every caption now shows in both views, the left column describing the left station and the right column the right one; when a column has more captions than height it shares the height evenly instead of piling them up at the top. On a phone the rule is unchanged.",
+  "proof": [
+   {
+    "img": "proof/U16_captions_both.png",
+    "caption": "Side by side, every part captioned on its own side"
+   }
+  ]
  }
 ]

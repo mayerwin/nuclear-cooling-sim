@@ -117,9 +117,29 @@ materials, layout or the section: the pictures must be from the build shipped.
 Layout constants (`L` in unit.js) put every machine in one vertical plane;
 `CUT_AZ` is the heading the section faces. Local +z is the removed half.
 
-## Current state (2026-09-02, second review)
+## Current state (2026-09-02, third review)
 
-63 requirements: 59 DONE, 4 WATCH, 0 OPEN. The last thing done was the
+69 requirements: 65 DONE, 4 WATCH, 0 OPEN. The third review (G26 to G30,
+U16) set three rules that every future change must keep:
+
+- EVERY PIPE END IS BURIED. A pipe starts and ends inside the water of the
+  body it serves (a vessel's water, a pump's water, a plate), never on a
+  surface. No caps, no openings drawn on walls, no gaps.
+- SECTIONED STRUCTURES KEEP A GLASS FRONT. `unit.cutNear` is the same plane
+  the other way round; `unit.glassNear(opacity)` is the material. The
+  containment, reactor, boiler, turbine casing and condenser shell each have
+  one; the condenser's back is opaque steel. Anything new that is cut on
+  `unit.cut` gets one too.
+- CAPTIONS SHOW IN BOTH VIEWS on a wide screen, each station's in the margin
+  on its own side; a column that overflows shares its height evenly.
+
+The turbine exhaust is a pipe (`this.exhaust`, in `pipes`), from inside the
+casing to inside the shell. The condenser's end plates are 0.25 m; the tube
+runs and the two nozzles meet inside the sea-side plate at the rows' own
+heights. The condensate pool lies in the bottom of the shell and the drops'
+floor is its surface.
+
+Before that, the second review (G19 to G25, U15): The last thing done was the
 owner's second review of the machines (G19 to G25) and the performance
 question (U15):
 

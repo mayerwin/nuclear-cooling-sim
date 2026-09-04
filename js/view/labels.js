@@ -9,8 +9,8 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { L } from './unit.js?v=df26edc179';
-import { state } from './state.js?v=df26edc179';
+import { L } from './unit.js?v=c0f04f7a1e';
+import { state } from './state.js?v=c0f04f7a1e';
 
 function tag(cls) {
   const el = document.createElement('div');
@@ -102,12 +102,14 @@ export class Labels {
       const on = this.focus === 'both'
         || (this.focus === 'active' && !u.passive)
         || (this.focus === 'passive' && u.passive);
-      const detail = on && this.focus !== 'both';
-      // Side by side there is no room for a running commentary on both
-      // stations at once, and on a phone there is no room for one at all: the
-      // name, the verdict, and the one number that matters.
+      // On a wide screen every part is captioned in both views: side by
+      // side, the left column describes the left station and the right
+      // column the right one (see layout). On a phone there is no room for
+      // a commentary at all: the name, the verdict, and the one number that
+      // matters.
       const narrow = window.innerWidth < 700;
-      const KEY = narrow && detail ? ['title', 'rpv'] : ['title'];
+      const detail = on && !narrow;
+      const KEY = narrow && on && this.focus !== 'both' ? ['title', 'rpv'] : ['title'];
       const S = u.labels;
       const set = (k, html) => {
         const t = S[k]; if (!t) return;
@@ -237,7 +239,10 @@ export class Labels {
         // A box the renderer has not drawn yet measures zero: try again.
         it.dirty = !r.width;
       }
-      cols[narrow && it.side === 'R' ? 'L' : it.side].push(it);
+      // Side by side, each station's captions take the margin on its own
+      // side, whichever part they name.
+      const side = it.side === 'C' ? 'C' : this.focus === 'both' ? (it.u.passive ? 'R' : 'L') : it.side;
+      cols[narrow && side === 'R' ? 'L' : side].push(it);
     }
     this.remeasure = false;
     const place = (it, px, py) => {
@@ -283,15 +288,27 @@ export class Labels {
         it.py = y;
         y += it.bh / 2 + gap;
       }
-      // if that runs off the bottom, pull the whole column back up
+      // If that runs off the bottom, pull the column back up; and if there
+      // is not room for the column at all, share what room there is evenly
+      // from top to bottom instead of piling the first captions onto each
+      // other at the top, which is what clamping them did.
       const over = (list[list.length - 1].py + list[list.length - 1].bh / 2) - R.y1;
       if (over > 0) {
-        let yy = R.y1;
-        for (let i = list.length - 1; i >= 0; i--) {
-          const it = list[i];
-          yy = Math.min(yy - it.bh / 2, it.py);
-          it.py = Math.max(yy, topY + it.bh / 2);
-          yy -= it.bh / 2 + gap;
+        let need = 0;
+        for (const it of list) need += it.bh;
+        const room = R.y1 - topY;
+        if (need + gap * (list.length - 1) > room) {
+          const step = list.length > 1 ? (room - need) / (list.length - 1) : 0;
+          let yy = topY;
+          for (const it of list) { it.py = yy + it.bh / 2; yy += it.bh + step; }
+        } else {
+          let yy = R.y1;
+          for (let i = list.length - 1; i >= 0; i--) {
+            const it = list[i];
+            yy = Math.min(yy - it.bh / 2, it.py);
+            it.py = Math.max(yy, topY + it.bh / 2);
+            yy -= it.bh / 2 + gap;
+          }
         }
       }
       for (const it of list) {

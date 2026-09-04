@@ -51,6 +51,11 @@ CAMS.rpv.push(['G22_reactor_interior', [450, 150, 1050, 850]]);
 CAMS.turbine.push(['G23_funnel', [290, 60, 1220, 830]]);
 CAMS.cond = [['G24_condenser', [290, 60, 1220, 830]]];
 CAMS.bay = [['G25_sea_circuit', [200, 200, 1300, 830]]];
+// The third review: the exhaust pipe, the plates, the drops, glass fronts, seamless joins, captions.
+CAMS.turbine.push(['G26_exhaust_pipe', [290, 60, 1220, 830]]);
+CAMS.cond.push(['G27_plates_nozzles', [290, 60, 1220, 830]], ['G28_drops_in_shell', [290, 60, 1220, 830]]);
+CAMS.focusAB = (CAMS.focusAB || []).concat([['G29_glass_fronts', [0, 0, 1500, 950]], ['U16_captions_both', [0, 0, 1500, 950]]]);
+CAMS.head.push(['G30_seamless_head', [300, 200, 1250, 830]]);
 CAMS.outside.push(['F14_primary_span', [290, 60, 1220, 830]]);
 
 function run(cmd, args, env) {

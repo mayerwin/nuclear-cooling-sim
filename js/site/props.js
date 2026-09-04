@@ -3,7 +3,7 @@
 // sorted pass; nothing is baked, so nothing can pop in and out of a cached
 // layer or land on the wrong side of a building.
 // ---------------------------------------------------------------------------
-import { project, box, cylinder, cone, shadow, shade, rgba, mix, hash2, poly, polyLine, TW, TZ, EDGE } from './iso.js?v=df26edc179';
+import { project, box, cylinder, cone, shadow, shade, rgba, mix, hash2, poly, polyLine, TW, TZ, EDGE } from './iso.js?v=c0f04f7a1e';
 
 const TRUNK = '#6b5138';
 const LEAF_LIVE = ['#4e8f45', '#5aa04e', '#438239', '#67ab55'];

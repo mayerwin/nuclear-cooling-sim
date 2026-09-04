@@ -39,12 +39,12 @@
 <body>
 <header>
   <h1>Requirements register</h1>
-  <div class="sub">Every piece of review feedback on the visualisation, with the check that closes it and a screenshot as proof. Built 2026-09-03 from <code>docs/requirements.json</code>.</div>
-  <div class="tally"><span class="DONE">59 DONE</span><span class="WATCH">4 WATCH</span><span class="OPEN">0 OPEN</span></div>
+  <div class="sub">Every piece of review feedback on the visualisation, with the check that closes it and a screenshot as proof. Built 2026-09-04 from <code>docs/requirements.json</code>.</div>
+  <div class="tally"><span class="DONE">65 DONE</span><span class="WATCH">4 WATCH</span><span class="OPEN">0 OPEN</span></div>
 </header>
 <div class="bar">
   <input id="q" placeholder="Filter text (requirement, check, id)">
-  <select id="area"><option value="">All areas</option><option>Fluids and colour</option><option>Geometry and clutter</option><option>Interface and platform</option><option>Scenarios</option><option>Code review</option><option>Geometry and machines, second review</option></select>
+  <select id="area"><option value="">All areas</option><option>Fluids and colour</option><option>Geometry and clutter</option><option>Interface and platform</option><option>Scenarios</option><option>Code review</option><option>Geometry and machines, second review</option><option>Geometry and machines, third review</option></select>
   <select id="status"><option value="">All statuses</option><option>DONE</option><option>WATCH</option><option>OPEN</option></select>
 </div>
 <table id="t">
@@ -622,6 +622,60 @@ after:  512 draw calls,  11 ms/frame,  0 transmissive materials</div></div></td>
   <td class="date">2026-09-02</td>
   <td class="date">2026-09-02</td>
   <td><div class="proof"><div class="txt">docs/proof/U15_performance.txt: before and after on both GPUs, where the 79 ms went, and the Windows setting that puts Chrome on the RTX.</div></div></td>
+</tr>
+<tr data-id="G26" data-area="Geometry and machines, third review" data-req="The connection between the turbine and the condenser must be a proper pipe between both, not a funnel." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g26 geometry and machines, third review the connection between the turbine and the condenser must be a proper pipe between both, not a funnel. a steam pipe like every other in the model: it starts inside the casing's steam at its right-hand end, goes down through the casing floor and ends inside the shell's steam, with its own tracers running at the steam line's speed. nothing floats between the two machines.">
+  <td class="id">G26</td>
+  <td>Geometry and machines, third review</td>
+  <td><div class="req">The connection between the turbine and the condenser must be a proper pipe between both, not a funnel.</div><div class="check">A steam pipe like every other in the model: it starts inside the casing's steam at its right-hand end, goes down through the casing floor and ends inside the shell's steam, with its own tracers running at the steam line's speed. Nothing floats between the two machines.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G26_exhaust_pipe.png" target="_blank"><img src="proof/G26_exhaust_pipe.png" alt="" loading="lazy"><small>The exhaust pipe out of the casing floor into the shell</small></a></div></td>
+</tr>
+<tr data-id="G27" data-area="Geometry and machines, third review" data-req="The two huge discs on the condenser obstruct the view; a thin plate at each end, and the three tube runs must connect to the sea lines perfectly, not hidden." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g27 geometry and machines, third review the two huge discs on the condenser obstruct the view; a thin plate at each end, and the three tube runs must connect to the sea lines perfectly, not hidden. each end is a plate a quarter of a metre thick. the three runs start and end inside the sea-side plate at the heights of their rows, and the two nozzles end inside the same plate from the other side, at the middle of the rows they feed and drain, with a bore wide enough to cover all three: the sea is seen to arrive at the plate and the rows to leave it.">
+  <td class="id">G27</td>
+  <td>Geometry and machines, third review</td>
+  <td><div class="req">The two huge discs on the condenser obstruct the view; a thin plate at each end, and the three tube runs must connect to the sea lines perfectly, not hidden.</div><div class="check">Each end is a plate a quarter of a metre thick. The three runs start and end inside the sea-side plate at the heights of their rows, and the two nozzles end inside the same plate from the other side, at the middle of the rows they feed and drain, with a bore wide enough to cover all three: the sea is seen to arrive at the plate and the rows to leave it.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G27_plates_nozzles.png" target="_blank"><img src="proof/G27_plates_nozzles.png" alt="" loading="lazy"><small>Thin plates; nozzles and rows meeting through the sea-side plate</small></a></div></td>
+</tr>
+<tr data-id="G28" data-area="Geometry and machines, third review" data-req="The drops must not fall below the lower wall of the condenser." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g28 geometry and machines, third review the drops must not fall below the lower wall of the condenser. the condensate pool lies in the bottom of the shell (the hotwell is the bottom of the shell), and the drops are given the pool's surface as their floor, half a metre above the shell's wall. the condensate pump draws from the pool through the boiler-side plate.">
+  <td class="id">G28</td>
+  <td>Geometry and machines, third review</td>
+  <td><div class="req">The drops must not fall below the lower wall of the condenser.</div><div class="check">The condensate pool lies in the bottom of the shell (the hotwell is the bottom of the shell), and the drops are given the pool's surface as their floor, half a metre above the shell's wall. The condensate pump draws from the pool through the boiler-side plate.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G28_drops_in_shell.png" target="_blank"><img src="proof/G28_drops_in_shell.png" alt="" loading="lazy"><small>Drops landing on the pool inside the shell</small></a></div></td>
+</tr>
+<tr data-id="G29" data-area="Geometry and machines, third review" data-req="Instead of cutting the structures in half, keep the near half as an almost transparent wall, as the condenser had; the condenser's back wall must be opaque, not glass." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g29 geometry and machines, third review instead of cutting the structures in half, keep the near half as an almost transparent wall, as the condenser had; the condenser's back wall must be opaque, not glass. the containment (wall and dome), the reactor vessel, the boiler, the turbine casing and the condenser shell each carry their near half in glass on a second clipping plane that keeps only that half: a faint sheet (8 to 16 percent) so the interior stays the subject and the structure keeps its whole shape. the condenser's far half is painted steel and its near half glass.">
+  <td class="id">G29</td>
+  <td>Geometry and machines, third review</td>
+  <td><div class="req">Instead of cutting the structures in half, keep the near half as an almost transparent wall, as the condenser had; the condenser's back wall must be opaque, not glass.</div><div class="check">The containment (wall and dome), the reactor vessel, the boiler, the turbine casing and the condenser shell each carry their near half in glass on a second clipping plane that keeps only that half: a faint sheet (8 to 16 percent) so the interior stays the subject and the structure keeps its whole shape. The condenser's far half is painted steel and its near half glass.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G29_glass_fronts.png" target="_blank"><img src="proof/G29_glass_fronts.png" alt="" loading="lazy"><small>Both stations, sectioned structures with glass fronts</small></a></div></td>
+</tr>
+<tr data-id="G30" data-area="Geometry and machines, third review" data-req="The pipes in and out of the boiler are not properly connected; every connection must be seamless, not half baked." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="g30 geometry and machines, third review the pipes in and out of the boiler are not properly connected; every connection must be seamless, not half baked. a rule applied to every pipe in the model: a pipe ends buried inside the water of the body it serves, never on its surface. the hot leg ends half a metre inside the channel head's hot half and the cold leg starts half a metre inside its cold half, both passing through the head's glass; the feed ends inside the boiler's water column; the condensate and sea lines start and end inside their pumps' water and inside the condenser plate; the openings that were drawn on the head are gone.">
+  <td class="id">G30</td>
+  <td>Geometry and machines, third review</td>
+  <td><div class="req">The pipes in and out of the boiler are not properly connected; every connection must be seamless, not half baked.</div><div class="check">A rule applied to every pipe in the model: a pipe ends buried inside the water of the body it serves, never on its surface. The hot leg ends half a metre inside the channel head's hot half and the cold leg starts half a metre inside its cold half, both passing through the head's glass; the feed ends inside the boiler's water column; the condensate and sea lines start and end inside their pumps' water and inside the condenser plate; the openings that were drawn on the head are gone.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/G30_seamless_head.png" target="_blank"><img src="proof/G30_seamless_head.png" alt="" loading="lazy"><small>Both legs running into the head's water through its glass</small></a></div></td>
+</tr>
+<tr data-id="U16" data-area="Interface and platform" data-req="The labels have been removed. They must be there." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-02" data-text="u16 interface and platform the labels have been removed. they must be there. the part captions were only ever shown in the single-station views (a rule from the original 3-d rebuild); side by side only the two titles showed. on a wide screen every caption now shows in both views, the left column describing the left station and the right column the right one; when a column has more captions than height it shares the height evenly instead of piling them up at the top. on a phone the rule is unchanged.">
+  <td class="id">U16</td>
+  <td>Interface and platform</td>
+  <td><div class="req">The labels have been removed. They must be there.</div><div class="check">The part captions were only ever shown in the single-station views (a rule from the original 3-D rebuild); side by side only the two titles showed. On a wide screen every caption now shows in both views, the left column describing the left station and the right column the right one; when a column has more captions than height it shares the height evenly instead of piling them up at the top. On a phone the rule is unchanged.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-02</td>
+  <td class="date">2026-09-02</td>
+  <td><div class="proof"><a href="proof/U16_captions_both.png" target="_blank"><img src="proof/U16_captions_both.png" alt="" loading="lazy"><small>Side by side, every part captioned on its own side</small></a></div></td>
 </tr>
 </tbody>
 </table>
