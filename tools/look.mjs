@@ -93,6 +93,9 @@ if (!FOCUS[shot]) await page.evaluate((c) => {
     tgt.z + Math.sin(az) * Math.cos(e) * c.d);
   s.controls.update();
 }, c);
+// LABELS=0 hides the captions: a close look at a machine is about the
+// machine, and the captions park in the margins over whatever is there.
+if (process.env.LABELS === '0') await page.evaluate(() => { document.getElementById('labels').style.display = 'none'; });
 // REFRACT=1 turns real refraction on, so the settings panel's expensive path
 // can be looked at and kept honest.
 if (process.env.REFRACT) await page.evaluate(() => { window.__stage.setQuality('refraction', true); });

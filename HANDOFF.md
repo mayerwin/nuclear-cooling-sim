@@ -42,6 +42,7 @@ node tools/check.mjs                       # THE GATE: nine scenarios + a phone 
 node tools/look.mjs <camera> [scen] [min]  # park the camera on one machine, 1500x950
 PICK=0.5,0.42 node tools/look.mjs <cam>    # name what is actually drawn under a point
 REFRACT=1 node tools/look.mjs <cam>        # with real refraction switched on
+LABELS=0 node tools/look.mjs <cam>         # captions hidden (proof.mjs does this for every machine close-up)
 node tools/proof.mjs [all|specials|cameras]# re-capture every proof image from THIS build
 node tools/reqpage.mjs                     # rebuild docs/requirements.html from the json
 ```

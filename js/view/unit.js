@@ -7,12 +7,12 @@
 // in at the water.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { pipe, vessel, tube, slab, V, roundedPath } from './parts.js?v=c0f04f7a1e';
-import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles, frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=c0f04f7a1e';
-import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=c0f04f7a1e';
-import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=c0f04f7a1e';
-import { Machines } from '../machines.js?v=c0f04f7a1e';
-import { SectionCap } from './section.js?v=c0f04f7a1e';
+import { pipe, vessel, tube, slab, V, roundedPath } from './parts.js?v=f7bec3ea79';
+import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles, frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=f7bec3ea79';
+import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=f7bec3ea79';
+import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=f7bec3ea79';
+import { Machines } from '../machines.js?v=f7bec3ea79';
+import { SectionCap } from './section.js?v=f7bec3ea79';
 
 const R_IN = 15.4, WALL = 1.0, SHELL_H = 31, DOME_R = R_IN + WALL;
 
@@ -1156,7 +1156,7 @@ export class Unit {
     // end and straight down into the top of the shell. It starts inside the
     // casing's steam and ends inside the shell's, so it is one run of vapour
     // from the wheel to the bank.
-    this.exhaust = pipe([V(X1 - 1.3, AX - 1.4, t.z), V(X1 - 1.3, CTOP - 0.6, t.z)],
+    this.exhaust = pipe([V(X1 - 1.3, AX - 1.4, t.z), V(X1 - 1.3, CTOP - 0.25, t.z)],
       1.4, m, { bend: 0.5, steam: true });
     this.exhaust.leg = this.legSteam;
     g.add(this.exhaust.group);
@@ -1190,7 +1190,7 @@ export class Unit {
       return { d, x: CXC, z: TZ, y: yy - 0.12, span: CLEN - 0.8, depth: 0.5 };
     });
     // The steam filling the shell above the bank, settling down onto it.
-    this.condFog = new PuffCloud(60, { w: CLEN - 0.8, d: 2.4, h: 2.6, size: 5.5, grow: 1.4 });
+    this.condFog = new PuffCloud(60, { w: CLEN - 0.8, d: 2.4, h: 2.2, size: 5.5, grow: 1.4 });
     this.condFogAt = { x: CXC, z: t.z, y0: CYC - 0.3 };
     g.add(this.condFog.points);
 
@@ -1652,8 +1652,8 @@ export class Unit {
 // ---------------------------------------------------------------------------
 // per frame: solve the flows, step the machines, and let the geometry follow
 // ---------------------------------------------------------------------------
-import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=c0f04f7a1e';
-import { Plume, PuffCloud } from './plume.js?v=c0f04f7a1e';
+import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=f7bec3ea79';
+import { Plume, PuffCloud } from './plume.js?v=f7bec3ea79';
 
 Object.assign(Unit.prototype, {
 
@@ -1987,7 +1987,7 @@ Object.assign(Unit.prototype, {
         this.condTop.material.normalMap.offset.y += dt * 0.03;
         // the drops landing are what disturbs it
         this.surfCond.step(dt, { boil: 0.06 + rate * 0.5 });
-        ripple(this.condTop, this.surfCond, this.condHalf, 0.3);
+        ripple(this.condTop, this.surfCond, this.condHalf, 0.12);
         this.condPump.impeller.rotation.y += dt * (0.6 + rate * 9);
         this.legCond.v = 0.4 + rate * 2.6;
         this.condPump.water.material.normalMap.offset.x -= dt * (0.1 + rate * 1.2);
@@ -2202,7 +2202,7 @@ Object.assign(Unit.prototype, {
     // is not vapour, it is a white cylinder, and the bundle behind it goes.
     this.sgVapour.step(dt, L.sg.x, SG_TS + sgH, L.sg.z,
       (carrying ? 0.68 : 0.1) * STEAM, 1, carrying ? 0.3 : 0.08);
-    ripple(this.sgTop, this.surfSg, 2.35, 0.5);
+    ripple(this.sgTop, this.surfSg, 2.35, 0.35);
     // The shell side of the boiler is at its own boiling point, which is what
     // the feed line arriving cold and the steam line leaving hot are about.
     tintWater(this.sgWater.material, colourIn(this.rangeSec, T_BOILER, cTmp), dt);

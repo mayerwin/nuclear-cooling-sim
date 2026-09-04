@@ -171,7 +171,11 @@ async function specials() {
 }
 
 function cameras() {
-  for (const spec of Object.keys(CAMS)) run('node', ['tools/look.mjs', ...spec.split(' ')]);
+  // Captions off for the machine close-ups; on for the framed views, which
+  // are partly about the captions.
+  for (const spec of Object.keys(CAMS)) {
+    run('node', ['tools/look.mjs', ...spec.split(' ')], { LABELS: spec.startsWith('focus') ? '1' : '0' });
+  }
   // The plain pump shot is kept aside: the refraction shot below reuses its
   // camera and would otherwise overwrite it before the crops are cut.
   copyFileSync(`${TMP}/look/pump.png`, `${TMP}/look/pump-plain.png`);
@@ -183,7 +187,7 @@ function cameras() {
   plan.push({ src: `${OUT}/G17_break_full.png`, out: `${OUT}/G17_break.png`, box: [440, 420, 860, 800] });
   // U10: the same pump with real refraction switched on. Taken last, because
   // it overwrites the plain pump shot the F9 and G5 crops were cut from.
-  run('node', ['tools/look.mjs', 'pump'], { REFRACT: '1' });
+  run('node', ['tools/look.mjs', 'pump'], { REFRACT: '1', LABELS: '0' });
   plan.push({ src: `${TMP}/look/pump.png`, out: `${OUT}/U10_refraction.png`, box: [450, 300, 1100, 780] });
   writeFileSync(`${TMP}/proof-plan.json`, JSON.stringify(plan));
   run(PYTHON[0], [...PYTHON.slice(1), '-c', `
