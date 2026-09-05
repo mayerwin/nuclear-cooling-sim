@@ -31,11 +31,11 @@ export async function loadPlant(base = '') {
 export function getLayout() { return layout; }
 
 // Parts that belong to one design only, by name prefix.
-const PASSIVE_ONLY = /^(pool_|coil$|pipe_prhr_|pipe_gravity|pipe_recirc|pipe_fill|grav_)/;
+const PASSIVE_ONLY = /^(pool_|coil$|pipe_prhr_|pipe_gravity|pipe_fill|grav_)/;
 const ACTIVE_ONLY = /^(tank_|eccs_|pipe_suction|pipe_injection)/;
 // Parts the app draws itself (they carry the water, the glow or the section
 // caps), so the Blender copies are dropped.
-const APP_DRAWN = /^(wall$|dome$|liner|slab$|floor$|fuel_rod_|sg_tube_|cond_tube_|sg_divider$)/;
+const APP_DRAWN = /^(wall$|dome$|liner|slab$|floor$|fuel_rod_|sg_tube_|cond_tube_|coil$|sg_divider$)/;
 // Parts the frame loop moves, lights or hides, kept as their own objects.
 const LIVE = /^(turb_rotor$|.*_rotor$|.*_lamp$|lamp_bulb$|lamp_bus_|grav_valve$|rpv_skirt$|gen_body$|cond_shell$)/;
 

@@ -136,6 +136,50 @@ materials, layout or the section: the pictures must be from the build shipped.
 Layout constants (`L` in unit.js) put every machine in one vertical plane;
 `CUT_AZ` is the heading the section faces. Local +z is the removed half.
 
+## Sixth round (2026-09-04): junctions, supports, the reactor's rings, the passive side
+
+85 requirements: 79 DONE, 5 WATCH, 1 OPEN (L5 and the WATCH L4 belong to the
+library agent, see below). The owner's review of the Blender-built station,
+all fixed in the model and its placement (register R8 to R12):
+
+- JUNCTIONS. Every pipe in `assets/layout.json` carries a `trim` [t0, t1]:
+  `plant.py` shortens the CASING by that much at each end so the steel stops
+  at the wall it enters (buried a few centimetres, more where the wall is
+  sloped or curved), while the app's water keeps the untrimmed centreline and
+  runs on inside. The water bodies FILL their vessels now (the boiler head's
+  water is the shell's own head profile less a finger, the vessel's water is
+  r 3.12 in a 3.2 barrel): drawn smaller, a band of inside wall showed round
+  the water and the cut pipe troughs crossing it read as fins on the joint.
+- SUPPORTS. Nothing structural is cut by the plane any more: bearing
+  pedestals, saddles and the boiler's two columns live wholly in the kept
+  half; the reactor pedestal and the sea pump's plinth are `half_cylinder()`
+  solids with a flat face at z = -0.02. A cut box or cylinder shows its
+  inside (two-sided materials, no caps) and reads hollow: do not place one
+  across z = 0.
+- REACTOR. No flange ring, no studs, no fuel mark, no level ring: every ring
+  round the vessel read as an unexplained object. `rpv_skirt` is now the
+  plain pedestal (same name: the app hides it when the vessel fails).
+- PASSIVE SIDE. One straight gravity line from the pool floor into the head
+  with the valve on it (stem along -x); the floor-to-tee riser is gone (the
+  recirculation leg still carries flow in the solver, nothing draws it). The
+  residual heat loop is one hairpin under the pool water on the vessel's
+  right, its two legs a metre apart; the serpentine and its nine-metre span
+  are gone. `coil` is now APP_DRAWN in model.js (the app draws its water).
+- NO exhaust flange at the shell top; no nozzle stubs anywhere (R8, G4).
+- ROUND HEADS. The reactor's two heads and the boiler's dome are elliptical
+  arcs of eight points in `assets/layout.json` (`rpv.profile`, `sg.profile`;
+  `rpv.head_from` indexes where the top head starts). Three facets read as a
+  pointed dome in every wide shot. The boiler's channel head is unchanged
+  because the app's head water is cut to it.
+
+SHARED WORKING TREE. While this round was done, the agent building
+`../3d-fluid-simulator` was editing this same checkout: `js/view/fluid.js`
+became a thin layer over their library vendored at `vendor/fluidsim/`, and
+they added register lines L1 to L5 and a paragraph below. Their changes were
+uncommitted for eleven hours; this round's commit includes them so that HEAD
+is the tree the gate ran on and the proofs were shot from. Two agents in one
+checkout is a hazard: read `git status` before assuming the tree is yours.
+
 ## The model comes from Blender (2026-09-04, fifth round)
 
 75 requirements: 71 DONE, 4 WATCH (F2, F9, F12, U14), 0 OPEN. Lines B1 to
@@ -189,13 +233,45 @@ of the viewport is the feedback loop; read it, then `look` the app.
 Frame cost after the change, inside view, the tools' 1500x950 window at 1x on
 the laptop's Intel Arc: see B5 in the register (numbers there).
 
-NEXT PART, IN ANOTHER REPOSITORY. The owner wants the fluid code (flow.js,
-fluid.js, parts.js's pipe(), the placement and frame loop in unit.js) pulled
-out into a reusable library that adds fluids to any 3D model. It is seeded as
-a local git repository next door, `../3d-fluid-simulator` (no GitHub yet),
-whose HANDOFF.md is the brief; this project is its first consumer and test
-bed. Do not grow the bespoke fluid code here further without reading that
-file first.
+## The fluids come from the library now (2026-09-04)
+
+The fluid code has been pulled out into the reusable library next door,
+`../3d-fluid-simulator` (a local repository, no GitHub yet), and **this project
+now draws its water with it**. Read that repository's `HANDOFF.md` before
+touching anything to do with fluids here.
+
+What changed, and it is one file:
+
+- `js/view/fluid.js` was 620 lines and is now 72. It is a thin layer over
+  `vendor/fluidsim/three/`: it re-exports what the library provides, renames
+  `Tracers` back to `Bubbles` because this project has called them that since
+  the first commit, keeps `setGradient` as the two lines it always was (the
+  library's own `paint()` does more, and `unit.js` already does those parts
+  itself in `paintFluid()`), and keeps `SEA_TILE`, which is about this station
+  rather than about fluids.
+- `vendor/fluidsim/` is a copy of the library's `src/`. **VENDORED, not
+  imported from the sibling folder**: `tools/serve.mjs` is rooted at this
+  repository, so a relative import reaching outside it resolves to a path the
+  browser cannot fetch. To take an update, copy the library's `src/` over
+  `vendor/fluidsim/` again, run `node tools/stamp.mjs`, then run the gate.
+- Nothing else moved. `unit.js`, `parts.js`, `materials.js`, `stage.js` and
+  `plume.js` are untouched and `js/flow.js` still does the hydraulics, so every
+  number and every picture is what it was.
+
+WHAT HAS NOT HAPPENED YET, and it is the bigger half. The library has a real
+network solver: volumes as nodes carrying pressure and inventory, one mass flow
+per edge from a momentum equation, the flows from a nodal Newton, and circuits
+DERIVED rather than authored. This project still uses its own `js/flow.js` and
+`unit.js`'s `solve()` and `solveTemps()`, so **`unit.js` has not shrunk**.
+
+Moving onto the library's solver WILL CHANGE THE NUMBERS, because real friction
+and a real pump curve will not reproduce the hand-set flows that four review
+rounds approved. The plan the library's design work settled on is to impose the
+present flows and temperatures on day one so the picture is byte-identical,
+then release one circuit at a time with a proof capture between each. The sea
+circuit is the least visually loaded and so the safest to release first; the
+primary loop is the most visible and should be last. That order is a question
+for the owner, and it is open question 5 in the library's HANDOFF.
 
 ## Current state (2026-09-02, fourth round)
 
@@ -347,9 +423,10 @@ loop shows its cold leg blue and its hot leg red.
   that camera (B3 went missing that way).
 - Patching a CRLF file from Python: read and write in BINARY. In text mode
   Windows Python turns an explicit `
-` into `
+` into `
 ` on write, and on
-  read turns the lone `` into a blank line, so the next anchor never
+  read turns the lone `
+` into a blank line, so the next anchor never
   matches and the file grows blank lines. This round did exactly that to
   five files before noticing.
 

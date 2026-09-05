@@ -39,12 +39,12 @@
 <body>
 <header>
   <h1>Requirements register</h1>
-  <div class="sub">Every piece of review feedback on the visualisation, with the check that closes it and a screenshot as proof. Built 2026-09-04 from <code>docs/requirements.json</code>.</div>
-  <div class="tally"><span class="DONE">71 DONE</span><span class="WATCH">4 WATCH</span><span class="OPEN">0 OPEN</span></div>
+  <div class="sub">Every piece of review feedback on the visualisation, with the check that closes it and a screenshot as proof. Built 2026-09-05 from <code>docs/requirements.json</code>.</div>
+  <div class="tally"><span class="DONE">79 DONE</span><span class="WATCH">5 WATCH</span><span class="OPEN">1 OPEN</span></div>
 </header>
 <div class="bar">
   <input id="q" placeholder="Filter text (requirement, check, id)">
-  <select id="area"><option value="">All areas</option><option>Fluids and colour</option><option>Geometry and clutter</option><option>Interface and platform</option><option>Scenarios</option><option>Code review</option><option>Geometry and machines, second review</option><option>Geometry and machines, third review</option><option>Model from Blender</option></select>
+  <select id="area"><option value="">All areas</option><option>Fluids and colour</option><option>Geometry and clutter</option><option>Interface and platform</option><option>Scenarios</option><option>Code review</option><option>Geometry and machines, second review</option><option>Geometry and machines, third review</option><option>Model from Blender</option><option>The fluid library</option><option>Sixth review</option></select>
   <select id="status"><option value="">All statuses</option><option>DONE</option><option>WATCH</option><option>OPEN</option></select>
 </div>
 <table id="t">
@@ -188,10 +188,10 @@
   <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G3_floor.png" target="_blank"><img src="proof/G3_floor.png" alt="" loading="lazy"><small>Containment floor, nothing on it</small></a></div></td>
 </tr>
-<tr data-id="G4" data-area="Geometry and clutter" data-req="Remove the grey metal rings from all pipes." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="g4 geometry and clutter remove the grey metal rings from all pipes. flanges removed from pipe(); all collars deleted.">
+<tr data-id="G4" data-area="Geometry and clutter" data-req="Remove the grey metal rings from all pipes." data-status="DONE" data-raised="2026-09-01" data-verified="2026-09-04" data-text="g4 geometry and clutter remove the grey metal rings from all pipes. flanges removed from pipe(); all collars deleted. since the model came from blender (b1), every casing ends at the wall it enters (r8) and no nozzle stubs, flange rings or marks are built round the vessels (r10).">
   <td class="id">G4</td>
   <td>Geometry and clutter</td>
-  <td><div class="req">Remove the grey metal rings from all pipes.</div><div class="check">Flanges removed from pipe(); all collars deleted.</div></td>
+  <td><div class="req">Remove the grey metal rings from all pipes.</div><div class="check">Flanges removed from pipe(); all collars deleted. Since the model came from Blender (B1), every casing ends at the wall it enters (R8) and no nozzle stubs, flange rings or marks are built round the vessels (R10).</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-01</td>
   <td class="date">2026-09-04</td>
@@ -569,10 +569,10 @@ after:  512 draw calls,  11 ms/frame,  0 transmissive materials</div></div></td>
   <td class="date">2026-09-04</td>
   <td><div class="proof"><a href="proof/G20_feed_route.png" target="_blank"><img src="proof/G20_feed_route.png" alt="" loading="lazy"><small>The feed line over the reactor into the boiler's side</small></a><a href="proof/G19_boiler_steam.png" target="_blank"><img src="proof/G19_boiler_steam.png" alt="" loading="lazy"><small>The strips beside the column, blue to orange from the nozzle down</small></a></div></td>
 </tr>
-<tr data-id="G21" data-area="Geometry and machines, second review" data-req="The three supports under the boiler's tube bank serve no purpose and clutter the view. The hot leg must arrive AT the bottom of the boiler with water flowing in, not traverse it, and the cold leg must leave through a hole at the bottom left." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g21 geometry and machines, second review the three supports under the boiler's tube bank serve no purpose and clutter the view. the hot leg must arrive at the bottom of the boiler with water flowing in, not traverse it, and the cold leg must leave through a hole at the bottom left. the two legs and the divider plate are gone; the boiler stands on one flat pedestal set back into the kept half, like the turbine's. the hot leg runs half a metre into the channel head's hot half and the cold leg starts half a metre inside its cold half (g30); nothing is drawn on the head's wall.">
+<tr data-id="G21" data-area="Geometry and machines, second review" data-req="The three supports under the boiler's tube bank serve no purpose and clutter the view. The hot leg must arrive AT the bottom of the boiler with water flowing in, not traverse it, and the cold leg must leave through a hole at the bottom left." data-status="DONE" data-raised="2026-09-02" data-verified="2026-09-04" data-text="g21 geometry and machines, second review the three supports under the boiler's tube bank serve no purpose and clutter the view. the hot leg must arrive at the bottom of the boiler with water flowing in, not traverse it, and the cold leg must leave through a hole at the bottom left. the divider plate and the pedestal block are gone; the boiler stands on two columns set back into the kept half (r9). the hot leg runs half a metre into the channel head's hot half and the cold leg starts half a metre inside its cold half (g30); the casings stop at the head's wall (r8); nothing is drawn on the head's wall.">
   <td class="id">G21</td>
   <td>Geometry and machines, second review</td>
-  <td><div class="req">The three supports under the boiler's tube bank serve no purpose and clutter the view. The hot leg must arrive AT the bottom of the boiler with water flowing in, not traverse it, and the cold leg must leave through a hole at the bottom left.</div><div class="check">The two legs and the divider plate are gone; the boiler stands on one flat pedestal set back into the kept half, like the turbine's. The hot leg runs half a metre into the channel head's hot half and the cold leg starts half a metre inside its cold half (G30); nothing is drawn on the head's wall.</div></td>
+  <td><div class="req">The three supports under the boiler's tube bank serve no purpose and clutter the view. The hot leg must arrive AT the bottom of the boiler with water flowing in, not traverse it, and the cold leg must leave through a hole at the bottom left.</div><div class="check">The divider plate and the pedestal block are gone; the boiler stands on two columns set back into the kept half (R9). The hot leg runs half a metre into the channel head's hot half and the cold leg starts half a metre inside its cold half (G30); the casings stop at the head's wall (R8); nothing is drawn on the head's wall.</div></td>
   <td><span class="st DONE">DONE</span></td>
   <td class="date">2026-09-02</td>
   <td class="date">2026-09-04</td>
@@ -730,6 +730,110 @@ after:  512 draw calls,  11 ms/frame,  0 transmissive materials</div></div></td>
   <td class="date">2026-09-03</td>
   <td class="date">2026-09-04</td>
   <td><div class="proof"><span class="none">no proof yet</span></div></td>
+</tr>
+<tr data-id="L1" data-area="The fluid library" data-req="The fluid code moves out into a reusable library, and this station draws its water with it." data-status="DONE" data-raised="2026-09-04" data-verified="2026-09-04" data-text="l1 the fluid library the fluid code moves out into a reusable library, and this station draws its water with it. js/view/fluid.js was 620 lines and is now 72: a thin layer over vendor/fluidsim/three/, which is a copy of the library's src/. it re-exports what the library provides, renames tracers back to bubbles because this project has called them that since the first commit, keeps setgradient as the two lines it always was, and keeps sea_tile, which is about this station rather than about fluids. vendored and not imported from the sibling folder, because tools/serve.mjs is rooted here and a relative import reaching outside resolves to a path the browser cannot fetch. node tools/check.mjs passes: all nine scenarios, the phone viewport, no console or page error.">
+  <td class="id">L1</td>
+  <td>The fluid library</td>
+  <td><div class="req">The fluid code moves out into a reusable library, and this station draws its water with it.</div><div class="check">js/view/fluid.js was 620 lines and is now 72: a thin layer over vendor/fluidsim/three/, which is a copy of the library's src/. It re-exports what the library provides, renames Tracers back to Bubbles because this project has called them that since the first commit, keeps setGradient as the two lines it always was, and keeps SEA_TILE, which is about this station rather than about fluids. VENDORED and not imported from the sibling folder, because tools/serve.mjs is rooted here and a relative import reaching outside resolves to a path the browser cannot fetch. node tools/check.mjs passes: all nine scenarios, the phone viewport, no console or page error.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-04</td>
+  <td class="date">2026-09-04</td>
+  <td><div class="proof"><div class="txt">node tools/check.mjs
+  00-site, 00-both, 00-active, 00-passive
+  tsunami sbo loca tmi chernobyl uhs quake fire total
+  phone, phone-inside, phone-active, phone-panel
+  no console or page errors
+
+js/view/fluid.js  620 lines -&gt; 72</div></div></td>
+</tr>
+<tr data-id="L2" data-area="The fluid library" data-req="The picture must not change: every proof re-captured from the library build and read against the one before it." data-status="DONE" data-raised="2026-09-04" data-verified="2026-09-04" data-text="l2 the fluid library the picture must not change: every proof re-captured from the library build and read against the one before it. all 62 comparable proofs were re-captured and diffed against the committed reference, counting the fraction of pixels differing by more than a just-noticeable amount. that alone proves nothing, because the water is animated and any two captures differ, so the same build was captured twice and diffed against itself as a control. old build against library build: mean 2.469 per cent. library build against itself: mean 2.474 per cent. the difference between the builds is exactly the frame-to-frame variation of one build, so the look is unchanged.">
+  <td class="id">L2</td>
+  <td>The fluid library</td>
+  <td><div class="req">The picture must not change: every proof re-captured from the library build and read against the one before it.</div><div class="check">All 62 comparable proofs were re-captured and diffed against the committed reference, counting the fraction of pixels differing by more than a just-noticeable amount. That alone proves nothing, because the water is animated and any two captures differ, so the same build was captured TWICE and diffed against itself as a control. Old build against library build: mean 2.469 per cent. Library build against itself: mean 2.474 per cent. The difference between the builds is exactly the frame-to-frame variation of one build, so the look is unchanged.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-04</td>
+  <td class="date">2026-09-04</td>
+  <td><div class="proof"><div class="txt">62 proofs compared
+  old build vs library build : mean 2.469%  max 12.212%
+  library build vs itself    : mean 2.474%  max 23.266%
+proofs whose look changed beyond the animation: U10_refraction only (see L3)</div></div></td>
+</tr>
+<tr data-id="L3" data-area="The fluid library" data-req="The Refraction toggle must still reach the water." data-status="DONE" data-raised="2026-09-04" data-verified="2026-09-04" data-text="l3 the fluid library the refraction toggle must still reach the water. one real regression, and the proof diff is the only thing that found it. stage.js turns refraction on by reading m.userdata.wettr, the transmission a material would use if asked; the library had moved that inside a bookkeeping object of its own, so the toggle found nothing on any fluid material. nothing errored and nothing looked broken until a picture was compared: the water simply stayed opaque with the setting on. the library now keeps wettr on userdata directly, which is the public name, and says why in a comment.">
+  <td class="id">L3</td>
+  <td>The fluid library</td>
+  <td><div class="req">The Refraction toggle must still reach the water.</div><div class="check">One real regression, and the proof diff is the only thing that found it. stage.js turns refraction on by reading m.userData.wetTr, the transmission a material would use if asked; the library had moved that inside a bookkeeping object of its own, so the toggle found nothing on any fluid material. Nothing errored and nothing looked broken until a picture was compared: the water simply stayed opaque with the setting on. The library now keeps wetTr on userData directly, which is the public name, and says why in a comment.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-04</td>
+  <td class="date">2026-09-04</td>
+  <td><div class="proof"><div class="txt">probed in the page, 70 fluid materials:
+  refraction OFF  withWetTr 70  transmitting 0
+  refraction ON   withWetTr 70  transmitting 70
+before the fix, transmitting stayed 0 with the toggle on</div></div></td>
+</tr>
+<tr data-id="L4" data-area="The fluid library" data-req="Importing the library must not cost frame rate." data-status="WATCH" data-raised="2026-09-04" data-verified="2026-09-04" data-text="l4 the fluid library importing the library must not cost frame rate. draw calls and triangles are bit-identical: 272 to 364 calls and 326494 to 424902 triangles on both builds, so nothing structural changed. frame time was measured back to back on this laptop, the sim's own build against the library build, twice each: old 22.0 and 23.4 ms mean, library 12.3 and 23.1 ms mean. the two straddle each other. watch because the machine was busy while this was measured and the run-to-run spread was about ten milliseconds, where b5 recorded about one on a quiet machine; the honest reading is no measurable difference, and it should be re-measured on a quiet machine before it is called done.">
+  <td class="id">L4</td>
+  <td>The fluid library</td>
+  <td><div class="req">Importing the library must not cost frame rate.</div><div class="check">Draw calls and triangles are bit-identical: 272 to 364 calls and 326494 to 424902 triangles on both builds, so nothing structural changed. Frame time was measured back to back on this laptop, the sim's own build against the library build, twice each: old 22.0 and 23.4 ms mean, library 12.3 and 23.1 ms mean. The two straddle each other. WATCH because the machine was busy while this was measured and the run-to-run spread was about ten milliseconds, where B5 recorded about one on a quiet machine; the honest reading is no measurable difference, and it should be re-measured on a quiet machine before it is called DONE.</div></td>
+  <td><span class="st WATCH">WATCH</span></td>
+  <td class="date">2026-09-04</td>
+  <td class="date">2026-09-04</td>
+  <td><div class="proof"><div class="txt">back to back, same session, same laptop, PW_GPU=1:
+  old build     mean 22.01 ms, 23.38 ms   calls 272-364  tris 326494-424902
+  library build mean 12.30 ms, 23.10 ms   calls 272-364  tris 326494-424902</div></div></td>
+</tr>
+<tr data-id="L5" data-area="The fluid library" data-req="unit.js shrinks to placement: the hydraulics come from the library too." data-status="OPEN" data-raised="2026-09-04" data-verified="" data-text="l5 the fluid library unit.js shrinks to placement: the hydraulics come from the library too. not done, and deliberately not attempted in one go. the library has a real network solver (volumes as nodes carrying pressure and inventory, one mass flow per edge from a momentum equation, flows from a nodal newton, circuits derived rather than authored), but this project still uses js/flow.js and unit.js's own solve() and solvetemps(). moving onto it will change the numbers, because real friction and a real pump curve will not reproduce the hand-set flows four review rounds approved. the plan is to impose the present flows and temperatures on day one so the picture is byte-identical, then release one circuit at a time with a proof capture between each. which circuit goes first is a question for the owner: the sea circuit is the least visually loaded and the primary loop the most.">
+  <td class="id">L5</td>
+  <td>The fluid library</td>
+  <td><div class="req">unit.js shrinks to placement: the hydraulics come from the library too.</div><div class="check">NOT DONE, and deliberately not attempted in one go. The library has a real network solver (volumes as nodes carrying pressure and inventory, one mass flow per edge from a momentum equation, flows from a nodal Newton, circuits derived rather than authored), but this project still uses js/flow.js and unit.js's own solve() and solveTemps(). Moving onto it WILL change the numbers, because real friction and a real pump curve will not reproduce the hand-set flows four review rounds approved. The plan is to impose the present flows and temperatures on day one so the picture is byte-identical, then release one circuit at a time with a proof capture between each. Which circuit goes first is a question for the owner: the sea circuit is the least visually loaded and the primary loop the most.</div></td>
+  <td><span class="st OPEN">OPEN</span></td>
+  <td class="date">2026-09-04</td>
+  <td class="date"></td>
+  <td><div class="proof"><span class="none">no proof yet</span></div></td>
+</tr>
+<tr data-id="R8" data-area="Sixth review" data-req="The connection between the pipes and the structures (boiler, reactor, turbine) is not natural: the pipes protrude, they are not true junctions." data-status="DONE" data-raised="2026-09-04" data-verified="2026-09-04" data-text="r8 sixth review the connection between the pipes and the structures (boiler, reactor, turbine) is not natural: the pipes protrude, they are not true junctions. every pipe in the layout now carries a trim for each end (assets/layout.json, 'trim'): the blender casing stops at the wall of the thing it enters, buried a few centimetres past the surface (more where the wall is sloped or curved, so no gap shows), while the app's water uses the untrimmed centreline and runs on inside, into the water of the vessel, pump, plate or casing it serves. verified on the boiler head (both legs), the reactor (both legs), the turbine (steam in at the end wall, exhaust out of the floor into the shell top), the pumps, the condenser plate and the sea pump.">
+  <td class="id">R8</td>
+  <td>Sixth review</td>
+  <td><div class="req">The connection between the pipes and the structures (boiler, reactor, turbine) is not natural: the pipes protrude, they are not true junctions.</div><div class="check">Every pipe in the layout now carries a trim for each end (assets/layout.json, 'trim'): the Blender casing stops at the wall of the thing it enters, buried a few centimetres past the surface (more where the wall is sloped or curved, so no gap shows), while the app's water uses the untrimmed centreline and runs on inside, into the water of the vessel, pump, plate or casing it serves. Verified on the boiler head (both legs), the reactor (both legs), the turbine (steam in at the end wall, exhaust out of the floor into the shell top), the pumps, the condenser plate and the sea pump.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-04</td>
+  <td class="date">2026-09-04</td>
+  <td><div class="proof"><a href="proof/R8_junctions_head.png" target="_blank"><img src="proof/R8_junctions_head.png" alt="" loading="lazy"><small>Boiler head: the hot leg's casing ends at the head wall, its water carries on into the hot half; the crossover the same on the cold side</small></a><a href="proof/R8_junctions_turbine.png" target="_blank"><img src="proof/R8_junctions_turbine.png" alt="" loading="lazy"><small>Steam line into the casing's end wall, exhaust duct out of its floor into the shell, sea lines into the plate: every casing stops at the wall</small></a></div></td>
+</tr>
+<tr data-id="R9" data-area="Sixth review" data-req="Get rid of the huge grey thing below the boiler; it serves no purpose and the two columns were better." data-status="DONE" data-raised="2026-09-04" data-verified="2026-09-04" data-text="r9 sixth review get rid of the huge grey thing below the boiler; it serves no purpose and the two columns were better. the pedestal block is gone. the boiler stands on two columns in the kept half of the picture (z = -1.7, 1.5 m either side of the axis), floor to the underside of the head.">
+  <td class="id">R9</td>
+  <td>Sixth review</td>
+  <td><div class="req">Get rid of the huge grey thing below the boiler; it serves no purpose and the two columns were better.</div><div class="check">The pedestal block is gone. The boiler stands on two columns in the kept half of the picture (z = -1.7, 1.5 m either side of the axis), floor to the underside of the head.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-04</td>
+  <td class="date">2026-09-04</td>
+  <td><div class="proof"><a href="proof/R9_boiler_columns.png" target="_blank"><img src="proof/R9_boiler_columns.png" alt="" loading="lazy"><small>The boiler on two columns; no block</small></a></div></td>
+</tr>
+<tr data-id="R10" data-area="Sixth review" data-req="The reactor has two weird rings (one grey, one orange) and a weird base." data-status="DONE" data-raised="2026-09-04" data-verified="2026-09-04" data-text="r10 sixth review the reactor has two weird rings (one grey, one orange) and a weird base. the grey ring was the head flange with its studs, the orange one the copper fuel-top mark, and the pale ring at the water line was the level marker: all three are gone (the water's own surface shows the level). the flared skirt is replaced by a plain pedestal, built as a solid half cylinder on the kept side of the cut with a flat face at the plane, so it reads as solid concrete rather than a hollow cup. both vessel heads (and the boiler's dome) are elliptical arcs of eight points in the layout profile, not three facets, so their silhouettes are round.">
+  <td class="id">R10</td>
+  <td>Sixth review</td>
+  <td><div class="req">The reactor has two weird rings (one grey, one orange) and a weird base.</div><div class="check">The grey ring was the head flange with its studs, the orange one the copper fuel-top mark, and the pale ring at the water line was the level marker: all three are gone (the water's own surface shows the level). The flared skirt is replaced by a plain pedestal, built as a solid half cylinder on the kept side of the cut with a flat face at the plane, so it reads as solid concrete rather than a hollow cup. Both vessel heads (and the boiler's dome) are elliptical arcs of eight points in the layout profile, not three facets, so their silhouettes are round.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-04</td>
+  <td class="date">2026-09-04</td>
+  <td><div class="proof"><a href="proof/R10_reactor_plain.png" target="_blank"><img src="proof/R10_reactor_plain.png" alt="" loading="lazy"><small>The vessel with nothing round it; the legs enter its wall with no collar</small></a></div></td>
+</tr>
+<tr data-id="R11" data-area="Sixth review" data-req="The passive tank has a pipe doing a serpentine inside (unclear why; a single hole is enough for the water to come down), the pipes going down from the tank look weird and most are probably useless (why not just one pipe?)." data-status="DONE" data-raised="2026-09-04" data-verified="2026-09-04" data-text="r11 sixth review the passive tank has a pipe doing a serpentine inside (unclear why; a single hole is enough for the water to come down), the pipes going down from the tank look weird and most are probably useless (why not just one pipe?). two separate systems, drawn as two: (1) the gravity line is one straight pipe from the pool floor down into the vessel head with the valve on it (stem and wheel lying along -x so they clear the pool); the nineteen-metre riser from the building floor to a tee under the valve is gone (the recirculation leg still carries its flow in the solver; what shows is the water standing on the floor). (2) the residual heat loop is a heat exchanger, not a drain: up out of the vessel's right side, one hairpin under the pool's water where the run turns from hot to cold, straight back down into the vessel lower down; its two legs stand a metre apart on the right, clear of the gravity line on the left. the serpentine across the pool is gone.">
+  <td class="id">R11</td>
+  <td>Sixth review</td>
+  <td><div class="req">The passive tank has a pipe doing a serpentine inside (unclear why; a single hole is enough for the water to come down), the pipes going down from the tank look weird and most are probably useless (why not just one pipe?).</div><div class="check">Two separate systems, drawn as two: (1) the gravity line is ONE straight pipe from the pool floor down into the vessel head with the valve on it (stem and wheel lying along -x so they clear the pool); the nineteen-metre riser from the building floor to a tee under the valve is gone (the recirculation leg still carries its flow in the solver; what shows is the water standing on the floor). (2) The residual heat loop is a heat exchanger, not a drain: up out of the vessel's right side, one hairpin under the pool's water where the run turns from hot to cold, straight back down into the vessel lower down; its two legs stand a metre apart on the right, clear of the gravity line on the left. The serpentine across the pool is gone.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-04</td>
+  <td class="date">2026-09-04</td>
+  <td><div class="proof"><a href="proof/R11_passive_lines.png" target="_blank"><img src="proof/R11_passive_lines.png" alt="" loading="lazy"><small>Left: the one gravity line with its valve. Right: the heat-exchanger loop, up and down a metre apart</small></a></div></td>
+</tr>
+<tr data-id="R12" data-area="Sixth review" data-req="Weird grey hollow supports everywhere." data-status="DONE" data-raised="2026-09-04" data-verified="2026-09-04" data-text="r12 sixth review weird grey hollow supports everywhere. a support the cut plane sliced showed its inside, because the model's materials are two-sided and the model has no section caps. every support now either lives wholly in the kept half (turbine bearing pedestals at z = -0.9, condenser saddles at z = -1.0, boiler columns at z = -1.7, generator pedestal at z = -2.6) or is built as a solid half with a flat face at the plane (the reactor pedestal, the sea pump's plinth). nothing structural is cut open any more; only the vessels and casings are, which is the point of the cutaway.">
+  <td class="id">R12</td>
+  <td>Sixth review</td>
+  <td><div class="req">Weird grey hollow supports everywhere.</div><div class="check">A support the cut plane sliced showed its inside, because the model's materials are two-sided and the model has no section caps. Every support now either lives wholly in the kept half (turbine bearing pedestals at z = -0.9, condenser saddles at z = -1.0, boiler columns at z = -1.7, generator pedestal at z = -2.6) or is built as a solid half with a flat face at the plane (the reactor pedestal, the sea pump's plinth). Nothing structural is cut open any more; only the vessels and casings are, which is the point of the cutaway.</div></td>
+  <td><span class="st DONE">DONE</span></td>
+  <td class="date">2026-09-04</td>
+  <td class="date">2026-09-04</td>
+  <td><div class="proof"><a href="proof/R12_supports_solid.png" target="_blank"><img src="proof/R12_supports_solid.png" alt="" loading="lazy"><small>Bearing pedestals and condenser saddles behind the cut, solid</small></a></div></td>
 </tr>
 </tbody>
 </table>

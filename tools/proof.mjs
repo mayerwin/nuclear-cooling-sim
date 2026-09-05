@@ -19,13 +19,15 @@ mkdirSync(OUT, { recursive: true });
 
 // camera -> [outfile, crop box] (crop boxes are in the 1500x950 frame look.mjs makes)
 const CAMS = {
-  head:    [['F1_tracers', [400, 250, 1150, 800]], ['F6_junction', [400, 250, 1150, 800]], ['G4_no_rings', [400, 250, 1150, 800]]],
+  head:    [['F1_tracers', [400, 250, 1150, 800]], ['F6_junction', [400, 250, 1150, 800]], ['G4_no_rings', [400, 250, 1150, 800]], ['R8_junctions_head', [400, 250, 1150, 800]]],
   turbine: [['F2_gradient', [560, 380, 1220, 830]], ['F10_outfall', [560, 380, 1220, 830]], ['F11_intake', [560, 380, 1220, 830]],
             ['G6_G7_condenser', [560, 380, 1220, 830]], ['G15_G16_turbine', [290, 60, 1220, 830]],
-            ['G18_exhaust_condenser', [290, 60, 1220, 830]], ['B2_live_parts', [290, 60, 1220, 830]]],
+            ['G18_exhaust_condenser', [290, 60, 1220, 830]], ['B2_live_parts', [290, 60, 1220, 830]],
+            ['R8_junctions_turbine', [290, 60, 1220, 830]], ['R12_supports_solid', [290, 60, 1220, 830]]],
   sump:    [['F3_condensate', [300, 150, 1250, 720]]],
-  rpv:     [['F4_reactor', [450, 150, 1050, 850]], ['B4_reactor_model', [450, 150, 1050, 850]]],
-  unit:    [['B1_model_unit', [290, 60, 1220, 830]]],
+  rpv:     [['F4_reactor', [450, 150, 1050, 850]], ['B4_reactor_model', [450, 150, 1050, 850]], ['R10_reactor_plain', [450, 150, 1050, 850]]],
+  unit:    [['B1_model_unit', [290, 60, 1220, 830]], ['R9_boiler_columns', [290, 60, 1220, 830]]],
+  prhr:    [['R11_passive_lines', [290, 60, 1220, 830]]],
   sg:      [['B3_boiler_model', [330, 60, 1210, 830]]],
   dome:    [['F5_speeds', [330, 60, 1210, 830]], ['F7_feed', [330, 60, 1210, 830]], ['F8_feed_tank', [330, 60, 1210, 830]], ['G8_boiler_inlet', [330, 60, 1210, 830]]],
   pump:    [['F9_fluid_pump', [450, 300, 1100, 780]], ['G5_pump', [450, 300, 1100, 780]], ['B2_pump_model', [450, 300, 1100, 780]]],

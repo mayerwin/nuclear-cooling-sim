@@ -1,5 +1,5 @@
 GPU: ANGLE (Intel, Intel(R) Arc(TM) Graphics (0x00007D55) Direct3D11 vs_5_0 ps_5_0, D3D11)
-1500x950, vsync off, this build, 2026-09-04.
-every option on: 16.2 ms/frame (62 fps, 480 draws, 1.00x pixels)
-desktop defaults: 10.8 ms/frame (92 fps, 272 draws, 1.00x pixels)
-defaults: 9.0 ms/frame (111 fps, 272 draws, 1.00x pixels)
+1500x950, vsync off, this build, 2026-09-05.
+every option on: 47.1 ms/frame (21 fps, 570 draws, 1.00x pixels)
+desktop defaults: 14.9 ms/frame (67 fps, 363 draws, 1.00x pixels)
+defaults: 14.0 ms/frame (72 fps, 271 draws, 1.00x pixels)

@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // state.js - what the picture is showing, read straight off the model.
 // ---------------------------------------------------------------------------
-import { MODE, FUEL_TOP } from '../plant.js?v=0993587cdd';
+import { MODE, FUEL_TOP } from '../plant.js?v=577a9a2dd8';
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 export function state(p) {

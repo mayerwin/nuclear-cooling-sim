@@ -7,13 +7,13 @@
 // in at the water.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { pipe, vessel, tube, slab, V, roundedPath } from './parts.js?v=0993587cdd';
-import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles, frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=0993587cdd';
-import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=0993587cdd';
-import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=0993587cdd';
-import { Machines } from '../machines.js?v=0993587cdd';
-import { instantiate } from './model.js?v=0993587cdd';
-import { SectionCap } from './section.js?v=0993587cdd';
+import { pipe, vessel, tube, slab, V, roundedPath } from './parts.js?v=577a9a2dd8';
+import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles, frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=577a9a2dd8';
+import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=577a9a2dd8';
+import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=577a9a2dd8';
+import { Machines } from '../machines.js?v=577a9a2dd8';
+import { instantiate } from './model.js?v=577a9a2dd8';
+import { SectionCap } from './section.js?v=577a9a2dd8';
 
 const R_IN = 15.4, WALL = 1.0, SHELL_H = 31, DOME_R = R_IN + WALL;
 
@@ -640,17 +640,11 @@ export class Unit {
     // every attempt to draw it as moving specks read as bubbles sinking, and a
     // sinking bubble is wrong before the viewer can say why. The rising column
     // in the core carries the story alone.
-    // the line the water level stands at, which is what the number means
-    this.levelRing = new THREE.Mesh(
-      new THREE.TorusGeometry(3.05, 0.08, 6, 40), this.stage.mat.rail);
-    this.levelRing.rotation.x = Math.PI / 2;
-    this.levelRing.material = new THREE.MeshStandardMaterial({
-      color: 0xdfeaf2, emissive: 0x6f8ea6, emissiveIntensity: 0.5,
-      roughness: 0.4, metalness: 0.3, clippingPlanes: this.mHalfRpv.clippingPlanes });
-    g.add(this.levelRing);
+    // No ring at the water line: the water's own surface is the level, and
+    // a ring round the vessel read as one more unexplained object.
 
     // the water, and its free surface
-    this.coreWater = tube(2.94, 2.94, 1, m.water, 48);
+    this.coreWater = tube(3.12, 3.12, 1, m.water, 48);
     // The water is cut on the same plane as the vessel, so you look straight in
     // at the fuel standing in it rather than through five metres of blue.
     this.coreWater.material = ownWater(m.water);
@@ -661,7 +655,7 @@ export class Unit {
     // and orange down the other with a grey seam between: it read as a plate
     // lying on the water. A free surface is at one temperature, the
     // temperature of the top of the water.
-    this.coreTop = new THREE.Mesh(new THREE.CircleGeometry(2.94, 48, 0, Math.PI * 2)
+    this.coreTop = new THREE.Mesh(new THREE.CircleGeometry(3.12, 48, 0, Math.PI * 2)
       .rotateX(-Math.PI / 2), ownWater(m.water));
     this.coreTop.material.clippingPlanes = this.mHalfRpv.clippingPlanes;
     g.add(this.coreTop);
@@ -683,7 +677,11 @@ export class Unit {
     // the hot leg's water arrives in one, the tubes drink from it, and what
     // they give back fills the other, where the crossover draws it off. The
     // pipe, the chamber and the tubes are one continuous fluid.
-    const headProf = [[0.2, 0.35], [1.25, 0.45], [2.2, 1.05], [2.5, 2.0], [2.5, 2.86]]
+    // The water FILLS the head: this is the shell's own head profile less a
+    // finger's clearance. Drawn smaller, a band of the head's inside wall
+    // showed round the water once the head was steel, and where the legs'
+    // cut troughs crossed that band they read as fins on the joint.
+    const headProf = [[0.2, 0.35], [1.35, 0.5], [2.34, 0.96], [2.64, 2.05], [2.64, 2.9]]
       .map(([r0, y0]) => new THREE.Vector2(r0, y0));
     this.headHot = new THREE.Mesh(
       new THREE.LatheGeometry(headProf, 24, 0, Math.PI), ownWater(m.water, 0));
@@ -845,7 +843,7 @@ export class Unit {
     // so the join is one body of water seen through the wall: no cap, no
     // opening, no gap. Every pipe in the model ends the same way, buried in
     // the water of whatever it serves.
-    this.hot = pipe([V(r.x - 2.4, HOT_Y, r.z), V(s.x + HEAD_R_HOT - 0.5, HOT_Y, s.z)],
+    this.hot = pipe([V(r.x - 2.8, HOT_Y, r.z), V(s.x + HEAD_R_HOT - 0.5, HOT_Y, s.z)],
       1.1, m, { bend: 1.0, ...this.pipeOpts });
     g.add(this.hot.group);
 
@@ -856,7 +854,7 @@ export class Unit {
     g.add(this.cold.group);
 
     this.coldB = pipe([
-      V(p.x + 1.5, COLD_Y, p.z), V(r.x - 2.4, COLD_Y, r.z)
+      V(p.x + 1.5, COLD_Y, p.z), V(r.x - 2.8, COLD_Y, r.z)
     ], 1.0, m, { bend: 1.0, ...this.pipeOpts });
     g.add(this.coldB.group);
 
@@ -1207,37 +1205,30 @@ export class Unit {
       this.legPrhrDn = new Leg('back from the pool', 0.2, 2, { rho: FLUID.rhoCold });
       this.prhr = new Circuit('prhr',
         [this.legPrhrUp, this.legCoil, this.legCoilOut, this.legPrhrDn]);
-      // Straight up off the hot leg into the pool. Hot water rises; drawing
-      // the line that carries it as anything but a vertical run hides that.
-      const RUP = p.x - p.w / 2 + 2.0;
+      // Straight up out of the vessel into the pool, one hairpin under the
+      // water, straight back down into the vessel lower down: hot water
+      // rises, gives its heat to the pool, and sinks. Both runs stand on the
+      // vessel's right, a metre apart, so the loop reads as one loop and
+      // stays clear of the gravity line on the left. (It used to be a
+      // serpentine across the whole pool with its two legs nine metres
+      // apart, which read as plumbing nobody could explain.)
+      const RUP = r.x + 3.7, RDN = r.x + 4.9;
+      const COIL_Y = p.y + 1.4, COIL_TOP = p.y + 3.4;
       const up = pipe([
-        V(r.x - 3.1, HOT_Y, r.z), V(RUP, HOT_Y, r.z), V(RUP, p.y + 1.6, r.z)
+        V(r.x + 2.8, HOT_Y, r.z), V(RUP, HOT_Y, r.z), V(RUP, COIL_Y, r.z)
       ], 0.45, m, { bend: 1.6, ...this.pipeOpts });
       up.kindBreak = 'prhr';
       up.leg = this.legPrhrUp; g.add(up.group);
-      // The coil sits low enough to stay under the water while there is any
-      // water, because a coil in the air is not taking heat out of anything.
-      const COIL_Y = p.y + 1.6;
-      const coilPts = [];
-      let cx = RUP, side = 1;
-      while (cx < p.x + p.w / 2 - 2.0) {
-        coilPts.push(V(cx, COIL_Y, p.z + side * (p.d / 2 - 2.0)));
-        coilPts.push(V(cx, COIL_Y, p.z - side * (p.d / 2 - 2.0)));
-        cx += 1.5; side *= -1;
-      }
       // One run of water that goes in hot and comes out cold, with the change
       // happening along it: the same picture as the boiler tubes, because it
       // is the same job being done by a different means.
-      this.poolCoil = fluidRod(coilPts, 0.22, 0.7);
+      const coilPts = [V(RUP, COIL_Y, r.z), V(RUP, COIL_TOP, r.z), V(RDN, COIL_TOP, r.z), V(RDN, COIL_Y, r.z)];
+      this.poolCoil = fluidRod(coilPts, 0.22, 0.5);
       g.add(this.poolCoil.mesh);
-      // and straight back down the other side into the reactor, because that
-      // is what cooled water does.
-      const RDN = p.x + p.w / 2 - 2.0;
       const dn = pipe([
-        coilPts[coilPts.length - 1].clone(), V(RDN, COIL_Y, r.z),
-        V(RDN, COLD_Y + 1.4, r.z), V(r.x + 3.1, COLD_Y + 1.4, r.z)
+        V(RDN, COIL_Y, r.z), V(RDN, COLD_Y + 1.4, r.z), V(r.x + 2.8, COLD_Y + 1.4, r.z)
       ], 0.45, m, { bend: 1.6, ...this.pipeOpts });
-      dn.kindBreak = 'prhr';
+            dn.kindBreak = 'prhr';
       dn.leg = this.legPrhrDn; g.add(dn.group);
       this.pipes.push(up, dn);
 
@@ -1267,28 +1258,25 @@ export class Unit {
       this.gravity = new Circuit('gravity', [this.legGrav]);
       this.recircC = new Circuit('recirculation', [this.legRecirc]);
       this.fillC = new Circuit('into the reactor', [this.legFill]);
-      // One vertical line from the pool to the reactor head, with a valve in
-      // it and a second line up from the floor of the building joining below
-      // the valve. Straight down is what gravity does, so straight down is
-      // what it is drawn as.
+      // One vertical line from the pool floor straight down into the reactor
+      // head, with the valve on it. Straight down is what gravity does. The
+      // second line that used to climb from the building's floor to a tee
+      // under the valve is gone: nineteen metres of pipe that the owner read
+      // as useless. The recirculation leg still carries its flow in the
+      // solver; what the eye gets is the water standing on the floor.
       const GX = r.x - 1.6;
-      const TEE = V(GX, 18.6, r.z);
-      const grav = pipe([V(GX, p.y + 0.4, r.z), TEE.clone()], 0.5, m, { bend: 1.4, ...this.pipeOpts });
+      const VALVE = V(GX, 20.4, r.z);
+      const grav = pipe([V(GX, p.y + 0.7, r.z), VALVE.clone()], 0.5, m, { bend: 1.4, ...this.pipeOpts });
       grav.kindBreak = 'gravity';
       grav.leg = this.legGrav; g.add(grav.group);
-      const recirc = pipe([
-        V(GX - 3.2, 0.8, r.z), V(GX - 3.2, 18.6, r.z), TEE.clone()
-      ], 0.5, m, { bend: 1.4, ...this.pipeOpts });
-      recirc.kindBreak = 'gravity';
-      recirc.leg = this.legRecirc; g.add(recirc.group);
       // Into the top of the vessel, not into its side: the water has to be
       // seen arriving somewhere, and a line that stops against a wall is a
       // line that goes nowhere.
-      const IN = V(GX, r.base + 15.9, r.z);
-      const fill = pipe([TEE.clone(), V(IN.x, IN.y + 0.9, IN.z)], 0.5, m, { bend: 0.6, ...this.pipeOpts });
+      const IN = V(GX, r.base + 15.6, r.z);
+      const fill = pipe([VALVE.clone(), IN.clone()], 0.5, m, { bend: 0.6, ...this.pipeOpts });
       fill.kindBreak = 'gravity';
       fill.leg = this.legFill; g.add(fill.group);
-      this.pipes.push(grav, recirc, fill);
+            this.pipes.push(grav, fill);
 
       // The nozzle, the valve, its stem and wheel are the model's; the valve
       // changes colour with the model's own material, which is this unit's.
@@ -1348,8 +1336,8 @@ export class Unit {
 // ---------------------------------------------------------------------------
 // per frame: solve the flows, step the machines, and let the geometry follow
 // ---------------------------------------------------------------------------
-import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=0993587cdd';
-import { Plume, PuffCloud } from './plume.js?v=0993587cdd';
+import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=577a9a2dd8';
+import { Plume, PuffCloud } from './plume.js?v=577a9a2dd8';
 
 Object.assign(Unit.prototype, {
 
@@ -1735,9 +1723,7 @@ Object.assign(Unit.prototype, {
     // little; when it boils in earnest the column of bubbles fills the vessel.
     this.riseCore.step(dt, W_LO - 0.5, Math.max(0.4, wy - W_LO + 0.5),
       st.lvl > 0.02 ? clamp(0.12 + (st.s.boil || 0) * 1.4, 0, 1) * PART : 0, L.rpv.x, L.rpv.z, 0.5);
-    this.levelRing.position.set(L.rpv.x, wy, L.rpv.z);
-    this.levelRing.visible = st.lvl > 0.01 && st.lvl < 0.995;
-    ripple(this.coreTop, this.surfCore, 2.94, 0.6);
+    ripple(this.coreTop, this.surfCore, 3.12, 0.6);
     // Cold in at the bottom from the cold leg, hot out at the top, and the top
     // MATCHES the hot leg leaving beside it, because both come from the same
     // call on the same number. This is the water heating as it goes up past

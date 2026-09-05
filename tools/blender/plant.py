@@ -270,6 +270,7 @@ def pipe(name, spec, material='pipe', radius=None):
     """A pipe casing along the layout polyline, with real elbows: a poly curve
     with a round bevel, which the glTF exporter turns into a mesh."""
     pts = rounded([tuple(p) for p in spec['pts']], spec.get('bend', 1.0))
+    pts = trimmed(pts, spec.get('trim'))
     cu = bpy.data.curves.new(name, 'CURVE')
     cu.dimensions = '3D'
     cu.bevel_depth = radius if radius else spec['dia'] / 2
@@ -288,6 +289,56 @@ def pipe(name, spec, material='pipe', radius=None):
     ob.parent = _parent or _root
     cu.materials.append(MATS[material])
     return ob
+
+
+def trimmed(pts, trim):
+    """Shorten a polyline by trim[0] at its start and trim[1] at its end, so a
+    casing stops at the wall it enters while the water inside runs on."""
+    if not trim:
+        return pts
+    pts = list(pts)
+    for end in (0, 1):
+        t = float(trim[end]) if len(trim) > end else 0.0
+        while t > 1e-6 and len(pts) > 1:
+            a, b = (pts[0], pts[1]) if end == 0 else (pts[-1], pts[-2])
+            seg = (b - a).length
+            if seg <= t:
+                t -= seg
+                pts.pop(0 if end == 0 else -1)
+            else:
+                moved = a + (b - a).normalized() * t
+                if end == 0:
+                    pts[0] = moved
+                else:
+                    pts[-1] = moved
+                t = 0.0
+    return pts
+
+
+def half_cylinder(name, r, h, material, x, y, z0=-0.02, segments=32):
+    """A solid half cylinder on the kept side of the cut (layout z <= z0) with
+    a flat face at z0: a support the plane would otherwise slice open and show
+    hollow. Built whole in its half, so the cutaway shows solid concrete."""
+    bm = bmesh.new()
+    bot, top = [], []
+    for k in range(segments + 1):
+        a = math.pi * k / segments
+        px, pz = x + r * math.cos(a), z0 - r * math.sin(a)
+        bot.append(bm.verts.new(V(px, y, pz)))
+        top.append(bm.verts.new(V(px, y + h, pz)))
+    sides = []
+    for k in range(segments):
+        sides.append(bm.faces.new((bot[k], bot[k + 1], top[k + 1], top[k])))
+    bm.faces.new(bot[::-1])
+    bm.faces.new(top)
+    bm.faces.new((bot[0], top[0], top[-1], bot[-1]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    for f in sides:
+        f.smooth = True
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    return add_obj(name, me, material)
 
 
 def fluid_rod(name, pts, r, bend, material='pipe'):
@@ -334,17 +385,11 @@ def build_reactor():
     x, base = P['x'], P['base']
     # the vessel: a lathe of the profile, one steel body (the app cuts it)
     lathe('rpv_shell', P['profile'], 'shell', x, base, 0, segments=64)
-    # the flange between barrel and head
-    hf = P['profile'][P['head_from']][1]
-    torus('rpv_flange', P['r'] + 0.05, 0.28, 'steel', x, base + hf, 0)
-    # a ring of studs round it
-    for i in range(24):
-        a = math.tau * i / 24
-        cylinder('rpv_stud_%d' % i, 0.09, 0.09, 0.9, 'rail', x + (P['r'] + 0.05) * math.cos(a),
-                 base + hf, (P['r'] + 0.05) * math.sin(a), segments=8)
-    # the support skirt into the concrete cradle
-    S = P['skirt']
-    cylinder('rpv_skirt', S['r0'], S['r1'], S['h'], 'deck', x, S['h'] / 2, 0, segments=48)
+    # No flange ring, no studs, no mark: every ring round the vessel read as
+    # an unexplained object. The vessel stands on a plain pedestal that lives
+    # in the kept half with a flat face at the cut, so it shows as solid.
+    Pd = P['pedestal']
+    half_cylinder('rpv_skirt', Pd['r'], Pd['h'], 'deck', x, 0, Pd.get('z0', -0.02))
     # the legs meet the barrel with no collar: their casings end inside the wall
     # the fuel: rods on a square pitch inside the barrel
     n = 0
@@ -358,8 +403,6 @@ def build_reactor():
             cylinder('fuel_rod_%d' % n, P['fuel_rod_r'], P['fuel_rod_r'], fh, 'painted',
                      x + px, P['fuel_y0'] + fh / 2, pz, segments=10)
             n += 1
-    # the fuel-top mark
-    torus('rpv_fuel_mark', 3.02, 0.1, 'copper', x, P['fuel_y1'], 0)
 
 
 # ---------------------------------------------------------------------------
@@ -383,9 +426,10 @@ def build_boiler():
         z = T['z']
         pts = [[x + w, S['tubesheet'] + T['foot'], z], [x + w, top, z], [x - w, top, z], [x - w, S['tubesheet'] + T['foot'], z]]
         fluid_rod('sg_tube_%d' % k, pts, T['r'], w * 0.9, material='steel')
-    # the pedestal behind the cut
-    Pd = S['pedestal']
-    box('sg_pedestal', Pd['w'], Pd['h'], Pd['d'], 'deck', x, Pd['h'] / 2, Pd['z'])
+    # two columns in the kept half, up into the underside of the head
+    C = S['columns']
+    for i, dx in enumerate((-1, 1)):
+        cylinder('sg_col_%d' % i, C['r'], C['r'], C['top'], 'painted', x + dx * C['dx'], C['top'] / 2, C['z'], segments=16)
 
 
 # ---------------------------------------------------------------------------
@@ -444,7 +488,7 @@ def build_turbine():
     cylinder('turb_casing', T['r0'], T['r1'], x1 - x0, 'casing_dark', (x0 + x1) / 2, ax, 0, segments=48, axis='x')
     # bearing pedestals under each end of the shaft, set back into the kept half
     for i, px in enumerate((x0 - 0.9, x1 + 0.9)):
-        box('turb_bearing_%d' % i, 1.0, 1.4, 1.2, 'deck', px, ax - 3.9 + 0.7, -0.6)
+        box('turb_bearing_%d' % i, 1.0, 1.4, 1.2, 'deck', px, ax - 3.9 + 0.7, T.get('bearing_z', -0.9))
         cylinder('turb_bearing_cap_%d' % i, 0.7, 0.7, 0.9, 'painted', px, ax, 0, segments=24, axis='x')
     S = T['shaft']
     cylinder('turb_shaft', S['r'], S['r'], S['len'], 'steel', S['x'], ax, 0, segments=20, axis='x')
@@ -501,10 +545,10 @@ def build_condenser():
         fluid_rod('cond_tube_%d' % k, pts, C['tube_r'], (hi - lo) * 0.45, material='steel')
     # the exhaust duct from the casing floor into the shell top, and a flange where it lands
     pipe('pipe_exhaust', L['pipes']['exhaust'], material='pipe_steam')
-    cylinder('cond_neck_flange', 0.85, 0.85, 0.16, 'plate', L['pipes']['exhaust']['pts'][0][0], y + r + 0.02, 0, segments=32)
     # the saddles the shell rests on
     for i, px in enumerate((x - ln * 0.32, x + ln * 0.32)):
-        box('cond_saddle_%d' % i, 0.6, y - r + 0.4, 2.2, 'deck', px, (y - r + 0.4) / 2, -0.4)
+        sd = C['saddle']
+        box('cond_saddle_%d' % i, sd['w'], y - r + 0.4, sd['d'], 'deck', px, (y - r + 0.4) / 2, sd['z'])
 
 
 # ---------------------------------------------------------------------------
@@ -523,7 +567,7 @@ def build_sea():
     box('bay_wall', Wl['w'], Wl['h'], Wl['d'], 'deck', S['bay_x'], S['y'] - Wl['h'] / 2, S['bay']['z'])
     Pm = S['pump']
     build_pump('cwpump', Pm['x'], Pm['y'], 0, Pm['scale'])
-    cylinder('cwpump_plinth', 1.3, 1.3, 0.4, 'deck', Pm['x'], 0.2, 0, segments=32)
+    half_cylinder('cwpump_plinth', 1.3, 0.4, 'deck', Pm['x'], 0)
     for name in ('cw_suct', 'cw_disch', 'cw_out'):
         pipe('pipe_' + name, L['pipes'][name], material='pipe')
 
@@ -558,23 +602,23 @@ def build_passive():
         c = pool['columns']
         cylinder('pool_col_%d' % i, c['r'], c['r'], pool['y'], 'painted',
                  pool['x'] + dx * (pool['w'] / 2 - c['inset']), pool['y'] / 2, dz * (pool['d'] / 2 - c['inset']), segments=12)
+    # The residual heat loop: up out of the vessel, one hairpin dipping into
+    # the pool (the app draws its water; the model only carries the two
+    # casings through the pool floor), and back into the vessel lower down.
     pipe('pipe_prhr_up', P['prhr_up'], material='pipe')
-    co = P['coil']
-    pts, cx, side = [], co['x0'], 1
-    while cx < co['x1'] + 1e-6:
-        pts.append([cx, co['y'], side * co['half_z']]); pts.append([cx, co['y'], -side * co['half_z']])
-        cx += co['step']; side *= -1
-    fluid_rod('coil', pts, co['r'], co['bend'], material='steel')
+    hp = P['hairpin']
+    fluid_rod('coil', hp['pts'], hp['r'], hp['bend'], material='steel')
     pipe('pipe_prhr_down', P['prhr_down'], material='pipe')
+    # One straight line from the pool floor down into the vessel head, with
+    # the valve on it. The valve's stem lies along -x so the wheel clears the
+    # pool above it.
     pipe('pipe_gravity', P['gravity'], material='pipe')
-    pipe('pipe_recirc', P['recirc'], material='pipe')
     pipe('pipe_fill', P['fill'], material='pipe')
     Vv = P['valve']
     sphere('grav_valve', Vv['r'], 'painted', Vv['x'], Vv['y'], 0)
-    cylinder('grav_stem', 0.11, 0.11, Vv['stem_h'], 'steel', Vv['x'], Vv['y'] + Vv['r'] + Vv['stem_h'] / 2 - 0.2, 0, segments=10)
-    torus('grav_wheel', Vv['wheel_r'], 0.09, 'rail', Vv['x'], Vv['y'] + Vv['r'] + Vv['stem_h'] - 0.2, 0)
-    B = P['boss']
-    cylinder('grav_boss', B['r'], B['r'], B['h'], 'steel', B['x'], B['y'] + B['h'] / 2, 0, segments=16)
+    sx = Vv['x'] - Vv['r'] - Vv['stem_h'] / 2 + 0.2
+    cylinder('grav_stem', 0.11, 0.11, Vv['stem_h'], 'steel', sx, Vv['y'], 0, segments=10, axis='x')
+    torus('grav_wheel', Vv['wheel_r'], 0.09, 'rail', Vv['x'] - Vv['r'] - Vv['stem_h'] + 0.2, Vv['y'], 0, axis='x')
 
 
 def build_active():
