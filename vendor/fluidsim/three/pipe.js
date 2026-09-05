@@ -15,8 +15,8 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import { liquidMaterial, steamMaterial, casingMaterial, fleckMaterial } from './materials.js';
-import { Tracers, frameOf } from './particles.js';
+import { liquidMaterial, steamMaterial, casingMaterial, fleckMaterial } from './materials.js?v=a7f82a57a1';
+import { Tracers, frameOf } from './particles.js?v=a7f82a57a1';
 
 export const V = (x, y, z) => new THREE.Vector3(x, y, z);
 

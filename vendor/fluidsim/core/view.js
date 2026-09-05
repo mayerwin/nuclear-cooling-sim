@@ -31,7 +31,7 @@
 // and the reviews called that out every time it happened.
 // ---------------------------------------------------------------------------
 
-import { clamp, num } from './util.js';
+import { clamp, num } from './util.js?v=a7f82a57a1';
 
 // The narrowest span a run's colour is scaled across. It must sit ABOVE
 // colour.js's own deadband, which is 2 K, or the floor is defeated exactly
@@ -101,11 +101,19 @@ export function publish(sys, dt) {
   // any dt, so a range fades at the same rate whatever the frame time.
   const f = t > 0 ? 1 - Math.exp(-t / RANGE_TAU) : 0;
 
+  // A RUN'S EDGES ARE LOOKED UP, NOT SEARCHED FOR. This loop used to walk all
+  // nE edges for every run and skip the ones that did not belong, which is the
+  // number of runs times the number of edges: six tests a frame on the worked
+  // example, and on a station with a hundred runs and five hundred edges fifty
+  // thousand, of which forty-nine thousand five hundred are rejections. The
+  // membership is compiled at rebuild, where the runs are found.
+  const at = sys.runAt, list = sys.runEdge;
   for (let r = 0; r < nR; r++) {
     let lo = Infinity, hi = -Infinity;
     let maxV = 0, bigM = 0, mdot = 0;
-    for (let e = 0; e < nE; e++) {
-      if (sys.egRun[e] !== r) continue;
+    const e0 = at[r], e1 = at[r + 1];
+    for (let k = e0; k < e1; k++) {
+      const e = list[k];
       const av = Math.abs(sys.egV[e]);
       if (av > maxV) maxV = av;
       const am = Math.abs(sys.egMdot[e]);

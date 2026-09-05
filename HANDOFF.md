@@ -254,6 +254,25 @@ What changed, and it is one file:
   repository, so a relative import reaching outside it resolves to a path the
   browser cannot fetch. To take an update, copy the library's `src/` over
   `vendor/fluidsim/` again, run `node tools/stamp.mjs`, then run the gate.
+- **THE STAMP NOW COVERS `vendor/fluidsim/` AND IT DID NOT AT FIRST.** Vendor
+  files were excluded from the hash and from the query strings, which is right
+  for three, pinned by version and never edited here, and wrong for a library
+  that is this project's own physics and changes whenever that library does.
+  Pages are served with a long max-age, so it was the one part of the app a
+  returning visitor could hold a stale copy of, and it is the part that decides
+  what every circuit does. It is in the hash now and its own internal imports
+  carry the query, which is the only way the vendored copy differs from the
+  library's `src/`: a plain diff of the two shows those lines and nothing else.
+- Taken again on 2026-09-04 after the library's second performance pass, which
+  fixed three real defects in the solver rather than only making it faster (a
+  sparsity pattern that went stale when a host imposed a pressure, a conjugate
+  gradient budget that returned an ascent direction on a big network, and an
+  Armijo test that rejected every capped step). The gate passes with it: nine
+  scenarios, the phone, no console or page errors, and every scenario ends
+  where it should. The register's proof images were NOT re-captured, and that
+  is deliberate: this project does not use the library's solver yet, so none of
+  those fixes can change a number here, and a capture of moving water differs
+  from the last one by more than any of this would.
 - Nothing else moved. `unit.js`, `parts.js`, `materials.js`, `stage.js` and
   `plume.js` are untouched and `js/flow.js` still does the hydraulics, so every
   number and every picture is what it was.

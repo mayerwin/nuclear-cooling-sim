@@ -10,8 +10,15 @@
 // rooted at this repository, so a relative import reaching outside it resolves
 // to a path the browser cannot fetch. A copy under vendor/ is served like
 // anything else, is stamped like anything else, and keeps the promise that
-// this app has no build step. To take an update, copy the library's `src/`
-// over vendor/fluidsim again and run the gate.
+// this app has no build step. To take an update: copy the library's `src/`
+// over vendor/fluidsim, run `node tools/stamp.mjs`, then run the gate. The
+// stamp step is not optional. GitHub Pages serves these files with a long
+// max-age, and the vendored library is the part of the app that decides what
+// every circuit does, so a returning visitor holding a cached copy of it is
+// running last week's physics against this week's plant. It used to be left
+// out of the stamp along with three, which is pinned and never edited; it is
+// in the hash now, and its own internal imports carry the query too, which is
+// the one way the vendored copy differs from the library's source.
 //
 // The library carries its own reasons for each of these decisions in the files
 // they came from, and they are not repeated here.
@@ -23,10 +30,10 @@ import {
   liquidMaterial, steamMaterial, surfaceMaterial, bodyMaterial,
   fleckMaterial, bubbleMaterial, dropMaterial, puffMaterial, casingMaterial,
   FLUID_TIME, advanceTime, quality, setQuality
-} from '../../vendor/fluidsim/three/materials.js';
+} from '../../vendor/fluidsim/three/materials.js?v=a7f82a57a1';
 import {
   Tracers, Riser, Drip, PuffCloud, frameOf
-} from '../../vendor/fluidsim/three/particles.js';
+} from '../../vendor/fluidsim/three/particles.js?v=a7f82a57a1';
 
 export {
   flowNormal, rippleNormal, streakTexture,

@@ -7,13 +7,13 @@
 // in at the water.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { pipe, vessel, tube, slab, V, roundedPath } from './parts.js?v=577a9a2dd8';
-import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles, frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=577a9a2dd8';
-import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=577a9a2dd8';
-import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=577a9a2dd8';
-import { Machines } from '../machines.js?v=577a9a2dd8';
-import { instantiate } from './model.js?v=577a9a2dd8';
-import { SectionCap } from './section.js?v=577a9a2dd8';
+import { pipe, vessel, tube, slab, V, roundedPath } from './parts.js?v=a7f82a57a1';
+import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles, frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=a7f82a57a1';
+import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=a7f82a57a1';
+import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=a7f82a57a1';
+import { Machines } from '../machines.js?v=a7f82a57a1';
+import { instantiate } from './model.js?v=a7f82a57a1';
+import { SectionCap } from './section.js?v=a7f82a57a1';
 
 const R_IN = 15.4, WALL = 1.0, SHELL_H = 31, DOME_R = R_IN + WALL;
 
@@ -1336,8 +1336,8 @@ export class Unit {
 // ---------------------------------------------------------------------------
 // per frame: solve the flows, step the machines, and let the geometry follow
 // ---------------------------------------------------------------------------
-import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=577a9a2dd8';
-import { Plume, PuffCloud } from './plume.js?v=577a9a2dd8';
+import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=a7f82a57a1';
+import { Plume, PuffCloud } from './plume.js?v=a7f82a57a1';
 
 Object.assign(Unit.prototype, {
 

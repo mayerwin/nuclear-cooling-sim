@@ -22,7 +22,7 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import { fluidColour, colourIn, glowColour } from '../core/colour.js';
+import { fluidColour, colourIn, glowColour } from '../core/colour.js?v=a7f82a57a1';
 
 // --- the shared clock -------------------------------------------------------
 // Every fluid shader scrolls off this one uniform, so nothing drifts out of

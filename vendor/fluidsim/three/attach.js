@@ -12,9 +12,9 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import { pipe, fluidRod, waterColumn, vessel, V } from './pipe.js';
-import { build as buildMaterials, bodyMaterial, surfaceMaterial, casingMaterial } from './materials.js';
-import { Riser, Drip, PuffCloud } from './particles.js';
+import { pipe, fluidRod, waterColumn, vessel, V } from './pipe.js?v=a7f82a57a1';
+import { build as buildMaterials, bodyMaterial, surfaceMaterial, casingMaterial } from './materials.js?v=a7f82a57a1';
+import { Riser, Drip, PuffCloud } from './particles.js?v=a7f82a57a1';
 
 // A number, or the fallback. src/core keeps its own copy; the adapter is not
 // allowed to import from src/core, so it carries this one line itself.

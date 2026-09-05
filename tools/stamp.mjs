@@ -4,8 +4,13 @@
  * run last week's audio.js against this week's index.html and see no change at
  * all. Every internal module specifier gets ?v=<hash of all sources>, so one
  * changed byte changes every URL that could have been cached, and nothing
- * changes when nothing changed. Vendor files are left alone: they are pinned
- * by version and never edited.
+ * changes when nothing changed.
+ *
+ * THREE IS LEFT ALONE AND vendor/fluidsim IS NOT. Three is pinned by version
+ * and never edited here; the fluid library is this project's own physics, kept
+ * next door and copied in, and it changes whenever that library does. Left out
+ * of the hash it was the one part of the app a returning visitor could keep a
+ * stale copy of, and it is the part that decides what every circuit does.
  *
  *   node tools/stamp.mjs        stamp
  *   node tools/stamp.mjs --check  exit 1 if stamping would change anything
@@ -26,7 +31,7 @@ function walk(dir, out = []) {
   }
   return out;
 }
-const sources = walk('js').concat(['css/app.css']);
+const sources = walk('js').concat(walk('vendor/fluidsim'), ['css/app.css']);
 
 // The hash is over the UNSTAMPED text, so re-running is idempotent, and over
 // LF line endings, so a checkout with autocrlf on Windows stamps the same
@@ -51,7 +56,8 @@ const put = (rel, text) => {
 for (const f of sources.filter((x) => /\.(js|mjs)$/.test(x))) {
   const t = strip(readFileSync(join(ROOT, f), 'utf8'));
   put(f, t.replace(/(from\s+|import\s*\()(['"])(\.[^'"]*?\.(?:js|mjs))\2/g,
-    (m, a, q, spec) => (spec.includes('/vendor/') ? m : `${a}${q}${spec}?v=${V}${q}`)));
+    (m, a, q, spec) => (spec.includes('/vendor/') && !spec.includes('/vendor/fluidsim/')
+      ? m : `${a}${q}${spec}?v=${V}${q}`)));
 }
 
 // The entry point, the stylesheet and the one exact import-map entry. The

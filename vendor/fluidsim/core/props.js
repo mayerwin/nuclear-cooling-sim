@@ -226,10 +226,39 @@ const K_L = [0.561, 0.598, 0.630, 0.654, 0.670, 0.679, 0.683, 0.679, 0.670,
 const SIGMA = [0.0756, 0.0728, 0.0696, 0.0662, 0.0626, 0.0589, 0.0537, 0.0482,
   0.0426, 0.0376, 0.0326, 0.0261, 0.0212, 0.0144, 0.0098, 0.0053, 0.0016, 0.0005];
 
+// WHICH INTERVAL A TEMPERATURE FALLS IN, WITHOUT LOOKING FOR IT. The table is
+// short but it is not uniform, and the scan that used to find the interval
+// started at the cold end: water at 300 C, which is where a plant runs, is in
+// the fourteenth of eighteen intervals, so every specific heat and every
+// viscosity in the frame cost thirteen compares before any arithmetic. That is
+// the same lookup done for every cell of every edge several times over.
+//
+// So the interval is read from a directory indexed by whole kelvin above the
+// bottom of the table. One kelvin is far narrower than the narrowest interval,
+// twenty, so a bucket can straddle at most one boundary and the single compare
+// below settles it. The answer is EXACTLY the one the scan gave: this changes
+// what it costs to find the interval, not which interval is found, and not one
+// interpolated number anywhere.
+const TAB_LAST = T_TAB.length - 1;
+const TAB_LO = T_TAB[0], TAB_HI = T_TAB[TAB_LAST];
+const SEG = (() => {
+  const seg = new Uint8Array(Math.ceil(TAB_HI - TAB_LO) + 2);
+  for (let k = 0; k < seg.length; k++) {
+    let i = 1;
+    while (i < TAB_LAST && T_TAB[i] < TAB_LO + k) i++;
+    seg[k] = i;
+  }
+  return seg;
+})();
+
+function segOf(t) {
+  const i = SEG[(t - TAB_LO) | 0];
+  return (i < TAB_LAST && T_TAB[i] < t) ? i + 1 : i;
+}
+
 function lookup(tab, T) {
-  const t = clamp(T, T_TAB[0], T_TAB[T_TAB.length - 1]);
-  let i = 1;
-  while (i < T_TAB.length - 1 && T_TAB[i] < t) i++;
+  const t = clamp(T, TAB_LO, TAB_HI);
+  const i = segOf(t);
   const f = (t - T_TAB[i - 1]) / (T_TAB[i] - T_TAB[i - 1]);
   return tab[i - 1] + (tab[i] - tab[i - 1]) * f;
 }
@@ -309,12 +338,31 @@ export const hVapour = (T) => lookup(H_L, T) + hfg(T);
 
 // The temperature a liquid enthalpy belongs to: the inverse of hLiquid, for
 // an energy equation that carries enthalpy and has to report a temperature.
+// Indexed the same way as the forward table and for the same reason: this is
+// called once for every cell of every edge in every thermal pass, and the scan
+// it replaces started at the triple point. The buckets are uniform in
+// enthalpy, and one is far narrower than the narrowest interval of H_L, so at
+// most one boundary can fall inside a bucket and the compare below settles it.
+// The interval found is the interval the scan found, exactly.
+const HL_N = 256;
+const HL_W = H_L[H_L.length - 1] / HL_N;
+const HL_SEG = (() => {
+  const seg = new Uint8Array(HL_N + 2);
+  const last = H_L.length - 1;
+  for (let k = 0; k < seg.length; k++) {
+    let i = 1;
+    while (i < last && H_L[i] < k * HL_W) i++;
+    seg[k] = i;
+  }
+  return seg;
+})();
+
 export function tOfHLiquid(h) {
   const last = H_L.length - 1;
   if (h <= H_L[0]) return T_TAB[0];
   if (h >= H_L[last]) return T_TAB[last];
-  let i = 1;
-  while (i < last && H_L[i] < h) i++;
+  let i = HL_SEG[(h / HL_W) | 0];
+  if (i < last && H_L[i] < h) i++;
   const f = (h - H_L[i - 1]) / (H_L[i] - H_L[i - 1]);
   return T_TAB[i - 1] + (T_TAB[i] - T_TAB[i - 1]) * f;
 }

@@ -44,12 +44,12 @@
 // invariant quietly deleted by the next agent who hit it.
 // ---------------------------------------------------------------------------
 
-import { clamp, lerp, num, growF64, growI32, growU8 } from './util.js';
+import { clamp, lerp, num, growF64, growI32, growU8 } from './util.js?v=a7f82a57a1';
 import {
   G, tsat, hLiquid, hVapour, hfg, tOfHLiquid, rhoLiquidSat, rhoVapourSat, rhoVapour,
   cpLiquid, cpVapour, muLiquid, muVapour,
   LIQUID, VAPOUR, TWO_PHASE, T_TRIPLE, T_CRIT, P_TRIPLE, P_CRIT
-} from './props.js';
+} from './props.js?v=a7f82a57a1';
 
 // How far below a free surface a nozzle still counts as standing in the gas
 // space, for deciding what a steam line is drawing. It matches the uncovering
@@ -80,6 +80,10 @@ export const NTU_LO = 8, NTU_HI = 2;
 // Below this the flow through an edge is not a flow: it is arithmetic noise
 // from a Newton step, and mixing on it would let a stopped network drift.
 const M_EPS = 1e-12;                         // kg/s
+// And the flow at which an edge is agreed to HAVE a direction, which is a
+// different question and needs its own threshold. A microgram a second: far
+// below anything a picture shows and far above the noise. See _order.
+const M_DIR = 1e-9;                          // kg/s
 
 // A volume may never be emptied completely: the last sliver of mass is what
 // keeps h = U/M finite. Expressed as a fraction of the volume's own capacity
@@ -656,9 +660,24 @@ export class Thermal {
   _order() {
     const sys = this.sys, nN = sys.nNodes | 0, nE = sys.nEdges | 0;
     let changed = false;
+    // WHICH WAY EACH EDGE POINTS, WITH HYSTERESIS, and the hysteresis is what
+    // makes the early-out below worth having. A bare threshold made the
+    // direction of an edge carrying a hundred-billionth of a gram a second
+    // flip on the noise of the last Newton step, and every flip rebuilt the
+    // whole order: measured on a fifteen-loop ladder, eleven thousand flips in
+    // two thousand steps, on flows between 2e-16 and 4e-11 kg/s, sorting the
+    // graph again on every other sub-step for a flow no instrument could see.
+    // A direction is established at a microgram a second, lost below the noise
+    // floor, and kept through the band between them, which is the same shape
+    // as the moving/still hysteresis the read surface uses and for the same
+    // reason. Register line P10.
     for (let e = 0; e < nE; e++) {
-      const s = (sys.egOpen[e] && Math.abs(sys.egMdot[e]) > M_EPS)
-        ? (sys.egMdot[e] >= 0 ? 1 : 2) : 0;
+      const m = sys.egMdot[e];
+      const a = m >= 0 ? m : -m;
+      let s;
+      if (!sys.egOpen[e] || !(a > M_EPS)) s = 0;
+      else if (a >= M_DIR) s = m >= 0 ? 1 : 2;
+      else s = this.sgn[e];
       if (this.sgn[e] !== s) { this.sgn[e] = s; changed = true; }
     }
     if (!changed && this._hasOrder) return;

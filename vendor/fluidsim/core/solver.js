@@ -25,14 +25,14 @@
 // SI THROUGHOUT: kg/s, Pa absolute, K, J/kg, kg/m3, Pa s, m, m2, W, s.
 // ---------------------------------------------------------------------------
 
-import { clamp, num, IdMap, growF64, growI32, growU8 } from './util.js';
-import { roundedLength, elbows, bendK, areaOf, buildShape, levelOf, volumeAt, areaAt } from './geometry.js';
-import { fluid, density, rhoLiquidSat, cpLiquid } from './props.js';
-import { Network, NetworkError, MAX_NODES, autoRuns } from './network.js';
-import { Surface } from './surface.js';
-import { Hydraulic, pAt } from './hydraulic.js';
-import { Thermal, stateOf, hOf, K_BULK } from './thermal.js';
-import { publish, EdgeView, VolumeView, RunView } from './view.js';
+import { clamp, num, IdMap, growF64, growI32, growU8 } from './util.js?v=a7f82a57a1';
+import { roundedLength, elbows, bendK, areaOf, buildShape, levelOf, volumeAt, areaAt } from './geometry.js?v=a7f82a57a1';
+import { fluid, density, rhoLiquidSat, cpLiquid } from './props.js?v=a7f82a57a1';
+import { Network, NetworkError, MAX_NODES, autoRuns } from './network.js?v=a7f82a57a1';
+import { Surface } from './surface.js?v=a7f82a57a1';
+import { Hydraulic, pAt } from './hydraulic.js?v=a7f82a57a1';
+import { Thermal, stateOf, hOf, K_BULK } from './thermal.js?v=a7f82a57a1';
+import { publish, EdgeView, VolumeView, RunView } from './view.js?v=a7f82a57a1';
 
 export const DEFAULT_OPTS = Object.freeze({
   maxIter: 8, tol: 1e-4, maxDt: 10, maxSub: 8, inertia: true,
@@ -160,6 +160,15 @@ function emptySys(net, opts, report) {
     runLo: F0, runHi: F0,   // K, smoothed
     runMdot: F0,
     runMoving: U0,
+    // WHICH EDGES ARE IN WHICH RUN, as a compressed row: runEdge holds every
+    // edge that belongs to a run, grouped by run, and runAt[r]..runAt[r+1] is
+    // where run r's are. The renderer's read surface needs a run's edges every
+    // frame, and it used to find them by walking the whole edge array once per
+    // run and skipping what did not match, which is the number of runs times
+    // the number of edges: fine on a worked example with two runs and six
+    // edges, and a hundred thousand rejected tests a frame on a station.
+    runAt: I0,       // nRuns + 1 offsets
+    runEdge: I0,     // edge indices, grouped by run
 
     // --- scratch, sized at rebuild, never allocated in step() ---
     A: F0,           // nSolve*nSolve dense matrix
@@ -370,11 +379,14 @@ export class Solver {
 
     s.runLo = growF64(s.runLo, nR); s.runHi = growF64(s.runHi, nR);
     s.runMdot = growF64(s.runMdot, nR); s.runMoving = growU8(s.runMoving, nR);
+    s.runAt = growI32(s.runAt, nR + 1); s.runEdge = growI32(s.runEdge, nE);
 
-    // The dense matrix is sized for EVERY node that could ever be an unknown,
-    // not for the current count, so that impose({p}) can make a node Dirichlet
-    // and release it again without allocating anything.
-    s.A = growF64(s.A, nN * nN);
+    // The Newton scratch is sized for EVERY node that could ever be an
+    // unknown, not for the current count, so that impose({p}) can make a node
+    // Dirichlet and release it again without allocating anything. The MATRIX
+    // is not sized here at all: hydraulic.slots() sizes it for the crossover,
+    // because past the crossover it is not used and n squared doubles is how
+    // a station-sized model would run out of memory solving nothing.
     s.bvec = growF64(s.bvec, nN); s.xvec = growF64(s.xvec, nN);
     s.Fvec = growF64(s.Fvec, nN); s.Fbest = growF64(s.Fbest, nN); s.ptmp = growF64(s.ptmp, nN);
   }
@@ -650,6 +662,25 @@ export class Solver {
       s.runMdot[r] = 0; s.runMoving[r] = 0;
     }
     this._runDefs = runs;
+
+    // The same membership the other way round, so the read surface can walk a
+    // run's edges instead of walking every edge and asking. Filled in edge
+    // order within each run, so two runs of the same shape are traversed the
+    // same way and nothing in the picture can depend on the order the runs
+    // happened to be found in.
+    const nR = runs.length;
+    for (let r = 0; r <= nR; r++) s.runAt[r] = 0;
+    for (let e = 0; e < nE; e++) {
+      const r = s.egRun[e];
+      if (r >= 0 && r < nR) s.runAt[r + 1]++;
+    }
+    for (let r = 0; r < nR; r++) s.runAt[r + 1] += s.runAt[r];
+    const fill = this._runFill = growI32(this._runFill, nR);
+    for (let r = 0; r < nR; r++) fill[r] = s.runAt[r];
+    for (let e = 0; e < nE; e++) {
+      const r = s.egRun[e];
+      if (r >= 0 && r < nR) s.runEdge[fill[r]++] = e;
+    }
   }
 
   // Resolve every "edge:x" / "node:x" target and every device's edge ONCE, at
@@ -695,6 +726,12 @@ export class Solver {
       s.ndSlot[i] = solve ? k++ : -1;
     }
     s.nSolve = k;
+    // The matrix, the Newton scratch and the sparsity pattern are all indexed
+    // BY SLOT, so they are re-sized here and not only at a rebuild: impose()
+    // and release() renumber every slot after the node they touch, and no pipe
+    // has moved. Doing it in the one place the numbering is decided is what
+    // makes it impossible for a new caller to forget.
+    this.hydraulic.slots();
   }
 
   // Flyweights, built once per rebuild and never again: a host that reads

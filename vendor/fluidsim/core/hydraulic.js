@@ -27,9 +27,9 @@
 // host's imposed pressure reads back bit-identical.
 // ---------------------------------------------------------------------------
 
-import { clamp, num, sign0, smoothstep, growF64, growI32, growU8 } from './util.js';
-import { ldl, ldlSolve, pcg, LDL_EPS } from './linalg.js';
-import { G, tsat } from './props.js';
+import { clamp, num, sign0, smoothstep, growF64, growI32, growU8 } from './util.js?v=a7f82a57a1';
+import { ldl, ldlSolve, pcg, LDL_EPS } from './linalg.js?v=a7f82a57a1';
+import { G, tsat } from './props.js?v=a7f82a57a1';
 
 // --- limits -----------------------------------------------------------------
 // The laminar resistance floor is DERIVED FROM A VISCOSITY FLOOR rather than
@@ -45,6 +45,11 @@ export const RHO_FLOOR = 0.05, RHO_CEIL = 1200;   // kg/m3
 export const MU_FLOOR = 1e-6, MU_CEIL = 1e-1;     // Pa s
 export const P_FLOOR = 1e3, P_CEIL = 3e8;         // Pa absolute
 export const DP_MAX = 2e7;          // Pa, the largest pressure move one Newton step may make
+// And the smallest the trust radius may shrink to when the full step keeps
+// being rejected. A pascal: small enough that any state is recoverable, large
+// enough that the radius climbs back to DP_MAX in about twenty accepted
+// iterations, which is a fraction of a second of frames.
+export const TRUST_MIN = 1;         // Pa
 export const UNCOVER = 0.05;        // m, the band over which a nozzle uncovers
 // K below the saturation line over which a gas space stops being able to
 // supply steam. One degree: narrow enough that a boiling vessel supplies
@@ -88,11 +93,27 @@ const F_LAM_2000 = 64 / 2000;       // the laminar friction factor at the end of
 //
 // Both paths produce the same flows: 67.59512 kg/s on every size in that table.
 const DENSE_MAX = 20;
-// The conjugate gradient's budget. Warm started on a graph Laplacian that has
-// barely moved, it is usually done in two or three; the cap is what makes the
-// per-frame cost a number rather than a hope, and a truncated step is still a
-// descent direction that the line search outside is free to reject.
-const CG_MAX = 60;
+// The conjugate gradient's budget, and it has to grow with the network.
+// Warm started on a graph Laplacian that has barely moved it is usually done
+// in two or three iterations, which is what the cap is for: to make the
+// per-frame cost a number rather than a hope.
+//
+// A FIXED SIXTY WAS WRONG, and wrong in the way that is hard to see: conjugate
+// gradient is exact in n iterations and no fewer in the worst case, so on a
+// long chain of eighty unknowns a hard state needed eighty-one and got sixty.
+// The direction that came back was not merely inaccurate, it was an ASCENT
+// direction: measured on a forty-rung comb whose host had held a junction and
+// released it, the residual rose at every step length from 1e-6 upward, so
+// every line search failed, the best iterate stayed where it started, and the
+// junction sat 227 kg/s out of balance for ever. The same matrix solved to
+// convergence took the residual from 227 to 15 in one step. Register line P9.
+//
+// So the budget is twice the number of unknowns, floored so that a small
+// network keeps a generous one and capped so that a huge one still costs a
+// bounded amount. Each iteration is one pass over the non-zeros, which is
+// three per edge: cheap next to a pass over the edges themselves.
+const CG_FLOOR = 60, CG_CAP = 600;
+const cgBudget = (n) => Math.min(CG_CAP, Math.max(CG_FLOOR, 2 * n));
 const CG_TOL = 1e-10;
 
 const EMPTY_F64 = new Float64Array(0);
@@ -538,6 +559,9 @@ export class Hydraulic {
     this.nInf = 0;
     this.dt = 0;
     this.inertia = false;
+    // How far one Newton step may move a pressure, in Pa. Adapted by the line
+    // search below and carried between frames.
+    this.trust = DP_MAX;
     this.size();
   }
 
@@ -547,7 +571,6 @@ export class Hydraulic {
     const sys = this.sys;
     const nE = Math.max(1, sys.nEdges | 0);
     const nN = Math.max(1, sys.nNodes | 0);
-    const n = Math.max(1, sys.nSolve | 0);
     this.dpc = growF64(this.dpc, nE);
     // The memoised roughness term lives on Sys, because edgeCoeffs is a plain
     // function over Sys and not a method. Seeded to a value no real ratio can
@@ -566,26 +589,60 @@ export class Hydraulic {
     this.parent = growI32(this.parent, nN);
     this.hasRef = growI32(this.hasRef, nN);
     this.pinList = growI32(this.pinList, nN);
+    return this.slots();
+  }
+
+  // Everything that depends on WHICH pressures are unknowns, which is not the
+  // same thing as the shape of the network. `impose({p})` makes a volume
+  // Dirichlet and `release()` gives it back, and either one renumbers every
+  // slot after it without a single pipe having moved. The solver calls this
+  // whenever it reassigns slots, and size() calls it at a rebuild.
+  //
+  // It has to be its own step because the sparsity pattern is indexed BY SLOT.
+  // Built once at a rebuild and left alone, it went stale the moment a host
+  // imposed a pressure: measured on a ten-loop ladder, continuity at the
+  // junctions went from 7e-12 kg/s to 720 and the solve stopped converging,
+  // and it came back on its own when the node was released and the numbering
+  // happened to line up again. Register line P8.
+  slots() {
+    const sys = this.sys;
+    const nN = Math.max(1, sys.nNodes | 0);
+    const n = Math.max(1, sys.nSolve | 0);
     // The Newton scratch lives on Sys because section 7 puts it there, but
     // this file is its only consumer, so it is sized here where the sizes are
     // known. growF64 is idempotent, so it does not matter whether rebuild()
     // has already made them.
-    // The dense matrix is only made when the dense path will be used. Above
-    // the crossover it would be n squared doubles for nothing, which at a few
-    // thousand unknowns is the difference between a megabyte and a gigabyte.
+    //
+    // THE DENSE MATRIX IS SIZED FOR THE CROSSOVER AND NOT FOR THE NETWORK.
+    // Past it the sparse path runs, so n squared doubles would be allocated to
+    // be ignored: at a thousand unknowns eight megabytes, at ten thousand
+    // eight hundred, which is where the promise of any model would quietly
+    // have ended again for want of a number nobody looked at.
     // The crossover is an option so it can be MEASURED rather than asserted:
     // forcing the same network down both paths is the only way to know where
-    // they actually cross on a given machine, and it is how the default below
-    // was chosen.
-    const dmax = num(sys.opts && sys.opts.denseMax, DENSE_MAX);
+    // they actually cross on a given machine, and it is how the default was
+    // chosen.
+    const dmax = Math.max(1, Math.floor(num(sys.opts && sys.opts.denseMax, DENSE_MAX)));
     this.sparse = n > dmax;
-    sys.A = growF64(sys.A || EMPTY_F64, this.sparse ? 1 : n * n);
+    const nDense = Math.min(nN, dmax);
+    sys.A = growF64(sys.A || EMPTY_F64, nDense * nDense);
     sys.bvec = growF64(sys.bvec || EMPTY_F64, n);
     sys.xvec = growF64(sys.xvec || EMPTY_F64, n);
     sys.Fvec = growF64(sys.Fvec || EMPTY_F64, n);
     sys.Fbest = growF64(sys.Fbest || EMPTY_F64, n);
     sys.ptmp = growF64(sys.ptmp || EMPTY_F64, n);
-    if (this.sparse) this._buildPattern(n);
+    // Built whether or not it is used today. It costs one pass over the edges
+    // and it is what makes crossing the crossover between rebuilds safe, in
+    // either direction: a host that imposes enough pressures to drop a network
+    // under twenty unknowns can release them again on the next frame.
+    this._buildPattern(n);
+    // AND THE WARM START GOES WITH THE NUMBERING IT WAS TAKEN IN. xvec holds
+    // the step the last iterate wanted, indexed by slot, and a renumbering
+    // makes every one of those entries belong to a different node: the
+    // conjugate gradient would then start from a guess assembled out of other
+    // nodes' answers, which is worse than starting from nothing and costs the
+    // iterations it takes to undo.
+    sys.xvec.fill(0, 0, n);
     return this;
   }
 
@@ -1007,7 +1064,7 @@ export class Hydraulic {
         // instead throws away the only cheap information there is.
         cgIters += pcg(this.rowPtr, this.colIdx, this.aval, this.adiag, n,
           sys.bvec, sys.xvec, this.cgR, this.cgZ, this.cgP, this.cgAp,
-          CG_MAX, CG_TOL);
+          cgBudget(n), CG_TOL);
       } else {
         this._jacobian(n, invDt);
         ldl(sys.A, n);
@@ -1022,9 +1079,27 @@ export class Hydraulic {
         if (a > dmax) dmax = a;
       }
       if (bad) break;                       // keep the best iterate and report it
-      const sc = Math.min(1, DP_MAX / Math.max(dmax, 1e-300));
+      const sc = Math.min(1, this.trust / Math.max(dmax, 1e-300));
 
       for (let i = 0; i < nN; i++) { const s = ndSlot[i]; if (s >= 0) sys.ptmp[s] = ndP[i]; }
+      // THE STEP IS PROJECTED INTO THE PRESSURE RANGE HERE, RATHER THAN
+      // CLAMPED INSIDE THE TRIAL. A clamped trial is the SAME POINT at every
+      // step length: if the full step would drive a pressure to the floor,
+      // half of it and a quarter of it land on the floor as well, so the line
+      // search below has nothing to search over, every trial scores identically
+      // and the best iterate is the one it started from. The sub-step then
+      // makes no progress AND makes none on the next frame either, because
+      // nothing about the state has changed. Measured, releasing a node the
+      // host had held far from its own answer left it at exactly that pressure
+      // for ever, with 573 kg/s never closing at that one junction, on both
+      // solve paths. Projecting keeps the direction, and each halving is then a
+      // genuinely different point. Register line P9.
+      for (let s = 0; s < n; s++) {
+        const p0 = sys.ptmp[s];
+        const d = sys.xvec[s] * sc;
+        const lo = P_FLOOR - p0, hi = P_CEIL - p0;
+        sys.xvec[s] = d < lo ? lo : (d > hi ? hi : d);
+      }
       const base = this.n1;
       // The step must remove a REAL fraction of the residual, not merely fail
       // to make it worse. Newton on a square-root law overshoots by close to a
@@ -1034,22 +1109,50 @@ export class Hydraulic {
       // thousandth, accepts it, and the loop pressures then flip back and
       // forth for ever, hundreds of iterations from an answer that one halving
       // of the step lands on. Armijo turns that into two evaluations.
-      let t = 1, bestT = 1, bestLs = Infinity;
+      //
+      // AND WHAT IT ASKS FOR IS SCALED BY HOW MUCH OF THE NEWTON STEP IS
+      // ACTUALLY BEING TAKEN. A full step predicts the whole residual gone, so
+      // asking for a quarter of it back is right; a step the cap has cut to a
+      // hundredth predicts a hundredth, and asking that one for a quarter of
+      // the residual is asking for something the step cannot deliver however
+      // well it is aimed. Every capped step was then rejected, whatever it did:
+      // that is a rejection test which fires hardest exactly where the solver
+      // is furthest from its answer and needs the step most.
+      let t = 1, bestT = 1, bestLs = Infinity, took = false;
       for (;;) {
-        this._trial(sc * t);
+        this._trial(t);
         this._pass(false); passes++;
         this._residual(invDt);
         if (this.n1 < bestLs) { bestLs = this.n1; bestT = t; }
         // Written this way round so a residual that came back NaN fails the
         // test and the step is halved rather than accepted.
-        if (this.n1 <= base * (1 - ARMIJO * t)) break;
+        if (this.n1 <= base * (1 - ARMIJO * sc * t)) { took = true; break; }
         if (!(t > LS_MIN) || passes >= maxPasses - 1) break;
         t *= 0.5;
       }
+      // THE TRUST RADIUS, and it is what makes a state far from its answer
+      // recoverable at all. Three halvings is a wide enough search when the
+      // iterate is near the solution and nowhere near wide enough when it is
+      // not: measured, a network whose host had held one junction two bars
+      // above its neighbours and then released it wanted a twelve-megapascal
+      // Newton step, and a step of one eighth of that still raised the
+      // residual. Every trial failed, the best iterate was the one the search
+      // started from, and because nothing about the state had changed the next
+      // frame did exactly the same thing. That junction sat 573 kg/s out of
+      // balance FOR EVER, on both solve paths.
+      //
+      // So the cap on the step is not a constant but a radius that shrinks
+      // when a search fails and grows back when one succeeds, carried between
+      // sub-steps and between frames because that is where the information is.
+      // A settled plant converges at t = 1 and keeps the full radius; a
+      // network thrown far from its answer walks the radius down over a few
+      // frames until its steps are accepted, then walks it back up. It costs
+      // one multiplication a Newton iteration and no passes at all.
+      this.trust = took ? Math.min(DP_MAX, this.trust * 2) : Math.max(TRUST_MIN, this.trust * 0.25);
       if (bestT !== t && passes < maxPasses - 1) {
         // Backtracking walked past the best point on the ray. One pass to go
         // back to it, rather than carrying a worse iterate into the next round.
-        this._trial(sc * bestT);
+        this._trial(bestT);
         this._pass(false); passes++;
         this._residual(invDt);
       }
