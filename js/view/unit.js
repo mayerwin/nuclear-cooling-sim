@@ -7,13 +7,13 @@
 // in at the water.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { pipe, vessel, tube, slab, V, roundedPath } from './parts.js?v=a7f82a57a1';
-import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles, frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=a7f82a57a1';
-import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=a7f82a57a1';
-import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=a7f82a57a1';
-import { Machines } from '../machines.js?v=a7f82a57a1';
-import { instantiate } from './model.js?v=a7f82a57a1';
-import { SectionCap } from './section.js?v=a7f82a57a1';
+import { pipe, vessel, tube, slab, V, roundedPath } from './parts.js?v=03485aad37';
+import { liquidMaterial, steamMaterial, rippleNormal, Riser, Drip, Bubbles, frameOf, setGradient, gradientise, twoOctaveFlow, LOWFX, SEA_TILE } from './fluid.js?v=03485aad37';
+import { tempColor, waterColor, heatOf, loopHeat, paleSRGB } from './materials.js?v=03485aad37';
+import { Leg, Circuit, Surface, FLUID, clamp, lerp, hash1 } from '../flow.js?v=03485aad37';
+import { Machines } from '../machines.js?v=03485aad37';
+import { instantiate } from './model.js?v=03485aad37';
+import { SectionCap } from './section.js?v=03485aad37';
 
 const R_IN = 15.4, WALL = 1.0, SHELL_H = 31, DOME_R = R_IN + WALL;
 
@@ -37,7 +37,9 @@ export const L = {
   // circuit can be read at a glance. It was moved back behind them once to keep
   // the legs out of the water and that was the wrong trade: a tank you can see
   // with two posts in it beats a tank you cannot see.
-  tank: { x: -8.5, z: 0, w: 9.4, d: 6.0, h: 4.4 },
+  // Set back from the cut and shallower, so the boiler's two columns (at
+  // z = -2.2) stand behind it instead of running down through its water.
+  tank: { x: -8.5, z: 0.6, w: 9.4, d: 4.0, h: 4.4 },
   // On the REACTOR side of the tank. Standing it on the far side meant the
   // suction ran left out of the tank and the discharge then ran right again,
   // back underneath the tank it had just come from: a pump that appears to
@@ -882,7 +884,7 @@ export class Unit {
     // keeps it: the spent steam falls straight down.
     const AX = 10.4, X0 = t.x - 6.5, X1 = t.x - 1.7;
     this.turbLen = X1 - X0;
-    const GX = t.x + 0.6;
+    const GX = t.x + 1.0;   // the generator, and the lamp above it
     // The casing, the shaft, the bearings, the wheel, the generator and the
     // lamp on its pole are the model's; the wheel turns under 'turb_rotor'.
     this.rotor = this.model.turb_rotor;
@@ -1073,9 +1075,12 @@ export class Unit {
     // Steam that comes in at one end, crosses the wheel and leaves through
     // the floor at the other explains a wheel being pushed round.
     const SX = R_IN - 0.9;
+    // ...and IN THROUGH THE TOP of the casing near its narrow end. On the
+    // axis it shared the end wall with the shaft, and the shaft ran inside
+    // the steam pipe.
     this.steam = pipe([
       V(s.x, SG_BASE + 18.6, s.z), V(s.x, 31.4, s.z),
-      V(SX, 31.4, t.z), V(SX, AX, t.z), V(X0 + 0.6, AX, t.z)
+      V(SX, 31.4, t.z), V(SX, 14.0, t.z), V(X0 + 1.2, 14.0, t.z), V(X0 + 1.2, AX + 1.5, t.z)
     ], 1.2, m, { bend: 3.0, steam: true, ...this.pipeOpts });
     this.steam.kindBreak = 'steamline';
     this.steam.leg = this.legSteam;
@@ -1272,7 +1277,7 @@ export class Unit {
       // Into the top of the vessel, not into its side: the water has to be
       // seen arriving somewhere, and a line that stops against a wall is a
       // line that goes nowhere.
-      const IN = V(GX, r.base + 15.6, r.z);
+      const IN = V(GX, r.base + 16.4, r.z);
       const fill = pipe([VALVE.clone(), IN.clone()], 0.5, m, { bend: 0.6, ...this.pipeOpts });
       fill.kindBreak = 'gravity';
       fill.leg = this.legFill; g.add(fill.group);
@@ -1316,7 +1321,7 @@ export class Unit {
       this.legInj = new Leg('injection', 0.25, 2, { rho: FLUID.rhoCold });
       this.inject = new Circuit('inject', [this.legSuct, this.legInj]);
       const suct = pipe([
-        V(t.x + t.w / 2 - 0.8, 0.8, t.z), V(e.x, 0.8, e.z), V(e.x, 1.1, e.z)
+        V(t.x + t.w / 2 - 0.8, 0.8, e.z), V(e.x, 0.8, e.z), V(e.x, 1.1, e.z)
       ], 0.5, m, { bend: 1.0, ...this.pipeOpts });
       suct.kindBreak = 'inject';
       suct.leg = this.legSuct; g.add(suct.group);
@@ -1336,8 +1341,8 @@ export class Unit {
 // ---------------------------------------------------------------------------
 // per frame: solve the flows, step the machines, and let the geometry follow
 // ---------------------------------------------------------------------------
-import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=a7f82a57a1';
-import { Plume, PuffCloud } from './plume.js?v=a7f82a57a1';
+import { ratedMdot, naturalMdot, THERMAL_W } from '../flow.js?v=03485aad37';
+import { Plume, PuffCloud } from './plume.js?v=03485aad37';
 
 Object.assign(Unit.prototype, {
 

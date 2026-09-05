@@ -1085,10 +1085,10 @@
     "id": "B2",
     "area": "Model from Blender",
     "raised": "2026-09-03",
-    "verified": "2026-09-04",
+    "verified": "2026-09-05",
     "status": "DONE",
     "req": "The parts that move or light up must still be driven by the simulation once the geometry comes from a file.",
-    "check": "The turbine wheel is built under an empty named turb_rotor, each pump's hub and vanes under <pump>_rotor, and the lamps, busbars, valve and skirt keep their own names; model.js keeps those as live objects (with their world transform, so a rotor turns about its own axis) and unit.js turns, lights and hides them exactly as before. The glTF conversion leaves the layout's axes intact: a rotor's local x is the shaft.",
+    "check": "The turbine wheel is built under an empty named turb_rotor, each pump's hub and vanes under <pump>_rotor, and the lamps, busbars, valve and skirt keep their own names; model.js keeps those as live objects (with their world transform, so a rotor turns about its own axis) and unit.js turns, lights and hides them exactly as before. The turbine wheel and generator stand on the table described in R13. The glTF conversion leaves the layout's axes intact: a rotor's local x is the shaft.",
     "proof": [
       {
         "img": "proof/B2_live_parts.png",
@@ -1229,10 +1229,10 @@
     "id": "R9",
     "area": "Sixth review",
     "raised": "2026-09-04",
-    "verified": "2026-09-04",
+    "verified": "2026-09-05",
     "status": "DONE",
     "req": "Get rid of the huge grey thing below the boiler; it serves no purpose and the two columns were better.",
-    "check": "The pedestal block is gone. The boiler stands on two columns in the kept half of the picture (z = -1.7, 1.5 m either side of the axis), floor to the underside of the head.",
+    "check": "The pedestal block is gone. The boiler stands on two columns in the kept half of the picture (z = -2.2, 1.0 m either side of the axis, behind the emergency tank, R14), floor to the underside of the head.",
     "proof": [
       {
         "img": "proof/R9_boiler_columns.png",
@@ -1274,14 +1274,63 @@
     "id": "R12",
     "area": "Sixth review",
     "raised": "2026-09-04",
-    "verified": "2026-09-04",
+    "verified": "2026-09-05",
     "status": "DONE",
     "req": "Weird grey hollow supports everywhere.",
-    "check": "A support the cut plane sliced showed its inside, because the model's materials are two-sided and the model has no section caps. Every support now either lives wholly in the kept half (turbine bearing pedestals at z = -0.9, condenser saddles at z = -1.0, boiler columns at z = -1.7, generator pedestal at z = -2.6) or is built as a solid half with a flat face at the plane (the reactor pedestal, the sea pump's plinth). Nothing structural is cut open any more; only the vessels and casings are, which is the point of the cutaway.",
+    "check": "A support the cut plane sliced showed its inside, because the model's materials are two-sided and the model has no section caps. Every support now either lives wholly in the kept half (turbine bearing pedestals at z = -0.9, condenser saddles at z = -1.0, boiler columns at z = -1.7, generator pedestal at z = -2.6) or is built as a solid half with a flat face at the plane (the reactor pedestal, the sea pump's plinth). Nothing structural is cut open any more; only the vessels and casings are, which is the point of the cutaway. The turbine hall's supports are now a table on columns (R13).",
     "proof": [
       {
         "img": "proof/R12_supports_solid.png",
         "caption": "Bearing pedestals and condenser saddles behind the cut, solid"
+      }
+    ]
+  },
+  {
+    "id": "R13",
+    "area": "Seventh review",
+    "raised": "2026-09-05",
+    "verified": "2026-09-05",
+    "status": "DONE",
+    "req": "In the turbine hall: the steam pipe enters on the shaft's axis so the shaft runs inside it; the two bearing pedestals float in the air touching neither the ground nor the bearings; the generator sits on a thin post; its end shields read as collars on the shaft.",
+    "check": "The steam line now comes down into the TOP of the casing near its narrow end (the layout's steam run ends at x 20.7, y 11.9, casing trimmed to the sloped cone), so the shaft alone owns the axis and passes out through both end walls into its bearings. The turbine and generator stand on a concrete table: a beam behind the cut (z -2.0) on two columns to the ground at x 17.9 and 28.9, a block under each bearing from the beam top up to the bearing housing, and a block under the generator, which moved 0.4 m right so the bearing between it and the casing is clear of it. The end shields are gone. Nothing in the hall floats and nothing is a collar.",
+    "proof": [
+      {
+        "img": "proof/R13_turbine_table.png",
+        "caption": "Steam in through the casing top; shaft, bearings, generator on their table; no end shields"
+      }
+    ]
+  },
+  {
+    "id": "R14",
+    "area": "Seventh review",
+    "raised": "2026-09-05",
+    "verified": "2026-09-05",
+    "status": "DONE",
+    "req": "The boiler's two columns ran down through the emergency water tank standing under the boiler.",
+    "check": "The tank is set back to z 0.6 and shortened to 4.0 m deep (its water and level are unchanged; the plant model does not read the box), and the columns stand at z -2.2, 1.0 m either side of the boiler's axis, up into the underside of the head: behind the tank, not through it.",
+    "proof": [
+      {
+        "img": "proof/R14_tank_columns.png",
+        "caption": "The tank under the boiler with both columns standing behind it"
+      }
+    ]
+  },
+  {
+    "id": "R15",
+    "area": "Seventh review",
+    "raised": "2026-09-05",
+    "verified": "2026-09-05",
+    "status": "DONE",
+    "req": "Re-verify every junction: no casing may protrude into the thing it enters, and no water may show as a stub where there is no water.",
+    "check": "Walked every penetration on fresh close-ups: reactor (two legs, the residual heat loop's two ends, the gravity fill), boiler head (two legs), boiler shell (feed, whose casing now runs on inside the shell to the downcomer it discharges into rather than leaving a bare rod of water crossing the steam space; steam out of the dome), pumps (suction and discharge of all four), condenser plates (condensate out, sea in and out), turbine (steam in at the top, exhaust out of the floor into the shell), vent through the wall, pool floor (gravity line and both heat-exchanger legs). The gravity fill's water used to run 0.8 m into the empty head as a blue stub; it now stops just inside the head wall and the pour starts there.",
+    "proof": [
+      {
+        "img": "proof/R15_feed_inside.png",
+        "caption": "The feed line's steel carried across the steam space to the downcomer"
+      },
+      {
+        "img": "proof/R15_fill_head.png",
+        "caption": "The gravity line into the head with no stub inside it"
       }
     ]
   }

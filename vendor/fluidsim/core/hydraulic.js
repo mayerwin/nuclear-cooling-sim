@@ -27,9 +27,9 @@
 // host's imposed pressure reads back bit-identical.
 // ---------------------------------------------------------------------------
 
-import { clamp, num, sign0, smoothstep, growF64, growI32, growU8 } from './util.js?v=a7f82a57a1';
-import { ldl, ldlSolve, pcg, LDL_EPS } from './linalg.js?v=a7f82a57a1';
-import { G, tsat } from './props.js?v=a7f82a57a1';
+import { clamp, num, sign0, smoothstep, growF64, growI32, growU8 } from './util.js?v=03485aad37';
+import { ldl, ldlSolve, pcg, LDL_EPS } from './linalg.js?v=03485aad37';
+import { G, tsat } from './props.js?v=03485aad37';
 
 // --- limits -----------------------------------------------------------------
 // The laminar resistance floor is DERIVED FROM A VISCOSITY FLOOR rather than

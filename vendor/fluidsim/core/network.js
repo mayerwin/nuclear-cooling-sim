@@ -29,9 +29,9 @@
 // only allocation here happens inside an edit, which is a user action.
 // ---------------------------------------------------------------------------
 
-import { clamp, num } from './util.js?v=a7f82a57a1';
-import { polylineLength, buildShape, splitPts } from './geometry.js?v=a7f82a57a1';
-import { hasFluid, fluidNames, degK } from './props.js?v=a7f82a57a1';
+import { clamp, num } from './util.js?v=03485aad37';
+import { polylineLength, buildShape, splitPts } from './geometry.js?v=03485aad37';
+import { hasFluid, fluidNames, degK } from './props.js?v=03485aad37';
 
 export const DEFAULTS = Object.freeze({
   fluid: 'water', rough: 4.5e-5, bend: 0.6, cells: 8, cd: 0.61

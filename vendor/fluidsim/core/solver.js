@@ -25,14 +25,14 @@
 // SI THROUGHOUT: kg/s, Pa absolute, K, J/kg, kg/m3, Pa s, m, m2, W, s.
 // ---------------------------------------------------------------------------
 
-import { clamp, num, IdMap, growF64, growI32, growU8 } from './util.js?v=a7f82a57a1';
-import { roundedLength, elbows, bendK, areaOf, buildShape, levelOf, volumeAt, areaAt } from './geometry.js?v=a7f82a57a1';
-import { fluid, density, rhoLiquidSat, cpLiquid } from './props.js?v=a7f82a57a1';
-import { Network, NetworkError, MAX_NODES, autoRuns } from './network.js?v=a7f82a57a1';
-import { Surface } from './surface.js?v=a7f82a57a1';
-import { Hydraulic, pAt } from './hydraulic.js?v=a7f82a57a1';
-import { Thermal, stateOf, hOf, K_BULK } from './thermal.js?v=a7f82a57a1';
-import { publish, EdgeView, VolumeView, RunView } from './view.js?v=a7f82a57a1';
+import { clamp, num, IdMap, growF64, growI32, growU8 } from './util.js?v=03485aad37';
+import { roundedLength, elbows, bendK, areaOf, buildShape, levelOf, volumeAt, areaAt } from './geometry.js?v=03485aad37';
+import { fluid, density, rhoLiquidSat, cpLiquid } from './props.js?v=03485aad37';
+import { Network, NetworkError, MAX_NODES, autoRuns } from './network.js?v=03485aad37';
+import { Surface } from './surface.js?v=03485aad37';
+import { Hydraulic, pAt } from './hydraulic.js?v=03485aad37';
+import { Thermal, stateOf, hOf, K_BULK } from './thermal.js?v=03485aad37';
+import { publish, EdgeView, VolumeView, RunView } from './view.js?v=03485aad37';
 
 export const DEFAULT_OPTS = Object.freeze({
   maxIter: 8, tol: 1e-4, maxDt: 10, maxSub: 8, inertia: true,

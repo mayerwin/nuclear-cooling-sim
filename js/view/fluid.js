@@ -30,10 +30,10 @@ import {
   liquidMaterial, steamMaterial, surfaceMaterial, bodyMaterial,
   fleckMaterial, bubbleMaterial, dropMaterial, puffMaterial, casingMaterial,
   FLUID_TIME, advanceTime, quality, setQuality
-} from '../../vendor/fluidsim/three/materials.js?v=a7f82a57a1';
+} from '../../vendor/fluidsim/three/materials.js?v=03485aad37';
 import {
   Tracers, Riser, Drip, PuffCloud, frameOf
-} from '../../vendor/fluidsim/three/particles.js?v=a7f82a57a1';
+} from '../../vendor/fluidsim/three/particles.js?v=03485aad37';
 
 export {
   flowNormal, rippleNormal, streakTexture,

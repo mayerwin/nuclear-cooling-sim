@@ -15,21 +15,21 @@ export {
   liquidMaterial, surfaceMaterial, bodyMaterial, steamMaterial,
   fleckMaterial, bubbleMaterial, dropMaterial, puffMaterial, casingMaterial,
   build
-} from './materials.js?v=a7f82a57a1';
+} from './materials.js?v=03485aad37';
 
 export {
   V, toPoints, roundedPath, pipe, fluidRod, vessel, waterColumn, ripple
-} from './pipe.js?v=a7f82a57a1';
+} from './pipe.js?v=03485aad37';
 
 export {
   frameOf, Tracers, Riser, Drip, PuffCloud, Plume, puffPointMaterial
-} from './particles.js?v=a7f82a57a1';
+} from './particles.js?v=03485aad37';
 
 export {
   planeAt, sectionFrame, halfCut, aim, applyCut, SectionCap, enableClipping
-} from './cut.js?v=a7f82a57a1';
+} from './cut.js?v=03485aad37';
 
 // The join between the two halves: a network and a scene in, fluid bodies out,
 // and one call a frame that reads the solver and paints what it built.
-export { attach } from './attach.js?v=a7f82a57a1';
-export { FluidFrame } from './frame.js?v=a7f82a57a1';
+export { attach } from './attach.js?v=03485aad37';
+export { FluidFrame } from './frame.js?v=03485aad37';

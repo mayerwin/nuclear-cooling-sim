@@ -15,7 +15,7 @@
 // screenshot a proof.
 // ---------------------------------------------------------------------------
 
-import { G } from './props.js?v=a7f82a57a1';
+import { G } from './props.js?v=03485aad37';
 
 // NaN lands on the lower bound rather than passing through: see the same note
 // in props.js. One NaN reaching a vertex position takes the whole body of

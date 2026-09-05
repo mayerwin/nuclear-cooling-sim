@@ -136,6 +136,39 @@ materials, layout or the section: the pictures must be from the build shipped.
 Layout constants (`L` in unit.js) put every machine in one vertical plane;
 `CUT_AZ` is the heading the section faces. Local +z is the removed half.
 
+## Seventh round (2026-09-05): the turbine hall, and every junction walked again
+
+88 requirements: 82 DONE, 5 WATCH, 1 OPEN (L4, L5 are the library agent's).
+The owner's screenshot of the turbine hall, and a re-review of the whole app
+(register R13 to R15):
+
+- STEAM IN THROUGH THE TOP. The steam line used to arrive on the casing's
+  axis, so the shaft ran inside the steam pipe. It now comes down into the
+  top of the casing near its narrow end (layout `pipes.steam`, last two
+  points; trim to the sloped cone). The shaft alone owns the axis.
+- A TABLE, NOT FLOATING BLOCKS. `turbine.table` in the layout: a beam behind
+  the cut on two columns to the ground, a block under each bearing up to its
+  housing, a block under the generator; the generator moved 0.4 m right so
+  the bearing between it and the casing is clear; the end shields (collars
+  on the shaft) are gone. `plant.py build_turbine` reads all of it.
+- THE TANK AND THE COLUMNS. The boiler's columns ran through the emergency
+  tank under it. The tank is at z 0.6, 4.0 m deep (`L.tank` in unit.js and
+  `active.tank` in the layout agree); the columns stand at z -2.2 behind it.
+- JUNCTIONS RE-WALKED (R15). The feed's casing now runs on inside the
+  boiler shell to the downcomer (trim 0.8 instead of stopping at the wall,
+  which left a bare rod of water crossing the steam space); the gravity
+  fill's water stops just inside the head wall (`IN` at base + 16.4) instead
+  of 0.8 m into the empty head.
+- NOT DONE ON PURPOSE: recolouring the sea outfall. Its ten-degree rise is
+  drawn with gain 10 and painted on its own span, so it leaves as red as the
+  hot leg. Painting it on a wider span put the outlet on the palette's
+  cream midpoint and the sea left the condenser brown. The palette
+  (blue, cream, orange) has no "slightly warm blue"; leave the outfall red
+  until the palette changes, and say so if the owner asks.
+- `tools/eval.mjs`: `EXPR='...' node tools/eval.mjs` boots the plant view
+  and prints a value from the running model, for reading a number instead
+  of guessing at it.
+
 ## Sixth round (2026-09-04): junctions, supports, the reactor's rings, the passive side
 
 85 requirements: 79 DONE, 5 WATCH, 1 OPEN (L5 and the WATCH L4 belong to the

@@ -486,10 +486,18 @@ def build_turbine():
     ax, x0, x1 = T['ax'], T['x0'], T['x1']
     # the casing: a cone along x, closed at both ends, dark inside
     cylinder('turb_casing', T['r0'], T['r1'], x1 - x0, 'casing_dark', (x0 + x1) / 2, ax, 0, segments=48, axis='x')
-    # bearing pedestals under each end of the shaft, set back into the kept half
-    for i, px in enumerate((x0 - 0.9, x1 + 0.9)):
-        box('turb_bearing_%d' % i, 1.0, 1.4, 1.2, 'deck', px, ax - 3.9 + 0.7, T.get('bearing_z', -0.9))
-        cylinder('turb_bearing_cap_%d' % i, 0.7, 0.7, 0.9, 'painted', px, ax, 0, segments=24, axis='x')
+    # The table: a beam behind the cut on two columns to the ground, a block
+    # under each bearing up to its housing, a block under the generator.
+    Tb = T['table']
+    beam_y = Tb['top'] - Tb['h']
+    box('tg_beam', Tb['x1'] - Tb['x0'], Tb['h'], Tb['d'], 'deck', (Tb['x0'] + Tb['x1']) / 2, beam_y + Tb['h'] / 2, Tb['z'])
+    for i, cx in enumerate(Tb['columns']['x']):
+        box('tg_col_%d' % i, Tb['columns']['w'], beam_y, Tb['d'], 'deck', cx, beam_y / 2, Tb['z'])
+    B = T['bearings']
+    for i, px in enumerate(B['x']):
+        bh = (ax - B['cap']['r']) - Tb['top']
+        box('turb_bearing_%d' % i, B['block']['w'], bh, B['block']['d'], 'deck', px, Tb['top'] + bh / 2, B['block']['z'])
+        cylinder('turb_bearing_cap_%d' % i, B['cap']['r'], B['cap']['r'], B['cap']['len'], 'painted', px, ax, 0, segments=24, axis='x')
     S = T['shaft']
     cylinder('turb_shaft', S['r'], S['r'], S['len'], 'steel', S['x'], ax, 0, segments=20, axis='x')
     # the wheel: hub, a ring of curved buckets, a translucent disc and the shroud
@@ -512,10 +520,9 @@ def build_turbine():
     G = T['gen']
     box('gen_body', G['w'], G['h'], G['d'], 'painted', G['x'], ax, 0)
     box('gen_band', 0.45, G['h'] + 0.15, G['d'] + 0.15, 'copper', G['x'], ax, 0)
-    for i, dx in enumerate((-1.0, 1.0)):
-        cylinder('gen_endshield_%d' % i, 1.15, 1.15, 0.25, 'steel', G['x'] + dx * (G['w'] / 2 + 0.12), ax, 0, segments=32, axis='x')
-    P = T['pedestal']
-    box('gen_pedestal', P['w'], P['h'], P['d'], 'deck', P['x'], P['h'] / 2, P['z'])
+    gb = Tb['gen_block']
+    gh = (ax - G['h'] / 2) - Tb['top']
+    box('gen_block', gb['w'], gh, gb['d'], 'deck', G['x'], Tb['top'] + gh / 2, gb['z'])
     # the lamp on its pole, straight up out of the generator
     Lm = T['lamp']
     cylinder('lamp_pole', 0.13, 0.16, Lm['pole_h'], 'rail', Lm['x'], ax + G['h'] / 2 + Lm['pole_h'] / 2, 0, segments=10)
@@ -626,11 +633,12 @@ def build_active():
     _col = collection('active')
     A = L['active']
     T = A['tank']
-    box('tank_floor', T['w'], 0.4, T['d'], 'painted', T['x'], 0.2, 0)
+    tz = T.get('z', 0.0)
+    box('tank_floor', T['w'], 0.4, T['d'], 'painted', T['x'], 0.2, tz)
     for i, (ax_, az) in enumerate(((1, 0), (-1, 0), (0, 1), (0, -1))):
         w = T['lip'] if ax_ else T['w'] + T['lip'] * 2
         d = T['lip'] if az else T['d'] + T['lip'] * 2
-        box('tank_wall_%d' % i, w, T['h'], d, 'tank', T['x'] + ax_ * (T['w'] / 2 + T['lip'] / 2), T['h'] / 2, az * (T['d'] / 2 + T['lip'] / 2))
+        box('tank_wall_%d' % i, w, T['h'], d, 'tank', T['x'] + ax_ * (T['w'] / 2 + T['lip'] / 2), T['h'] / 2, tz + az * (T['d'] / 2 + T['lip'] / 2))
     E = A['eccs']
     build_pump('eccs', E['x'], E['y'], 0, E['scale'])
     pipe('pipe_suction', A['suction'], material='pipe')

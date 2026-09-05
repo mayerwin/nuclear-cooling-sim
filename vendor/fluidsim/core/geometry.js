@@ -50,7 +50,7 @@
 // two disagree, three's is the approximation.)
 // ---------------------------------------------------------------------------
 
-import { clamp, num, lerp, Table } from './util.js?v=a7f82a57a1';
+import { clamp, num, lerp, Table } from './util.js?v=03485aad37';
 
 // The fraction of a leg a corner may consume, from pipe.js. Not a physical
 // number: it is there so a corner bends as far as it can instead of

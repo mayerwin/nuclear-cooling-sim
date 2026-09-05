@@ -238,9 +238,9 @@
     "steam_out_y": 29.9,
     "columns": {
       "r": 0.35,
-      "dx": 1.5,
-      "z": -1.7,
-      "top": 11.6
+      "dx": 1.0,
+      "z": -2.2,
+      "top": 12.6
     }
   },
   "rcp": {
@@ -348,6 +348,10 @@
     "steam": {
       "dia": 1.2,
       "bend": 3.0,
+      "trim": [
+        0.34,
+        0.95
+      ],
       "pts": [
         [
           -8.5,
@@ -366,18 +370,19 @@
         ],
         [
           14.5,
-          10.4,
+          14.0,
           0
         ],
         [
-          20.1,
-          10.4,
+          20.7,
+          14.0,
+          0
+        ],
+        [
+          20.7,
+          11.9,
           0
         ]
-      ],
-      "trim": [
-        0.34,
-        0.54
       ]
     },
     "feed": {
@@ -417,7 +422,7 @@
       ],
       "trim": [
         0.16,
-        2.14
+        0.8
       ]
     },
     "exhaust": {
@@ -580,24 +585,52 @@
       "blades": 32
     },
     "gen": {
-      "x": 26.6,
+      "x": 27.0,
       "w": 3.0,
       "h": 2.6,
       "d": 2.6
     },
-    "pedestal": {
-      "x": 26.0,
-      "w": 0.7,
-      "h": 9.0,
-      "d": 1.6,
-      "z": -2.6
-    },
     "lamp": {
-      "x": 26.6,
+      "x": 27.0,
       "y": 14.8,
       "pole_h": 3.4
     },
-    "bearing_z": -0.9
+    "bearings": {
+      "x": [
+        18.6,
+        25.0
+      ],
+      "block": {
+        "w": 1.0,
+        "d": 1.4,
+        "z": -1.1
+      },
+      "cap": {
+        "r": 0.7,
+        "len": 0.9
+      }
+    },
+    "table": {
+      "x0": 17.5,
+      "x1": 29.3,
+      "top": 7.4,
+      "h": 0.9,
+      "z": -2.0,
+      "d": 1.2,
+      "columns": {
+        "x": [
+          17.9,
+          28.9
+        ],
+        "w": 0.8
+      },
+      "gen_block": {
+        "w": 2.4,
+        "d": 1.4,
+        "z": -1.1
+      }
+    },
+    "_": "The turbine and generator stand on a concrete table: a beam behind the cut on two columns to the ground, a block under each bearing up to its housing and one under the generator. Steam comes in through the top of the casing near its narrow end; the shaft alone runs along the axis."
   },
   "condenser": {
     "x": 23.5,
@@ -766,13 +799,13 @@
         ],
         [
           2.9,
-          18.2,
+          19.0,
           0
         ]
       ],
       "trim": [
         0,
-        0.74
+        0
       ]
     },
     "valve": {
@@ -814,9 +847,10 @@
     "tank": {
       "x": -8.5,
       "w": 9.4,
-      "d": 6.0,
+      "d": 4.0,
       "h": 4.4,
-      "lip": 0.4
+      "lip": 0.4,
+      "z": 0.6
     },
     "eccs": {
       "x": -2.3,

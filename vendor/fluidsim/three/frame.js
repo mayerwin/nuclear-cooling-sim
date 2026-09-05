@@ -16,8 +16,8 @@
 // ---------------------------------------------------------------------------
 
 import * as THREE from 'three';
-import { paint, tintVapour, colourOf, advanceTime } from './materials.js?v=a7f82a57a1';
-import { ripple } from './pipe.js?v=a7f82a57a1';
+import { paint, tintVapour, colourOf, advanceTime } from './materials.js?v=03485aad37';
+import { ripple } from './pipe.js?v=03485aad37';
 
 // Scratch. update() runs sixty times a second per body; allocating a THREE
 // .Color per body per frame is a dozen allocations a frame per machine, which

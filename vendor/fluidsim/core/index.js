@@ -10,11 +10,11 @@
 // only wants numbers never loads a line of it.
 // ---------------------------------------------------------------------------
 
-export { Network, validate, NetworkError, autoRuns, components, DEFAULTS } from './network.js?v=a7f82a57a1';
-export { Solver, DEFAULT_OPTS } from './solver.js?v=a7f82a57a1';
-export { Surface } from './surface.js?v=a7f82a57a1';
-export * as props from './props.js?v=a7f82a57a1';
-export * as geometry from './geometry.js?v=a7f82a57a1';
-export * as colour from './colour.js?v=a7f82a57a1';
+export { Network, validate, NetworkError, autoRuns, components, DEFAULTS } from './network.js?v=03485aad37';
+export { Solver, DEFAULT_OPTS } from './solver.js?v=03485aad37';
+export { Surface } from './surface.js?v=03485aad37';
+export * as props from './props.js?v=03485aad37';
+export * as geometry from './geometry.js?v=03485aad37';
+export * as colour from './colour.js?v=03485aad37';
 
 export const VERSION = '0.1.0';
