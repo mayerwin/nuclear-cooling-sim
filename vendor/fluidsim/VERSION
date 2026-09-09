@@ -1,0 +1,28 @@
+This directory is a copy of 3d-fluid-simulator/src, taken by tools/vendor.mjs.
+Do not edit it here: edit the library and take the copy again.
+
+commit 7e95ec04f766b939ba6f86eccf2a05a0abcdcb11
+dated  2026-09-08T17:53:17-10:00
+
+  core/colour.js              6235 bytes
+  core/geometry.js           34649 bytes
+  core/hydraulic.js         119580 bytes
+  core/index.js                951 bytes
+  core/linalg.js              9806 bytes
+  core/network.js            74950 bytes
+  core/props.js              24707 bytes
+  core/solver.js             98579 bytes
+  core/surface.js            10958 bytes
+  core/thermal.js           114783 bytes
+  core/util.js                7894 bytes
+  core/view.js               21057 bytes
+  three/attach.js            32210 bytes
+  three/cut.js                8763 bytes
+  three/frame.js             13982 bytes
+  three/index.js              1328 bytes
+  three/materials.js         25755 bytes
+  three/particles.js         24882 bytes
+  three/pipe.js              11781 bytes
+
+A consumer that stamps module URLs for cache busting rewrites the query
+strings inside these files; tools/vendor.mjs --check ignores those.

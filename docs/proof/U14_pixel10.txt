@@ -1,0 +1,12 @@
+Not measured on a Pixel 10. None is attached to the laptop, and the Android
+emulator that is (sdk_gphone64_x86_64, Chrome 113) became unreachable when a
+VPN client cut TCP over loopback, which is what adb uses.
+
+What is known about the phone path, from the laptop's GPU under Pixel-class
+emulation (412x915 at 2.625x, Android UA, this build):
+  phone defaults      5.4 ms/frame   418 draws  387k triangles  1x pixels
+  every option on     9.0 ms/frame   854 draws  644k triangles  1.5x pixels
+A Pixel 10's GPU is several times slower than the laptop's Intel Arc, so
+these are floors, not predictions. On the phone itself the first-run tuner
+(U13) measures the real frame gap and steps down until the median is under
+37 ms, so a slow result adjusts itself; a Pixel 10 number is still owed.

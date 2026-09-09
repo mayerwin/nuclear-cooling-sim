@@ -1,0 +1,19 @@
+Chrome 151 on the laptop, Pixel-class phone emulation (412x915, 2.625x, Android UA), CPU throttled 8x, ?tune=1.
+Shipped phone defaults: refraction, bloom, shadows, full pixel density off; reflections, bubbles, steam on; 1x pixels.
+Median frame time over each two-second window, and what came off:
+   7s  179 ms  -> resolution 80%
+  16s  225 ms  -> steam off
+  23s  224 ms  -> resolution 65%
+  27s  258 ms  -> bubbles off
+  31s  167 ms  -> resolution 50%
+  37s   97 ms  ladder used up: stopped and stored
+Panel: "Adjusted for this device: steam, bubbles off, resolution 50%. Was 6 fps, now 10 fps."
+Reload without ?tune=1: the stored settings are applied, nothing measured again.
+Bloom ticked by hand: stored as the visitor's own ("Set by hand. Measure again to let the app choose.").
+Measure again, unthrottled: "Measured 112 fps first time. Nothing turned off."
+(The 8x CPU throttle makes the frame CPU-bound, which is why the fill rungs gain little here; on a phone the fill is what usually binds.)
+
+Desktop, 1500x950, every option on by hand, CPU throttled 6x:
+ 13s  350 ms -> bloom off; 21s 366 ms -> refraction off; 25s 259 ms -> full pixel density off;
+ 30s  274 ms -> shadows off; 43s 163 ms -> resolution 80%; 48s 172 ms -> steam off;
+ 52s  115 ms -> resolution 65%; 57s 133 ms -> bubbles off (test window ended at 60s).

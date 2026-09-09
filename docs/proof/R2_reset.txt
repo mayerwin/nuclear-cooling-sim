@@ -1,0 +1,9 @@
+Probe on the laptop GPU, this build, 2026-09-02. Unit A, hot leg broken by
+rupture(), 100 model steps, then sim.reset(), then rupture() again.
+
+after break   {"broken":true,"fx":1,"leak":45,"children":138}
+after reset   {"broken":false,"fx":0,"leak":0,"children":135,"qBroken":0}
+re-break      {"rebreakable":true}
+
+Before: plant.broken survived reset, so the wound stayed on screen and the
+same pipe could never be broken again.

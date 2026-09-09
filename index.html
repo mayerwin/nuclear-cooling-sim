@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Passive cooling, watched</title>
+<meta name="description" content="Two nuclear stations, one with active cooling and one with passive cooling, taken through the same accidents. Watch which one survives.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230e1a24'/%3E%3Cpath d='M6 24h20' stroke='%237f8b96' stroke-width='2.5' stroke-linecap='round'/%3E%3Cpath d='M11 24V13a5 5 0 0 1 10 0v11' fill='none' stroke='%234ea8e0' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%23ff8a4c'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/app.css?v=d7d0f53269">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
+</script>
+</head>
+<body>
+
+<canvas id="site"></canvas>
+<div id="vig"></div>
+<div id="scene"></div>
+<div id="labels"></div>
+
+<header id="bar">
+  <div class="clock"><b id="clock">00:00:00</b><small>time since the initiating event</small></div>
+  <div class="seg" id="viewSeg">
+    <button data-view="site" class="on">Site</button>
+    <button data-view="plant">Inside</button>
+  </div>
+  <div class="seg" id="focusSeg">
+    <button data-focus="active">Active</button>
+    <button data-focus="both" class="on">Both</button>
+    <button data-focus="passive">Passive</button>
+  </div>
+  <div class="seg" id="speedSeg"></div>
+  <button class="icon mob" id="btnLeft" title="What happened">☰</button>
+  <button class="icon mob" id="btnRight" title="Reactors">◧</button>
+  <button class="icon" id="btnHelp" title="Controls">?</button>
+  <button class="icon" id="btnSound" title="Sound">🔊</button>
+  <button class="icon" id="btnView" title="Reset the view (WASD moves it)">⛶</button>
+  <button class="icon" id="btnCfg" title="Graphics settings">⚙</button>
+  <button class="icon" id="btnReset" title="Restart the scenario">↺</button>
+</header>
+
+<aside id="left" class="panel">
+  <h2>What happened</h2>
+  <div id="scenarios"></div>
+  <label class="toggle"><input type="checkbox" id="tgSabotage">
+    <span>Disable the passive systems</span></label>
+  <p class="hint">Turn this on and the Gen III+ unit loses the things that make it
+    passive. It is the fastest way to see that the difference is real.</p>
+</aside>
+
+<aside id="right" class="panel">
+  <h2>Reactors</h2>
+  <div id="telemetry"></div>
+</aside>
+
+<section id="feed"><div id="feedInner"></div></section>
+
+<!-- Graphics settings. Each row is one of the things that costs a frame, so a
+     slow device can be told which one it cannot afford. -->
+<aside id="cfg">
+  <h4>Graphics</h4>
+  <label><input type="checkbox" data-q="refraction"> Refraction <small>real see-through water; costs about a third of the frame rate</small></label>
+  <label><input type="checkbox" data-q="bloom"> Bloom <small>glow round hot and lit things</small></label>
+  <label><input type="checkbox" data-q="shadows"> Shadows</label>
+  <label><input type="checkbox" data-q="reflections"> Reflections <small>on metal and glass</small></label>
+  <label><input type="checkbox" data-q="hidpi"> Full pixel density <small>sharper, half again the fill</small></label>
+  <label><input type="checkbox" data-q="particles"> Bubbles and drops</label>
+  <label><input type="checkbox" data-q="steam"> Steam volumes</label>
+  <label class="range"><span>Resolution</span><input type="range" id="cfgScale" min="50" max="100" step="5" value="100"><b id="cfgScaleV">100%</b><small>drawn smaller and stretched; the biggest lever on a phone</small></label>
+  <div class="cfgStats" id="cfgStats">-</div>
+  <div class="cfgNote" id="cfgNote"></div>
+  <button class="btn" id="cfgOk">Close</button>
+  <button class="btn" id="cfgRetest" title="Measure this device again and choose the settings from that">Measure again</button>
+</aside>
+
+<!-- Shown the first time the inside view opens, and from the ? button after
+     that. Controls read before you have seen the thing they control are
+     controls nobody remembers. -->
+<aside id="help">
+  <h4>Getting around</h4>
+  <ul>
+    <li><b>Drag</b> to turn the view, <b>scroll</b> or <b>pinch</b> to zoom.</li>
+    <li><b>W A S D</b> moves it; <b>⛶</b> puts it back.</li>
+    <li><b>Click a pipe</b> to break it.</li>
+    <li><a href="docs/requirements.html" target="_blank" rel="noopener">Requirements and proof</a>: every review point, with a screenshot.</li>
+  </ul>
+  <button class="btn" id="helpOk">Got it</button>
+</aside>
+
+<div id="modal" class="modalWrap open">
+  <div class="modal">
+    <div class="kicker">A working nuclear station, cut open</div>
+    <h1>Same accident.<br>Two reactors.<br><em>One of them melts.</em></h1>
+    <p class="lede">Fukushima. Three Mile Island. Chernobyl. A total blackout. Run any of
+      them at both stations at once and watch where they part company.</p>
+    <div class="vs">
+      <div class="card a">
+        <b>Needs power</b>
+        <span>Pumps hold the water over the fuel. Take the electricity away and
+          the clock starts running.</span>
+      </div>
+      <div class="card b">
+        <b>Needs nothing</b>
+        <span>Water falls, steam rises, the outside air carries the heat off.
+          There is nothing to switch on.</span>
+      </div>
+    </div>
+    <button class="btn primary big" id="startBtn">Pick an accident</button>
+    <p class="foot">Nine of them, from the design-basis case to everything at once.
+      Break any pipe you like with a click.</p>
+    <script>
+      /* The module code wires this button too, but the module can take a
+         moment to load on a slow connection, or fail outright on a device
+         without WebGL2. The door must open regardless. */
+      document.getElementById('startBtn').addEventListener('click', function () {
+        document.getElementById('modal').classList.remove('open');
+      });
+    </script>
+    <details class="disc"><summary>What is real here, and what is not</summary>
+      <div id="ledger"></div>
+    </details>
+  </div>
+</div>
+
+<script type="module" src="js/main.js?v=d7d0f53269"></script>
+</body>
+</html>

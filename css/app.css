@@ -1,0 +1,221 @@
+:root{
+  --bg:#070c12; --ink:#e8f1f8; --dim:#93a6b6; --line:rgba(140,180,215,.14);
+  --panel:rgba(10,17,25,.9); --ok:#63e08a; --warn:#ffc44d; --bad:#ff6a55;
+  --power:#ffd35c; --act:#ff8b5c; --pass:#57d9ff;
+  --font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);
+  overflow:hidden;-webkit-font-smoothing:antialiased}
+/* --appH is the height the page can actually see, set from the visual
+   viewport every frame. On a phone that is neither 100% nor 100vh: the address
+   bar moves and the layout viewport does not follow it. */
+#site{position:fixed;top:0;left:0;width:100%;height:var(--appH,100%);display:block;
+  touch-action:none;cursor:grab}
+#site:active{cursor:grabbing}
+/* The site view's vignette, composited by the browser instead of filled
+   into the canvas every frame. --vig follows the gloom. */
+#vig{position:fixed;top:0;left:0;width:100%;height:var(--appH,100%);pointer-events:none;z-index:12;
+  background:radial-gradient(ellipse 78% 78% at 50% 50%,rgba(6,10,18,0) 46%,rgba(6,10,18,var(--vig,0.3)) 100%)}
+body.viewplant #vig{display:none}
+#scene{position:fixed;top:var(--sceneTop,0px);left:0;width:100%;
+  height:var(--sceneH,var(--appH,100%));display:none}
+body.viewplant #site{display:none}
+body.viewplant #scene{display:block}
+body:not(.viewplant) #labels{display:none}
+body:not(.viewplant) #focusSeg{display:none}
+#scene canvas{display:block}
+#labels{position:fixed;top:var(--sceneTop,0px);left:0;width:100%;
+  height:var(--sceneH,var(--appH,100%));pointer-events:none;overflow:hidden}
+.labelLayer{position:absolute;inset:0;pointer-events:none}
+
+/* ---- labels on the model ---- */
+/* The anchor is the 3-D point; the plate is offset from it by the layout pass
+   and joined back to it by a leader. */
+.anchor{width:0;height:0}
+.lead{position:absolute;left:0;top:0;height:1px;transform-origin:0 50%;
+  background:linear-gradient(90deg,rgba(150,200,235,.85),rgba(150,200,235,.25));
+  opacity:0;transition:opacity .2s}
+.lead::before{content:"";position:absolute;left:-2px;top:-2px;width:5px;height:5px;
+  border-radius:50%;background:rgba(180,220,245,.9)}
+.tag{position:absolute;left:0;top:0;transform:translate(-50%,-50%);
+  text-align:center;pointer-events:none;
+  font-size:12.5px;line-height:1.35;white-space:nowrap;
+  padding:5px 10px;border-radius:9px;
+  background:rgba(8,14,21,.8);border:1px solid rgba(150,190,225,.20);
+  text-shadow:0 1px 2px rgba(0,0,0,.85)}
+.tag b{display:block;font-weight:800;letter-spacing:.04em;font-size:13px}
+.tag span{display:block;color:#b7c8d6;font-weight:600}
+.tag em{display:block;font-style:normal;font-size:11.5px;color:#8ea3b5;font-weight:500}
+.tag i{font-style:normal;margin-left:.5em}
+.tag .ok{color:var(--ok)} .tag .bad{color:var(--bad)} .tag .warn{color:var(--warn)}
+.tag .power{color:var(--power)}
+.tag.title{background:rgba(6,11,17,.78);padding:7px 14px}
+.tag.title b{font-size:22px;letter-spacing:.10em}
+.tag.title .bAct{color:var(--act)} .tag.title .bPass{color:var(--pass)}
+.tag .chip{display:inline-block;margin-top:5px;padding:4px 12px;border-radius:999px;
+  font-size:12px;font-weight:800;letter-spacing:.02em;color:#8ff0b4;
+  background:rgba(10,44,28,.9);border:1px solid rgba(99,224,138,.55)}
+.tag .chip.bad{color:#ffb2a2;background:rgba(56,14,10,.92);border-color:rgba(255,110,80,.6)}
+
+/* ---- chrome ---- */
+#bar{position:fixed;top:0;left:0;right:0;height:58px;display:flex;align-items:center;
+  gap:14px;padding:0 14px;background:linear-gradient(#070c12f4,#070c12c8);
+  border-bottom:1px solid var(--line);z-index:20}
+.clock{display:flex;flex:0 0 auto;flex-direction:column;line-height:1.1;min-width:132px}
+.clock b{font-variant-numeric:tabular-nums;font-size:19px;letter-spacing:.04em}
+.clock small{color:var(--dim);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase}
+.seg{display:flex;flex:0 0 auto;background:rgba(255,255,255,.05);border:1px solid var(--line);
+  border-radius:9px;overflow:hidden}
+.seg button{background:none;border:0;color:var(--dim);font:600 12.5px var(--font);
+  padding:8px 13px;cursor:pointer}
+.seg button.on{background:rgba(87,217,255,.16);color:#bfeeff}
+.seg button:hover{color:var(--ink)}
+.icon{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:9px;
+  color:var(--dim);width:36px;height:34px;cursor:pointer;font-size:15px}
+.icon:hover{color:var(--ink)}
+.icon.mob{display:none}
+.icon.on{background:rgba(87,217,255,.16);color:#bfeeff}
+#bar .icon:last-of-type{margin-left:auto}
+
+/* A line of plain English next to the one number that needs it, where the
+   reader is already looking. */
+.note{color:var(--dim);font-size:11px;line-height:1.55;margin:-2px 0 9px}
+
+.panel{position:fixed;top:70px;width:274px;max-height:calc(100vh - 210px);overflow:auto;
+  background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:13px;
+  z-index:15}
+#left{left:12px} #right{right:12px}
+.panel h2{margin:0 0 9px;font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--dim);font-weight:700}
+.sc{display:block;width:100%;text-align:left;background:rgba(255,255,255,.035);
+  border:1px solid var(--line);border-radius:9px;padding:9px 10px;margin-bottom:7px;
+  color:var(--ink);cursor:pointer;font:inherit}
+.sc:hover{background:rgba(87,217,255,.1);border-color:rgba(87,217,255,.3)}
+.sc b{display:block;font-size:12.5px;font-weight:700}
+.sc small{display:block;color:var(--dim);font-size:10.5px;margin-top:2px}
+.toggle{display:flex;gap:8px;align-items:center;margin:10px 0 4px;font-size:12px;cursor:pointer}
+.hint{color:var(--dim);font-size:11px;line-height:1.5;margin:4px 0 0}
+
+.unit{border:1px solid var(--line);border-radius:10px;padding:9px;margin-bottom:9px;
+  background:rgba(255,255,255,.03)}
+.unit h3{margin:0 0 2px;font-size:12.5px}
+.unit .sub{color:var(--dim);font-size:10px;margin-bottom:7px}
+.st{display:inline-block;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:800;
+  margin-bottom:8px}
+.st.ok{background:rgba(10,44,28,.9);color:#8ff0b4;border:1px solid rgba(99,224,138,.5)}
+.st.bad{background:rgba(56,14,10,.9);color:#ffb2a2;border:1px solid rgba(255,110,80,.55)}
+.g{margin-bottom:6px}
+.g .row{display:flex;justify-content:space-between;font-size:10.5px;color:var(--dim)}
+.g .row b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.g .track{height:4px;border-radius:3px;background:rgba(255,255,255,.09);margin-top:3px;overflow:hidden}
+.g .fill{height:100%;border-radius:3px;transition:width .25s}
+
+/* Anchored to the height the page can SEE. For a fixed element a percentage
+   is the layout viewport, so 100% - --appH is exactly the strip hidden under
+   a phone's address bar, and the panel clears it. */
+/* The controls card. It sits over the picture, near the buttons it is about,
+   and it is gone the moment it is read. */
+/* Settings, under the gear that opens them. */
+#cfg{position:fixed;top:calc(var(--sceneTop,0px) + 62px);right:12px;z-index:40;
+  width:min(272px,calc(100vw - 24px));background:#0e1720;border:1px solid var(--line);
+  border-radius:12px;padding:12px 14px;box-shadow:0 14px 40px rgba(0,0,0,.5);display:none}
+#cfg.show{display:block}
+#cfg h4{margin:0 0 8px;font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim)}
+#cfg label{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;
+  color:#c3d3e0;font-size:12.5px;line-height:1.5;padding:3px 0;cursor:pointer}
+#cfg label small{flex:1 0 100%;padding-left:22px;color:var(--dim);font-size:10.5px}
+#cfg input{accent-color:#3f9ddd;margin:0}
+#cfg label.range{align-items:center}
+#cfg label.range input{flex:1 1 90px;min-width:60px}
+#cfg label.range b{font-variant-numeric:tabular-nums;font-weight:600;min-width:38px;text-align:right;color:#c3d3e0}
+.cfgNote{margin-top:6px;color:#a9bccb;font-size:11.5px;line-height:1.5;min-height:1.5em}
+#cfg .btn+.btn{margin-left:8px}
+.cfgStats{margin-top:9px;padding-top:8px;border-top:1px solid var(--line);
+  color:var(--dim);font-size:11px;font-variant-numeric:tabular-nums;line-height:1.6}
+#cfg .btn{margin-top:9px;padding:6px 12px;font-size:12px}
+
+#help{position:fixed;top:calc(var(--sceneTop,0px) + 68px);left:50%;transform:translateX(-50%);z-index:30;
+  width:min(320px,calc(100vw - 24px));background:#0e1720;border:1px solid var(--line);
+  border-radius:12px;padding:13px 15px 12px;box-shadow:0 14px 40px rgba(0,0,0,.5);display:none}
+#help.show{display:block}
+#help h4{margin:0 0 7px;font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--dim)}
+#help ul{margin:0;padding-left:16px;color:#b7c8d6;font-size:12.5px;line-height:1.7}
+#help b{color:var(--ink)}
+#help .btn{margin-top:10px;padding:6px 12px;font-size:12px}
+
+#feed{position:fixed;left:12px;right:12px;bottom:calc(100% - var(--appH,100%) + 12px);
+  height:120px;overflow:auto;
+  background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:9px 12px;
+  z-index:14;font-size:11.5px;line-height:1.65}
+#feed .e{display:flex;gap:11px}
+#feed .t{color:#5f7284;font-variant-numeric:tabular-nums;min-width:62px}
+#feed .crit{color:#ff9c88} #feed .ok{color:#8ff0b4}
+
+/* The island is drawn behind this the whole time. Blacking it out at 90%
+   wasted the one thing on the page that makes anyone want to press the button,
+   so the scrim is thin enough to see the place you are about to go into. */
+.modalWrap{position:fixed;inset:0;background:rgba(4,8,13,.7);z-index:60;display:none;
+  align-items:center;justify-content:center;padding:20px}
+.modalWrap.open{display:flex}
+.modal{max-width:620px;max-height:90vh;overflow:auto;
+  background:linear-gradient(160deg,#12203097,#0a1119f2) , #0b1219;
+  border:1px solid var(--line);border-radius:17px;padding:26px 28px}
+.modal h1{margin:0 0 12px;font-size:38px;line-height:1.08;letter-spacing:-.025em;
+  font-weight:800}
+.modal h1 em{font-style:normal;color:#ff8a5c}
+.kicker{color:#57d9ff;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+  margin-bottom:11px}
+.lede{color:#c3d3e0;font-size:14.5px;line-height:1.65;margin:0 0 18px}
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 20px}
+.vs .card{background:rgba(255,255,255,.04);border:1px solid var(--line);
+  border-left-width:3px;border-radius:10px;padding:11px 13px}
+.vs .card.a{border-left-color:#ff8a5c}
+.vs .card.b{border-left-color:#57d9ff}
+.vs .card b{display:block;font-size:13.5px;margin-bottom:4px}
+.vs .card.a b{color:#ff8a5c}
+.vs .card.b b{color:#57d9ff}
+.vs .card span{color:#a9bccb;font-size:12px;line-height:1.6}
+.foot{color:var(--dim);font-size:11.5px;line-height:1.6;margin:10px 0 0;text-align:center}
+@media (max-width:560px){
+  .modal h1{font-size:29px}
+  .vs{grid-template-columns:1fr}
+}
+.modal h3{margin:16px 0 8px;font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim)}
+.howto{margin:0;padding-left:18px;color:#b7c8d6;font-size:12.5px;line-height:1.7}
+.howto li{margin-bottom:6px}
+.howto b{color:var(--ink)}
+.btn{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:10px;
+  color:var(--ink);padding:9px 15px;font:600 13px var(--font);cursor:pointer}
+.btn.primary{background:linear-gradient(#2b86cf,#1f6ba8);border-color:#3f9ddd}
+.btn.big{width:100%;padding:13px;font-size:15px;margin-top:18px}
+.disc{margin-top:14px;color:var(--dim);font-size:12px}
+.disc summary{cursor:pointer}
+.disc table{width:100%;border-collapse:collapse;margin-top:9px;font-size:11.5px;line-height:1.6}
+.disc th{text-align:left;vertical-align:top;padding:6px 10px 6px 0;color:#8fd0ff;white-space:nowrap}
+.disc td{padding:6px 0;border-bottom:1px solid var(--line);color:#a9bccb}
+
+@media (max-width:900px){
+  .panel{position:fixed;top:auto;bottom:calc(100% - var(--appH,100%) + 118px);
+    width:auto;left:10px;right:10px;max-height:38vh;display:none}
+  .panel.show{display:block}
+  #feed{height:96px;bottom:calc(100% - var(--appH,100%) + 8px)}
+  /* Wrap instead of scrolling sideways. A row that overflows hides the speed
+     buttons and every icon off the right edge, and nothing says they are
+     there. Two short rows show the lot. */
+  #bar{gap:6px 8px;padding:5px 8px;height:auto;flex-wrap:wrap;justify-content:flex-start}
+  /* No auto margin on a wrapped row: it shoves the last icon to the far right
+     and forces a line of its own with a hole in the middle. */
+  #bar .icon:last-of-type{margin-left:0}
+  .clock{order:-1}
+  #speedSeg{order:1}
+  .seg button{padding:6px 8px}
+  .icon.mob{display:block}
+  /* Three short rows, and the subtitle is the one thing in them that says
+     nothing a person needs while the plant is running. */
+  .clock{min-width:78px} .clock b{font-size:16px} .clock small{display:none}
+  .seg button{padding:7px 9px;font-size:11.5px}
+  .tag{font-size:11px} .tag.title b{font-size:17px}
+}

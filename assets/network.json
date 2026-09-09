@@ -1,0 +1,1548 @@
+{
+  "_": "The station of nuclear-cooling-sim in the schema of 3d-fluid-simulator, written by tools/network.mjs from assets/layout.json. Unit-local metres, y up, the cut plane z = 0. Both designs are in one file, tagged: elements with design passive (the pool loop, the gravity line) or active (the tank, the injection) belong to that unit alone and are dropped from the network of the other unit (hydro.js networkFor).",
+  "version": 1,
+  "tempUnit": "C",
+  "defaults": {
+    "fluid": "water",
+    "rough": 0.000045,
+    "bend": 1,
+    "cells": 8,
+    "cd": 0.61
+  },
+  "nodes": [
+    {
+      "id": "rpv",
+      "kind": "volume",
+      "free": true,
+      "at": [
+        4.5,
+        2.6,
+        0
+      ],
+      "shape": {
+        "kind": "lathe",
+        "profile": [
+          [
+            0,
+            2.6
+          ],
+          [
+            0.624,
+            2.65
+          ],
+          [
+            1.225,
+            2.798
+          ],
+          [
+            1.778,
+            3.038
+          ],
+          [
+            2.263,
+            3.362
+          ],
+          [
+            2.661,
+            3.756
+          ],
+          [
+            2.956,
+            4.205
+          ],
+          [
+            3.139,
+            4.693
+          ],
+          [
+            3.2,
+            5.2
+          ],
+          [
+            3.2,
+            16.1
+          ],
+          [
+            3.139,
+            16.783
+          ],
+          [
+            2.956,
+            17.439
+          ],
+          [
+            2.661,
+            18.044
+          ],
+          [
+            2.263,
+            18.575
+          ],
+          [
+            1.778,
+            19.01
+          ],
+          [
+            1.225,
+            19.334
+          ],
+          [
+            0.624,
+            19.533
+          ],
+          [
+            0,
+            19.6
+          ]
+        ]
+      },
+      "gas": {
+        "p": 15500000,
+        "closed": true
+      },
+      "fill": 0.7288,
+      "T": 333,
+      "display": {
+        "range": "hot",
+        "gradient": {
+          "from": "coldB",
+          "to": "hot"
+        }
+      }
+    },
+    {
+      "id": "przr",
+      "kind": "volume",
+      "free": true,
+      "at": [
+        1,
+        14.5,
+        -3
+      ],
+      "shape": {
+        "kind": "lathe",
+        "profile": [
+          [
+            0,
+            14.5
+          ],
+          [
+            1.2,
+            14.5
+          ],
+          [
+            1.2,
+            20.5
+          ],
+          [
+            0,
+            20.5
+          ]
+        ]
+      },
+      "gas": {
+        "p": 15500000,
+        "closed": true
+      },
+      "fill": 0.55,
+      "T": 345,
+      "display": {
+        "draw": false
+      }
+    },
+    {
+      "id": "sg_hot",
+      "kind": "junction",
+      "at": [
+        -8.5,
+        13,
+        0
+      ],
+      "T": 333,
+      "shape": {
+        "kind": "lathe",
+        "profile": [
+          [
+            0,
+            11.65
+          ],
+          [
+            0.2,
+            11.65
+          ],
+          [
+            1.35,
+            11.8
+          ],
+          [
+            2.34,
+            12.26
+          ],
+          [
+            2.64,
+            13.35
+          ],
+          [
+            2.64,
+            14.2
+          ]
+        ]
+      },
+      "display": {
+        "range": "hot",
+        "split": {
+          "at": 3.141592653589793,
+          "range": "cold"
+        }
+      }
+    },
+    {
+      "id": "sg_cold",
+      "kind": "junction",
+      "at": [
+        -10.22,
+        13,
+        0
+      ],
+      "T": 304
+    },
+    {
+      "id": "rcp_j",
+      "kind": "junction",
+      "at": [
+        -3.6,
+        8.2,
+        0
+      ],
+      "T": 304
+    },
+    {
+      "id": "sg",
+      "kind": "volume",
+      "free": true,
+      "at": [
+        -8.5,
+        11.3,
+        0
+      ],
+      "shape": {
+        "kind": "lathe",
+        "profile": [
+          [
+            0,
+            14.3
+          ],
+          [
+            2.3,
+            14.3
+          ],
+          [
+            2.3,
+            25.8
+          ],
+          [
+            4,
+            25.8
+          ],
+          [
+            3.923,
+            28.468
+          ],
+          [
+            3.696,
+            28.918
+          ],
+          [
+            3.326,
+            29.333
+          ],
+          [
+            2.828,
+            29.697
+          ],
+          [
+            2.222,
+            29.996
+          ],
+          [
+            1.531,
+            30.217
+          ],
+          [
+            0.78,
+            30.354
+          ],
+          [
+            0,
+            30.4
+          ]
+        ]
+      },
+      "gas": {
+        "p": 7000000,
+        "closed": true
+      },
+      "fill": 0.4952,
+      "T": 285,
+      "display": {
+        "range": "feed_in"
+      }
+    },
+    {
+      "id": "sg_down",
+      "kind": "volume",
+      "free": true,
+      "at": [
+        -8.5,
+        14.3,
+        0
+      ],
+      "shape": {
+        "kind": "annulus",
+        "outer": [
+          [
+            2.64,
+            14.3
+          ],
+          [
+            2.64,
+            20.4
+          ],
+          [
+            3.04,
+            22.1
+          ],
+          [
+            3.94,
+            23.9
+          ],
+          [
+            3.94,
+            25.8
+          ]
+        ],
+        "inner": [
+          [
+            2.3,
+            14.3
+          ],
+          [
+            2.3,
+            25.8
+          ]
+        ]
+      },
+      "gas": {
+        "p": 7000000,
+        "closed": true
+      },
+      "fill": 0.9346,
+      "T": 230,
+      "display": {
+        "range": "feed_in",
+        "gradient": {
+          "from": "feed_in",
+          "to": "downcomer"
+        }
+      }
+    },
+    {
+      "id": "turb_in",
+      "kind": "junction",
+      "at": [
+        20.7,
+        13.05,
+        0
+      ],
+      "T": 285,
+      "p": 7050000
+    },
+    {
+      "id": "cond",
+      "kind": "volume",
+      "free": true,
+      "at": [
+        23.5,
+        1.4,
+        0
+      ],
+      "shape": {
+        "kind": "cylinder",
+        "r": 2,
+        "len": 6.2,
+        "y0": 1.4,
+        "axis": "x"
+      },
+      "gas": {
+        "p": 7400,
+        "closed": true
+      },
+      "fill": 0.052,
+      "T": 40,
+      "display": {
+        "range": "cond_suct"
+      }
+    },
+    {
+      "id": "cpump_j",
+      "kind": "junction",
+      "at": [
+        17.6,
+        -1.36,
+        0
+      ],
+      "T": 40,
+      "p": 37000
+    },
+    {
+      "id": "disch_j",
+      "kind": "junction",
+      "at": [
+        12.3,
+        1.64,
+        0
+      ],
+      "T": 40,
+      "p": 8000000
+    },
+    {
+      "id": "fcv_j",
+      "kind": "junction",
+      "at": [
+        -3.4,
+        29,
+        0
+      ],
+      "T": 40,
+      "p": 7400000
+    },
+    {
+      "id": "cwpump_j",
+      "kind": "junction",
+      "at": [
+        30.6,
+        -3,
+        0
+      ]
+    },
+    {
+      "id": "cw_in",
+      "kind": "junction",
+      "at": [
+        26.725,
+        2.78,
+        0
+      ]
+    },
+    {
+      "id": "cw_out_j",
+      "kind": "junction",
+      "at": [
+        26.725,
+        4.23,
+        0
+      ]
+    },
+    {
+      "id": "sea",
+      "kind": "boundary",
+      "at": [
+        31.8,
+        -2.7,
+        0
+      ],
+      "p": 101325,
+      "T": 15
+    },
+    {
+      "id": "cont",
+      "kind": "boundary",
+      "at": [
+        -15.4,
+        26,
+        0
+      ],
+      "fluid": "steam",
+      "p": 110000,
+      "T": 115
+    },
+    {
+      "id": "atm",
+      "kind": "boundary",
+      "at": [
+        -18.6,
+        31.5,
+        0
+      ],
+      "fluid": "air",
+      "p": 101325,
+      "T": 20
+    },
+    {
+      "id": "sump",
+      "kind": "volume",
+      "free": true,
+      "at": [
+        0,
+        0,
+        0
+      ],
+      "shape": {
+        "kind": "area",
+        "table": [
+          [
+            0,
+            745.0601137253554
+          ],
+          [
+            3,
+            745.0601137253554
+          ]
+        ]
+      },
+      "gas": {
+        "p": 110000
+      },
+      "fill": 0,
+      "T": 40
+    },
+    {
+      "id": "pool",
+      "kind": "volume",
+      "free": true,
+      "at": [
+        4.5,
+        22.1,
+        0
+      ],
+      "shape": {
+        "kind": "box",
+        "w": 11.8,
+        "d": 6.8,
+        "h": 4.7,
+        "y0": 22.1
+      },
+      "gas": {
+        "p": 110000
+      },
+      "fill": 0.8,
+      "T": 18,
+      "design": "passive"
+    },
+    {
+      "id": "tee",
+      "kind": "junction",
+      "at": [
+        2.9,
+        20.4,
+        0
+      ],
+      "design": "passive"
+    },
+    {
+      "id": "coil_in",
+      "kind": "junction",
+      "at": [
+        8.2,
+        23,
+        0
+      ],
+      "design": "passive"
+    },
+    {
+      "id": "coil_out",
+      "kind": "junction",
+      "at": [
+        9.4,
+        23,
+        0
+      ],
+      "design": "passive"
+    },
+    {
+      "id": "tank",
+      "kind": "volume",
+      "free": true,
+      "at": [
+        -8.5,
+        0.4,
+        0.6
+      ],
+      "shape": {
+        "kind": "box",
+        "w": 8.700000000000001,
+        "d": 3.3,
+        "h": 4,
+        "y0": 0.4
+      },
+      "gas": {
+        "p": 110000
+      },
+      "fill": 0.85,
+      "T": 18,
+      "design": "active"
+    },
+    {
+      "id": "eccs_j",
+      "kind": "junction",
+      "at": [
+        -2.1,
+        1.7,
+        0
+      ],
+      "design": "active"
+    }
+  ],
+  "edges": [
+    {
+      "id": "surge",
+      "from": "sg_hot",
+      "to": "przr",
+      "dia": 0.3,
+      "bend": 0.5,
+      "cells": 4,
+      "pts": [
+        [
+          -6.1,
+          13,
+          0
+        ],
+        [
+          1,
+          13,
+          -3
+        ],
+        [
+          1,
+          14.6,
+          -3
+        ]
+      ],
+      "display": {
+        "draw": false
+      }
+    },
+    {
+      "id": "hot",
+      "from": "rpv",
+      "to": "sg_hot",
+      "dia": 1.1,
+      "n": 2,
+      "bend": 1,
+      "pts": [
+        [
+          1.4,
+          13,
+          0
+        ],
+        [
+          -6.6,
+          13,
+          0
+        ]
+      ]
+    },
+    {
+      "id": "sg_tubes",
+      "kind": "tubes",
+      "from": "sg_hot",
+      "to": "sg_cold",
+      "dia": 0.34,
+      "n": 17,
+      "bend": 0.9,
+      "cells": 16,
+      "pts": [
+        [
+          -7.16,
+          13,
+          -0.32
+        ],
+        [
+          -7.16,
+          21.506,
+          -0.32
+        ],
+        [
+          -9.84,
+          21.506,
+          -0.32
+        ],
+        [
+          -9.84,
+          13,
+          -0.32
+        ]
+      ],
+      "display": {
+        "bundle": {
+          "n": 5,
+          "widen": 0.84
+        }
+      }
+    },
+    {
+      "id": "cold",
+      "from": "sg_cold",
+      "to": "rcp_j",
+      "dia": 1,
+      "n": 2,
+      "bend": 1.5,
+      "pts": [
+        [
+          -10.22,
+          13,
+          0
+        ],
+        [
+          -12.9,
+          13,
+          0
+        ],
+        [
+          -12.9,
+          5.4,
+          0
+        ],
+        [
+          -3.6,
+          5.4,
+          0
+        ],
+        [
+          -3.6,
+          8.2,
+          0
+        ]
+      ],
+      "device": "rcp"
+    },
+    {
+      "id": "coldB",
+      "from": "rcp_j",
+      "to": "rpv",
+      "dia": 1,
+      "n": 2,
+      "bend": 1,
+      "pts": [
+        [
+          -2.1,
+          8.2,
+          0
+        ],
+        [
+          1.4,
+          8.2,
+          0
+        ]
+      ]
+    },
+    {
+      "id": "steam",
+      "from": "sg",
+      "to": "turb_in",
+      "dia": 1.2,
+      "n": 2,
+      "bend": 1.5,
+      "pts": [
+        [
+          -8.5,
+          30.25,
+          0
+        ],
+        [
+          -8.5,
+          31.4,
+          0
+        ],
+        [
+          13.6,
+          31.4,
+          0
+        ],
+        [
+          13.6,
+          14,
+          0
+        ],
+        [
+          20.7,
+          14,
+          0
+        ],
+        [
+          20.7,
+          13.05,
+          0
+        ]
+      ],
+      "fluid": "steam"
+    },
+    {
+      "id": "exhaust",
+      "from": "turb_in",
+      "to": "cond",
+      "dia": 1.4,
+      "n": 1,
+      "bend": 0.5,
+      "k": 400,
+      "pts": [
+        [
+          20.7,
+          13.05,
+          0
+        ],
+        [
+          20.7,
+          10.4,
+          0
+        ],
+        [
+          23,
+          10.4,
+          0
+        ],
+        [
+          23,
+          7.175,
+          0
+        ],
+        [
+          23,
+          5.35,
+          0
+        ]
+      ],
+      "fluid": "steam"
+    },
+    {
+      "id": "cond_suct",
+      "from": "cond",
+      "to": "cpump_j",
+      "dia": 0.5,
+      "n": 3,
+      "bend": 0.5,
+      "pts": [
+        [
+          21,
+          1.64,
+          0
+        ],
+        [
+          17.9,
+          1.64,
+          0
+        ],
+        [
+          17.6,
+          1.64,
+          0
+        ],
+        [
+          17.6,
+          -1.36,
+          0
+        ]
+      ],
+      "device": "cond_check"
+    },
+    {
+      "id": "feed",
+      "from": "cpump_j",
+      "to": "disch_j",
+      "dia": 0.7,
+      "n": 2,
+      "bend": 0.8,
+      "pts": [
+        [
+          17.6,
+          -1.36,
+          0
+        ],
+        [
+          17.6,
+          1.64,
+          0
+        ],
+        [
+          17.1,
+          1.64,
+          0
+        ],
+        [
+          12.3,
+          1.64,
+          0
+        ]
+      ],
+      "device": "cpump"
+    },
+    {
+      "id": "feed_out",
+      "from": "disch_j",
+      "to": "fcv_j",
+      "dia": 0.7,
+      "n": 2,
+      "bend": 0.8,
+      "pts": [
+        [
+          12.3,
+          1.64,
+          0
+        ],
+        [
+          12.3,
+          29,
+          0
+        ],
+        [
+          -3.4,
+          29,
+          0
+        ]
+      ],
+      "device": "feed_check"
+    },
+    {
+      "id": "feed_in",
+      "from": "fcv_j",
+      "to": "sg_down",
+      "dia": 0.7,
+      "n": 2,
+      "bend": 0.8,
+      "pts": [
+        [
+          -3.4,
+          29,
+          0
+        ],
+        [
+          -3.4,
+          23.9,
+          0
+        ],
+        [
+          -6.7,
+          23.9,
+          0
+        ]
+      ],
+      "device": "feed_valve"
+    },
+    {
+      "id": "downcomer",
+      "from": "sg_down",
+      "to": "sg",
+      "dia": 0.6,
+      "n": 8,
+      "bend": 0,
+      "k": 1,
+      "pts": [
+        [
+          -6.029999999999999,
+          14.9,
+          0
+        ],
+        [
+          -6.029999999999999,
+          14.4,
+          0
+        ]
+      ],
+      "display": {
+        "draw": false
+      }
+    },
+    {
+      "id": "recirc",
+      "from": "sg",
+      "to": "sg_down",
+      "dia": 1,
+      "n": 12,
+      "bend": 0,
+      "k": 2,
+      "pts": [
+        [
+          -6.5,
+          25.4,
+          0
+        ],
+        [
+          -5.9,
+          25.4,
+          0
+        ]
+      ],
+      "display": {
+        "draw": false
+      }
+    },
+    {
+      "id": "cw_suct",
+      "from": "sea",
+      "to": "cwpump_j",
+      "dia": 0.9,
+      "n": 12,
+      "bend": 0.5,
+      "pts": [
+        [
+          30.6,
+          -3.2,
+          0
+        ],
+        [
+          30.6,
+          -3,
+          0
+        ]
+      ]
+    },
+    {
+      "id": "cw_disch",
+      "from": "cwpump_j",
+      "to": "cw_in",
+      "dia": 0.9,
+      "n": 12,
+      "bend": 0.8,
+      "pts": [
+        [
+          30.6,
+          -3,
+          0
+        ],
+        [
+          30.6,
+          1.3,
+          0
+        ],
+        [
+          30.1,
+          1.3,
+          0
+        ],
+        [
+          28.9,
+          1.3,
+          0
+        ],
+        [
+          28.9,
+          2.78,
+          0
+        ],
+        [
+          26.725,
+          2.78,
+          0
+        ]
+      ],
+      "device": "cwpump"
+    },
+    {
+      "id": "cond_tubes",
+      "kind": "tubes",
+      "from": "cw_in",
+      "to": "cw_out_j",
+      "dia": 0.32,
+      "n": 95,
+      "bend": 0.5,
+      "cells": 16,
+      "pts": [
+        [
+          26.725,
+          2.78,
+          -0.35
+        ],
+        [
+          21.26,
+          2.78,
+          -0.35
+        ],
+        [
+          21.26,
+          4.23,
+          -0.35
+        ],
+        [
+          26.725,
+          4.23,
+          -0.35
+        ]
+      ],
+      "display": {
+        "bundle": {
+          "n": 3,
+          "widen": 0.76
+        }
+      }
+    },
+    {
+      "id": "cw_out",
+      "from": "cw_out_j",
+      "to": "sea",
+      "dia": 0.9,
+      "n": 12,
+      "bend": 1.2,
+      "pts": [
+        [
+          26.725,
+          4.23,
+          0
+        ],
+        [
+          33.7,
+          4.23,
+          0
+        ],
+        [
+          33.7,
+          -3.2,
+          0
+        ]
+      ]
+    },
+    {
+      "id": "vent",
+      "from": "cont",
+      "to": "atm",
+      "dia": 0.8,
+      "n": 1,
+      "bend": 1.6,
+      "pts": [
+        [
+          -15.4,
+          26,
+          0
+        ],
+        [
+          -18.6,
+          26,
+          0
+        ],
+        [
+          -18.6,
+          30,
+          0
+        ]
+      ],
+      "fluid": "steam",
+      "device": "vent_valve"
+    },
+    {
+      "id": "prhr_up",
+      "from": "rpv",
+      "to": "coil_in",
+      "dia": 0.45,
+      "n": 1,
+      "bend": 1.6,
+      "pts": [
+        [
+          7.6,
+          13,
+          0
+        ],
+        [
+          8.2,
+          13,
+          0
+        ],
+        [
+          8.2,
+          23,
+          0
+        ]
+      ],
+      "device": "prhr_valve",
+      "design": "passive"
+    },
+    {
+      "id": "coil",
+      "kind": "coil",
+      "from": "coil_in",
+      "to": "coil_out",
+      "dia": 0.44,
+      "n": 1,
+      "bend": 0.5,
+      "cells": 12,
+      "pts": [
+        [
+          8.2,
+          23,
+          0
+        ],
+        [
+          8.2,
+          25,
+          0
+        ],
+        [
+          9.4,
+          25,
+          0
+        ],
+        [
+          9.4,
+          23,
+          0
+        ]
+      ],
+      "design": "passive"
+    },
+    {
+      "id": "prhr_down",
+      "from": "coil_out",
+      "to": "rpv",
+      "dia": 0.45,
+      "n": 1,
+      "bend": 1.6,
+      "pts": [
+        [
+          9.4,
+          23,
+          0
+        ],
+        [
+          9.4,
+          9.6,
+          0
+        ],
+        [
+          7.6,
+          9.6,
+          0
+        ]
+      ],
+      "design": "passive"
+    },
+    {
+      "id": "gravity",
+      "from": "pool",
+      "to": "tee",
+      "dia": 0.5,
+      "n": 1,
+      "bend": 1.4,
+      "pts": [
+        [
+          2.9,
+          22.3,
+          0
+        ],
+        [
+          2.9,
+          20.4,
+          0
+        ]
+      ],
+      "device": "grav_valve",
+      "design": "passive"
+    },
+    {
+      "id": "fill",
+      "from": "tee",
+      "to": "rpv",
+      "dia": 0.5,
+      "n": 1,
+      "bend": 0.6,
+      "pts": [
+        [
+          2.9,
+          20.4,
+          0
+        ],
+        [
+          2.9,
+          19,
+          0
+        ]
+      ],
+      "design": "passive"
+    },
+    {
+      "id": "suction",
+      "from": "tank",
+      "to": "eccs_j",
+      "dia": 0.5,
+      "n": 1,
+      "bend": 1,
+      "pts": [
+        [
+          -4.6,
+          0.8,
+          0
+        ],
+        [
+          -2.1,
+          0.8,
+          0
+        ],
+        [
+          -2.1,
+          1.7,
+          0
+        ]
+      ],
+      "device": "inj_valve",
+      "design": "active"
+    },
+    {
+      "id": "injection",
+      "from": "eccs_j",
+      "to": "rcp_j",
+      "dia": 0.4,
+      "n": 1,
+      "bend": 1.6,
+      "pts": [
+        [
+          -0.9,
+          1.7,
+          0
+        ],
+        [
+          0.6,
+          1.7,
+          0
+        ],
+        [
+          0.6,
+          8.2,
+          0
+        ]
+      ],
+      "device": "eccs",
+      "design": "active"
+    }
+  ],
+  "devices": [
+    {
+      "id": "rcp",
+      "kind": "pump",
+      "edge": "cold",
+      "curve": {
+        "H0": 90,
+        "Qr": 24.531024531024528,
+        "Hr": 46
+      },
+      "speed": 1,
+      "inertia": 8
+    },
+    {
+      "id": "cpump",
+      "kind": "pump",
+      "edge": "feed",
+      "curve": {
+        "H0": 1350,
+        "Qr": 2.5,
+        "Hr": 1050
+      },
+      "speed": 0.87,
+      "cmd": 0.87,
+      "inertia": 3
+    },
+    {
+      "id": "cwpump",
+      "kind": "pump",
+      "edge": "cw_disch",
+      "curve": {
+        "H0": 22,
+        "Qr": 60,
+        "Hr": 9
+      },
+      "speed": 1,
+      "inertia": 4
+    },
+    {
+      "id": "eccs",
+      "kind": "pump",
+      "edge": "injection",
+      "curve": {
+        "H0": 1800,
+        "Qr": 0.045,
+        "Hr": 1500
+      },
+      "speed": 0,
+      "cmd": 0,
+      "inertia": 2,
+      "design": "active"
+    },
+    {
+      "id": "grav_valve",
+      "kind": "valve",
+      "edge": "gravity",
+      "open": 0,
+      "Kfull": 2500,
+      "tau": 3,
+      "design": "passive"
+    },
+    {
+      "id": "prhr_valve",
+      "kind": "valve",
+      "edge": "prhr_up",
+      "open": 0,
+      "Kfull": 4,
+      "tau": 5,
+      "design": "passive"
+    },
+    {
+      "id": "inj_valve",
+      "kind": "valve",
+      "edge": "suction",
+      "open": 0,
+      "Kfull": 4,
+      "tau": 2,
+      "design": "active"
+    },
+    {
+      "id": "cond_check",
+      "kind": "check",
+      "edge": "cond_suct",
+      "dir": 1
+    },
+    {
+      "id": "feed_check",
+      "kind": "check",
+      "edge": "feed_out",
+      "dir": 1
+    },
+    {
+      "id": "feed_valve",
+      "kind": "valve",
+      "edge": "feed_in",
+      "open": 0.393,
+      "cmd": 0.393,
+      "Kfull": 50,
+      "tau": 1.5
+    },
+    {
+      "id": "vent_valve",
+      "kind": "valve",
+      "edge": "vent",
+      "open": 0,
+      "Kfull": 150,
+      "tau": 2
+    },
+    {
+      "id": "turb",
+      "kind": "loss",
+      "edge": "exhaust",
+      "dp": 5339000,
+      "W": 2726878130.217028
+    }
+  ],
+  "heat": [
+    {
+      "id": "core",
+      "kind": "source",
+      "on": "node:rpv",
+      "W": 3400000000
+    },
+    {
+      "id": "sg_hx",
+      "kind": "exchanger",
+      "hot": "edge:sg_tubes",
+      "cold": "node:sg",
+      "UA": 130769230.76923077,
+      "arrangement": "counter"
+    },
+    {
+      "id": "cond_hx",
+      "kind": "exchanger",
+      "hot": "node:cond",
+      "cold": "edge:cond_tubes",
+      "UA": 183333333.33333334,
+      "arrangement": "counter"
+    },
+    {
+      "id": "prhr_hx",
+      "kind": "exchanger",
+      "hot": "edge:coil",
+      "cold": "node:pool",
+      "UA": 40000000,
+      "arrangement": "counter",
+      "design": "passive"
+    }
+  ],
+  "runs": [
+    {
+      "id": "run_primary",
+      "edges": [
+        "hot",
+        "sg_tubes",
+        "cold",
+        "coldB"
+      ],
+      "normalise": "run",
+      "extra": [
+        "rpv"
+      ]
+    },
+    {
+      "id": "run_secondary",
+      "edges": [
+        "steam",
+        "exhaust",
+        "cond_suct",
+        "feed",
+        "feed_out",
+        "feed_in",
+        "downcomer",
+        "recirc"
+      ],
+      "normalise": "run",
+      "extra": [
+        "sg",
+        "sg_down",
+        "cond"
+      ]
+    },
+    {
+      "id": "run_sea",
+      "edges": [
+        "cw_suct",
+        "cw_disch",
+        "cond_tubes",
+        "cw_out"
+      ],
+      "normalise": "run"
+    },
+    {
+      "id": "run_prhr",
+      "edges": [
+        "prhr_up",
+        "coil",
+        "prhr_down"
+      ],
+      "normalise": "run",
+      "design": "passive"
+    },
+    {
+      "id": "run_gravity",
+      "edges": [
+        "gravity",
+        "fill"
+      ],
+      "normalise": "run",
+      "extra": [
+        "rpv"
+      ],
+      "design": "passive"
+    },
+    {
+      "id": "run_inject",
+      "edges": [
+        "suction",
+        "injection"
+      ],
+      "normalise": "run",
+      "extra": [
+        "rpv"
+      ],
+      "design": "active"
+    },
+    {
+      "id": "run_vent",
+      "edges": [
+        "vent"
+      ],
+      "normalise": "run"
+    }
+  ]
+}
