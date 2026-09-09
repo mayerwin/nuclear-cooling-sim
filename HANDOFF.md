@@ -131,9 +131,10 @@ Done means two things, in this order:
 - The register's statuses and proofs are the only record of review; git is
   the only record of history. Memory of what the owner decided lives in
   `AGENTS.md` and this file, nowhere else. The traps that still bite are in
-  `AGENTS.md`; the longer list of past ones, and every round's story, is in
-  the previous HANDOFF (`git show cbdf0cb:HANDOFF.md`), and the library keeps
-  its own behaviour facts in `../3d-fluid-simulator/docs/traps.md`.
+  `AGENTS.md`. The repository's history was cleared on 2026-09-08 at the
+  owner's request (one root commit); the earlier rounds' stories exist only
+  as local tags on the owner's laptop (`backup/main-2026-09-08`). The library
+  keeps its own behaviour facts in `../3d-fluid-simulator/docs/traps.md`.
 
 ## Waiting on the owner
 
